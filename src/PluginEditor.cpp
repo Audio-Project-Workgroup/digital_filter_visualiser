@@ -3,8 +3,10 @@
 
 //==============================================================================
 RootSliderComponent::RootSliderComponent(AudioPluginAudioProcessor &p)
-  : addRoot("+"), delRoot("-"), processorRef(p)
+  : addRoot("+"), delRoot("-"), undo("undo"), redo("redo"), processorRef(p)
 {
+  processorRef.state.addListener(this);
+
   addAndMakeVisible(addRoot);
   addAndMakeVisible(delRoot);
 
@@ -31,10 +33,25 @@ RootSliderComponent::RootSliderComponent(AudioPluginAudioProcessor &p)
     sliders.removeLast();
     sliders.removeLast();
   };
+
+  addAndMakeVisible(undo);
+  addAndMakeVisible(redo);
+
+  undo.setBounds(200, 100, 100, 50);
+  redo.setBounds(200, 150, 100, 50);
+
+  undo.onClick = [this]{
+    processorRef.um.undo();
+  };
+  redo.onClick = [this]{
+    processorRef.um.redo();
+  };
 }
 
 RootSliderComponent::~RootSliderComponent()
-{}
+{
+  processorRef.state.removeListener(this);
+}
 
 void RootSliderComponent::resized()
 {
@@ -45,6 +62,8 @@ void RootSliderComponent::resized()
   {
     slider->setBounds(area.removeFromTop(50).reduced(5));
   }
+  undo.setBounds(area.removeFromTop(50).removeFromLeft(100));
+  redo.setBounds(area.removeFromTop(50).removeFromLeft(100));
 }
 
 //==============================================================================

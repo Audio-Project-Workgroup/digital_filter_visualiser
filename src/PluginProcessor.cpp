@@ -10,7 +10,7 @@ AudioPluginAudioProcessor::AudioPluginAudioProcessor()
 #endif
                     .withOutput ("Output", juce::AudioChannelSet::stereo(), true)
 #endif
-                    ), state(*this, nullptr),
+                    ), state(*this, &um),
     filter(juce::dsp::IIR::Coefficients<SampleType>::makeLowPass(44100.0, 1200.f, 0.1f))
 {
 }

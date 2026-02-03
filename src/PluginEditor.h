@@ -3,7 +3,7 @@
 #include "PluginProcessor.h"
 
 //==============================================================================
-class RootSliderComponent final : public juce::Component
+class RootSliderComponent final : public juce::Component, private juce::ValueTree::Listener
 {
 public:
   RootSliderComponent(AudioPluginAudioProcessor &p);
@@ -28,8 +28,17 @@ public:
   void resized() override;
 
 private:
+
+  void valueTreeChildRemoved(juce::ValueTree&, juce::ValueTree&, int) override
+  {
+    sliders.removeLast();
+    sliders.removeLast();
+  }
+
   juce::TextButton addRoot;
   juce::TextButton delRoot;
+  juce::TextButton undo;
+  juce::TextButton redo;
   juce::OwnedArray<Slider> sliders;
   AudioPluginAudioProcessor &processorRef;
 };

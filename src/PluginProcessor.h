@@ -48,6 +48,7 @@ struct FilterRoot
   }
 
   juce::ValueTree node; // each root manages its own node in the state tree
+  Ptr ptr; // needed because of callback bullshit
 
   juce::CachedValue<int> conjugate; // the index of this root's conjugate node in the state tree
   struct {
@@ -61,15 +62,11 @@ struct FilterRoot
   } value;
   juce::CachedValue<int> order;
 
-  // Ptr conjugate;
-  // c128 value;
-  // s32 order;
-
 private:
   JUCE_DECLARE_WEAK_REFERENCEABLE(FilterRoot);
 };
 
-struct FilterState
+struct FilterState : private juce::ValueTree::Listener
 {
   FilterState(juce::AudioProcessor &p, juce::UndoManager *um)
     : apvts(p, um)
@@ -78,8 +75,13 @@ struct FilterState
     {
       apvts.state = juce::ValueTree(IDs::FilterState);
     }
-    auto zerosNode = apvts.state.getOrCreateChildWithName(IDs::Zeros, um);
-    auto polesNode = apvts.state.getOrCreateChildWithName(IDs::Poles, um);
+
+    auto zerosNode = apvts.state.getOrCreateChildWithName(IDs::Zeros, nullptr);
+    auto polesNode = apvts.state.getOrCreateChildWithName(IDs::Poles, nullptr);
+
+    apvts.state.addListener(this);
+    zerosNode.addListener(this);
+    polesNode.addListener(this);
   }
 
   FilterRoot::Ptr add(s32 newOrder)
@@ -90,25 +92,19 @@ struct FilterState
     newNode.setProperty(IDs::ValueIm, 0.0, nullptr);
     newNode.setProperty(IDs::Conjugate, -1, nullptr);
 
-    FilterRoot *root = nullptr;
     if(newOrder > 0)
     {
-      // NOTE: adding a zero
       apvts.state.getChildWithName(IDs::Zeros).appendChild(newNode, apvts.undoManager);
-      root = zeros.add(new FilterRoot(newNode));
     }
     else if(newOrder < 0)
     {
-      // NOTE: adding a pole
       apvts.state.getChildWithName(IDs::Poles).appendChild(newNode, apvts.undoManager);
-      root = poles.add(new FilterRoot(newNode));
     }
     else
     {
       jassertfalse; // order must be nonzero;
     }
-    order += u32(std::abs(newOrder));
-    FilterRoot::Ptr result(root);
+    FilterRoot::Ptr result = getRootFromTreeNode(newNode);
     return(result);
   }
 
@@ -120,11 +116,17 @@ struct FilterState
       auto node = root->node;
       auto parent = node.getParent();
       parent.removeChild(node, apvts.undoManager);
-
-      // NOTE: `removeObject` does nothing if the passed object is not in the array
-      zeros.removeObject(root);
-      poles.removeObject(root);
     }
+  }
+
+  void addListener(juce::ValueTree::Listener *listener)
+  {
+    apvts.state.addListener(listener);
+  }
+
+  void removeListener(juce::ValueTree::Listener *listener)
+  {
+    apvts.state.removeListener(listener);
   }
 
   juce::OwnedArray<FilterRoot> zeros;
@@ -132,6 +134,59 @@ struct FilterState
   u32 order;
 
 private:
+
+  // TODO(ry): I'd love to not have to do a linear scan to associate value tree
+  // nodes with weak references to filter root objects, but other methods have
+  // proven difficult to implement
+  FilterRoot::Ptr getRootFromTreeNode(const juce::ValueTree &nodeToFind)
+  {
+    for(auto *z : zeros)
+    {
+      if(z->node == nodeToFind) return z;
+    }
+    for(auto *p : poles)
+    {
+      if(p->node == nodeToFind) return p;
+    }
+    jassertfalse;
+    return nullptr;
+  }
+
+  void valueTreeChildAdded(juce::ValueTree &parent, juce::ValueTree &child) override
+  {
+    if(child.hasType(IDs::Root))
+    {
+      if(parent.hasType(IDs::Zeros))
+      {
+        zeros.add(new FilterRoot(child));
+      }
+      else if(parent.hasType(IDs::Poles))
+      {
+        poles.add(new FilterRoot(child));
+      }
+      order += u32(std::abs(s32(child.getProperty(IDs::Order))));
+    }
+  }
+
+  void valueTreeChildRemoved(juce::ValueTree &parent, juce::ValueTree &child, int index) override
+  {
+    juce::ignoreUnused(index);
+    if(child.hasType(IDs::Root))
+    {
+      if(auto root = getRootFromTreeNode(child).get())
+      {
+        if(parent.hasType(IDs::Zeros))
+        {
+          zeros.removeObject(root);
+        }
+        else if(parent.hasType(IDs::Poles))
+        {
+          poles.removeObject(root);
+        }
+      }
+    }
+  }
+
   juce::AudioProcessorValueTreeState apvts;
 };
 
@@ -181,6 +236,7 @@ public:
 
   //juce::AudioProcessorValueTreeState state;
   FilterState state;
+  juce::UndoManager um;
 
 private:
 
