@@ -1,6 +1,8 @@
 #include "PluginProcessor.h"
 #include "PluginEditor.h"
 
+juce::UndoManager *FilterRoot::um = nullptr;
+
 //==============================================================================
 AudioPluginAudioProcessor::AudioPluginAudioProcessor()
   : AudioProcessor (BusesProperties()
@@ -13,10 +15,12 @@ AudioPluginAudioProcessor::AudioPluginAudioProcessor()
                     ), state(*this, &um),
     filter(juce::dsp::IIR::Coefficients<SampleType>::makeLowPass(44100.0, 1200.f, 0.1f))
 {
+  FilterRoot::um = &um;
 }
 
 AudioPluginAudioProcessor::~AudioPluginAudioProcessor()
 {
+  FilterRoot::um = nullptr;
 }
 
 //==============================================================================

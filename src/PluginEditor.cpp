@@ -14,20 +14,8 @@ RootSliderComponent::RootSliderComponent(AudioPluginAudioProcessor &p)
   delRoot.setBounds(100, 150, 100, 50);
 
   addRoot.onClick = [this]{
-    auto root = processorRef.state.add(1);
-    auto *mag = sliders.add(new RootSliderComponent::Slider(processorRef.state, root));
-    auto *arg = sliders.add(new RootSliderComponent::Slider(processorRef.state, root));
-    mag->setSliderStyle(juce::Slider::LinearHorizontal);
-    arg->setSliderStyle(juce::Slider::LinearHorizontal);
-    mag->setTextBoxStyle(juce::Slider::TextBoxLeft, true, 50, 25);
-    arg->setTextBoxStyle(juce::Slider::TextBoxLeft, true, 50, 25);
-    mag->setRange(0.0, 1.0);
-    arg->setRange(-juce::MathConstants<double>::pi, juce::MathConstants<double>::pi);
-    // mag->addListener(this);
-    // arg->addListener(this);
-    addAndMakeVisible(mag);
-    addAndMakeVisible(arg);
-    resized();
+    processorRef.state.add(1);
+    processorRef.um.beginNewTransaction();
   };
   delRoot.onClick = [this]{
     sliders.removeLast();
@@ -41,6 +29,7 @@ RootSliderComponent::RootSliderComponent(AudioPluginAudioProcessor &p)
   redo.setBounds(200, 150, 100, 50);
 
   undo.onClick = [this]{
+    DBG(processorRef.um.getUndoDescription());
     processorRef.um.undo();
   };
   redo.onClick = [this]{

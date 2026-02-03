@@ -37,7 +37,64 @@ namespace IDs
 
 struct FilterRoot
 {
+  // NOTE(ry): This structure is meant to be used as a fast proxy object for
+  // reading and updating the filter state. Using a value tree directly for
+  // these purposes has two problems:
+  // 1. Looking up a value by property requires a linear scan through the tree's
+  //    properties, which is worst-case O(N) in the number of properties. You'd
+  //    think the juce people would use some kind of accelerated O(1) lookup,
+  //    like a hash map, but no. Not even after decades of development.
+  // 2. Updating a property requires a lot of ceremony at the usage site (ie
+  //    passing the property identifier, the new value, and the undo manager to
+  //    use to a function).
+  // We can lean on juce's CachedValue class template to get around these
+  // problems. It stores the most recent value of the associated property, so
+  // it can be read without a loop, and it allows the property to be modified
+  // with a regular assignment operator (though we have to wrap it to pass the
+  // undo manager).
+  // The major drawback with the CachedValue is that it's value is updated in
+  // a value tree listener, which is not synchronized with other value tree
+  // listener callbacks. That means if you want the most recent value in a
+  // `valueTreePropertyChanged()` callback, unfortunately you can't depend on
+  // the cached value being up to date, and you have to do the O(N) property
+  // lookup in the tree instead.
+  // The major drawback with this structure itself is mapping a value tree node
+  // to the FilterRoot structure that wraps it. You can't just write
+  // std::unordered_map<juce::ValueTree, FilterRoot::Ptr> since ValueTree is not
+  // a hashable object. For now, we do our own linear scan through the state
+  // arrays to find which root wraps the given tree node, which is not good.
+  // It's quite possible the disadvantages of this structure outweigh it's
+  // benefits. If it turns out we only ever read from the value tree inside
+  // property changed callbacks, then the convenience and flexibility of
+  // "normal" update code does not justify the continued use of this structure.
   using Ptr = juce::WeakReference<FilterRoot>;
+  static juce::UndoManager *um;
+
+  struct CachedComplex
+  {
+    juce::CachedValue<double> re;
+    juce::CachedValue<double> im;
+    void setValue(c128 v)
+    {
+      re.setValue(v.real(), um);
+      im.setValue(v.imag(), um);
+    }
+    CachedComplex& operator=(const c128 &other)
+    {
+      setValue(other);
+      return *this;
+    }
+
+    c128 get(void)
+    {
+      return(c128(re.get(), im.get()));
+    }
+    c128 get(void) const
+    {
+      return(c128(re.get(), im.get()));
+    }
+    operator c128() const noexcept { return(get()); }
+  };
 
   FilterRoot(juce::ValueTree v) : node(v)
   {
@@ -48,18 +105,9 @@ struct FilterRoot
   }
 
   juce::ValueTree node; // each root manages its own node in the state tree
-  Ptr ptr; // needed because of callback bullshit
 
   juce::CachedValue<int> conjugate; // the index of this root's conjugate node in the state tree
-  struct {
-    juce::CachedValue<double> re;
-    juce::CachedValue<double> im;
-    void setValue(c128 v, juce::UndoManager *um)
-    {
-      re.setValue(v.real(), um);
-      im.setValue(v.imag(), um);
-    }
-  } value;
+  CachedComplex value;
   juce::CachedValue<int> order;
 
 private:
@@ -87,10 +135,10 @@ struct FilterState : private juce::ValueTree::Listener
   FilterRoot::Ptr add(s32 newOrder)
   {
     juce::ValueTree newNode(IDs::Root);
-    newNode.setProperty(IDs::Order, newOrder, nullptr);
-    newNode.setProperty(IDs::ValueRe, 0.0, nullptr);
-    newNode.setProperty(IDs::ValueIm, 0.0, nullptr);
-    newNode.setProperty(IDs::Conjugate, -1, nullptr);
+    newNode.setProperty(IDs::Order, newOrder, apvts.undoManager);
+    newNode.setProperty(IDs::ValueRe, 0.0, apvts.undoManager);
+    newNode.setProperty(IDs::ValueIm, 0.0, apvts.undoManager);
+    newNode.setProperty(IDs::Conjugate, -1, apvts.undoManager);
 
     if(newOrder > 0)
     {
@@ -129,12 +177,6 @@ struct FilterState : private juce::ValueTree::Listener
     apvts.state.removeListener(listener);
   }
 
-  juce::OwnedArray<FilterRoot> zeros;
-  juce::OwnedArray<FilterRoot> poles;
-  u32 order;
-
-private:
-
   // TODO(ry): I'd love to not have to do a linear scan to associate value tree
   // nodes with weak references to filter root objects, but other methods have
   // proven difficult to implement
@@ -151,6 +193,12 @@ private:
     jassertfalse;
     return nullptr;
   }
+
+  juce::OwnedArray<FilterRoot> zeros;
+  juce::OwnedArray<FilterRoot> poles;
+  u32 order;
+
+private:
 
   void valueTreeChildAdded(juce::ValueTree &parent, juce::ValueTree &child) override
   {
