@@ -68,20 +68,15 @@ struct FilterRoot
   // property changed callbacks, then the convenience and flexibility of
   // "normal" update code does not justify the continued use of this structure.
   using Ptr = juce::WeakReference<FilterRoot>;
-  static juce::UndoManager *um;
 
   struct CachedComplex
   {
     juce::CachedValue<double> re;
     juce::CachedValue<double> im;
-    void setValue(c128 v)
-    {
-      re.setValue(v.real(), um);
-      im.setValue(v.imag(), um);
-    }
     CachedComplex& operator=(const c128 &other)
     {
-      setValue(other);
+      re = other.real();
+      im = other.imag();
       return *this;
     }
 
@@ -96,12 +91,12 @@ struct FilterRoot
     operator c128() const noexcept { return(get()); }
   };
 
-  FilterRoot(juce::ValueTree v) : node(v)
+  FilterRoot(juce::ValueTree v, juce::UndoManager *um) : node(v)
   {
-    conjugate.referTo(node, IDs::Conjugate, nullptr);
-    value.re.referTo(node, IDs::ValueRe, nullptr);
-    value.im.referTo(node, IDs::ValueIm, nullptr);
-    order.referTo(node, IDs::Order, nullptr);
+    conjugate.referTo(node, IDs::Conjugate, um);
+    value.re.referTo(node, IDs::ValueRe, um);
+    value.im.referTo(node, IDs::ValueIm, um);
+    order.referTo(node, IDs::Order, um);
   }
 
   juce::ValueTree node; // each root manages its own node in the state tree
@@ -206,11 +201,11 @@ private:
     {
       if(parent.hasType(IDs::Zeros))
       {
-        zeros.add(new FilterRoot(child));
+        zeros.add(new FilterRoot(child, apvts.undoManager));
       }
       else if(parent.hasType(IDs::Poles))
       {
-        poles.add(new FilterRoot(child));
+        poles.add(new FilterRoot(child, apvts.undoManager));
       }
       order += u32(std::abs(s32(child.getProperty(IDs::Order))));
     }
