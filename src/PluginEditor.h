@@ -3,113 +3,208 @@
 #include "PluginProcessor.h"
 
 //==============================================================================
-class RootSliderComponent final : public juce::Component, private juce::ValueTree::Listener
+class ComplexPlaneEditor final : public juce::Component, private juce::ValueTree::Listener
 {
 public:
-  RootSliderComponent(AudioPluginAudioProcessor &p);
-  ~RootSliderComponent();
-
-  struct Slider : juce::Slider, private juce::ValueTree::Listener
+  ComplexPlaneEditor(AudioPluginAudioProcessor &p)
+    : addRoot("+"), delRoot("-"), undo("undo"), redo("redo"), processor(p)
   {
-    enum SliderKind
-    {
-      Mag,
-      Arg,
+    processor.state.addListener(this);
+
+    addRoot.setBounds(100, 100, 100, 50);
+    delRoot.setBounds(100, 150, 100, 50);
+    undo.setBounds(200, 100, 100, 50);
+    redo.setBounds(200, 150, 100, 50);
+
+    // TODO(ry): better add/remove interface & logic
+    addRoot.onClick = [this]{
+      processor.state.add(1);
+    };
+    delRoot.onClick = [this]{
+      processor.state.remove(points.getLast()->root);
     };
 
-    Slider(FilterState &s, FilterRoot::Ptr r, SliderKind k)
-      : juce::Slider(), stateRef(s), root(r), kind(k)
+    undo.onClick = [this]{
+      processor.um.undo();
+    };
+    redo.onClick = [this]{
+      processor.um.redo();
+    };
+
+    addAndMakeVisible(addRoot);
+    addAndMakeVisible(delRoot);
+    addAndMakeVisible(undo);
+    addAndMakeVisible(redo);
+  }
+  ~ComplexPlaneEditor()
+  {
+    processor.state.removeListener(this);
+  }
+
+  class RootPoint final : public juce::Component, private juce::ValueTree::Listener
+  {
+  public:
+    RootPoint(ComplexPlaneEditor *e, FilterRoot::Ptr r) : root(r), parent(e)
     {
-      if(auto *rootPtr = root.get()) { rootPtr->node.addListener(this); }
+      if(auto *rootPtr = root.get())
+      {
+        rootPtr->node.addListener(this);
+      }
+      setSize(10, 10);
     }
-    ~Slider()
+    ~RootPoint()
     {
-      if(auto *rootPtr = root.get()) { rootPtr->node.removeListener(this); }
-      stateRef.remove(root);
+      if(auto *rootPtr = root.get())
+      {
+        rootPtr->node.removeListener(this);
+      }
     }
+
+    void mouseDown(const juce::MouseEvent &e) override
+    {
+      juce::ignoreUnused(e);
+      parent->processor.um.beginNewTransaction();
+      if(auto *rootPtr = root.get())
+      {
+        valueAtDragStart = rootPtr->value;
+      }
+    }
+
+    void mouseDrag(const juce::MouseEvent &e) override
+    {
+      // TODO(ry): handle the case of dragging a root off of the real axis
+      if(auto *rootPtr = root.get())
+      {
+        auto worldUnitsFromPixels = juce::Point<double>(parent->unitsPerPixelX, -parent->unitsPerPixelY);
+        auto dragOffsetPixels = e.getOffsetFromDragStart().toDouble();
+        auto dragOffsetWorld = worldUnitsFromPixels * dragOffsetPixels;
+        auto newRootValue = valueAtDragStart + c128(dragOffsetWorld.getX(), dragOffsetWorld.getY());
+        if(rootPtr->order < 0) newRootValue /= std::abs(newRootValue); // TODO(ry): better stability clamp!
+        rootPtr->value = newRootValue;
+      }
+    }
+
+    void paint(juce::Graphics &g) override
+    {
+      juce::Colour color = juce::Colours::black; // default color is black
+      if(auto *rootPtr = root.get())
+      {
+        if(rootPtr->order < 0) color = juce::Colours::red; // poles are red
+        else if(rootPtr->order > 0) color = juce::Colours::white; // zeros are white
+      }
+      g.setColour(color);
+      g.fillEllipse(getLocalBounds().toFloat());
+    }
+
+    void updateBounds(c128 value)
+    {
+      auto pixelsFromWorldUnits = juce::Point<double>(parent->pixelsPerUnitX, -parent->pixelsPerUnitY);
+      auto newPos = pixelsFromWorldUnits * juce::Point<double>(value.real(), value.imag());
+      setCentrePosition(juce::roundToInt(newPos.getX()), juce::roundToInt(newPos.getY()));
+    }
+
+    FilterRoot::Ptr root;
 
   private:
 
     void valueTreePropertyChanged(juce::ValueTree &node, const juce::Identifier &property) override
     {
-      // NOTE(ry): we look up the value in the tree here, instead of using the
-      // cached value in the root, because this function may be called before
-      // the cached value has updated. Thus the tree is the only reliable
-      // "source of truth" for listeners, whereas filter roots are for fast
-      // access and easy modification.
-      // But like, why not pass the value here instead of the property so I
-      // don't have to do a O(N) scan to get the value I care about?
       if(property == IDs::ValueRe || property == IDs::ValueIm)
       {
-        c128 c = c128(node.getProperty(IDs::ValueRe), node.getProperty(IDs::ValueIm));
-        DBG("slider update from tree: (" << c.real() << ", " << c.imag() << ")");
-        switch(kind)
-        {
-          case Slider::Mag: { setValue(std::abs(c), juce::dontSendNotification); }break;
-          case Slider::Arg: { setValue(std::arg(c), juce::dontSendNotification); }break;
-          default: { jassertfalse; }break;
-        }
+        double valueRe = node.getProperty(IDs::ValueRe);
+        double valueIm = node.getProperty(IDs::ValueIm);
+        updateBounds(c128(valueRe, valueIm));
       }
     }
 
-    FilterState &stateRef;
-    FilterRoot::Ptr root;
-    SliderKind kind;
+    ComplexPlaneEditor *parent;
+    c128 valueAtDragStart;
   };
 
-  //void paint(juce::Graphics&) override;
-  void resized() override;
+  void resized() override
+  {
+    pixelsPerUnitX = getWidth() / worldRange;
+    pixelsPerUnitY = getHeight() / worldRange;
+    unitsPerPixelX = 1.0 / pixelsPerUnitX;
+    unitsPerPixelY = 1.0 / pixelsPerUnitY;
+    for(auto *p : points)
+    {
+      if(auto *root = p->root.get())
+      {
+        p->updateBounds(root->value);
+      }
+    }
+  }
+
+  void paint(juce::Graphics &g) override
+  {
+    const juce::Colour backgroundColor = juce::Colour(0x08, 0x0C, 0x1C);
+    const juce::Colour axisColor = juce::Colours::navajowhite;
+    const juce::Colour lineColor = juce::Colours::snow;
+    const juce::Colour circleColor = juce::Colours::goldenrod;
+
+    // TODO(ry): label axes, lines
+
+    auto center = getLocalBounds().getCentre().toFloat();
+
+    // NOTE(ry): draw background
+    g.fillAll(backgroundColor);
+
+    // NOTE(ry): draw axes
+    g.setColour(axisColor);
+    g.drawVerticalLine(center.x, 0.f, r32(getHeight()));
+    g.drawHorizontalLine(center.y, 0.f, r32(getWidth()));
+
+    // NOTE(ry): draw unit circle
+    g.setColour(circleColor);
+    auto radiusX = r32(pixelsPerUnitX);
+    auto radiusY = r32(pixelsPerUnitY);
+    auto minX = center.x - radiusX;
+    auto minY = center.y - radiusY;
+    auto widthX = 2.f * radiusX;
+    auto widthY = 2.f * radiusY;
+    g.drawEllipse(minX, minY, widthX, widthY, 1.f);
+
+    // NOTE(ry): draw lines
+    g.setColour(lineColor);
+    g.drawVerticalLine(center.x - radiusX, 0.f, r32(getHeight()));
+    g.drawVerticalLine(center.x + radiusX, 0.f, r32(getHeight()));
+    g.drawHorizontalLine(center.y - radiusY, 0.f, r32(getWidth()));
+    g.drawHorizontalLine(center.y + radiusY, 0.f, r32(getWidth()));
+  }
 
 private:
 
-  void valueTreeChildRemoved(juce::ValueTree&, juce::ValueTree&, int) override
-  {
-    // sliders.removeLast();
-    // sliders.removeLast();
-    delRoot.onClick();
-  }
-
-  void valueTreeChildAdded(juce::ValueTree& parent, juce::ValueTree& child) override
+  void valueTreeChildAdded(juce::ValueTree &parent, juce::ValueTree &child) override
   {
     juce::ignoreUnused(parent);
-    auto root = processorRef.state.getRootFromTreeNode(child);
-    auto *mag = sliders.add(new RootSliderComponent::Slider(processorRef.state, root, Slider::Mag));
-    auto *arg = sliders.add(new RootSliderComponent::Slider(processorRef.state, root, Slider::Arg));
-    mag->setSliderStyle(juce::Slider::LinearHorizontal);
-    arg->setSliderStyle(juce::Slider::LinearHorizontal);
-    mag->setTextBoxStyle(juce::Slider::TextBoxLeft, true, 50, 25);
-    arg->setTextBoxStyle(juce::Slider::TextBoxLeft, true, 50, 25);
-    mag->setRange(0.0, 1.0);
-    arg->setRange(-juce::MathConstants<double>::pi, juce::MathConstants<double>::pi);
-    // mag->addListener(this);
-    // arg->addListener(this);
-    auto dragStart = [this]{
-      DBG("slider begin new transaction");
-      processorRef.um.beginNewTransaction();
-    };
-    auto valueChange = [root, mag, arg, this]{
-      if(auto *r = root.get())
-      {
-        auto m = mag->getValue();
-        auto a = arg->getValue();
-        c128 c = std::polar(m, a);
-        DBG("slider update: (" << c.real() << ", " << c.imag() << ")");
-        r->value = c; // NOTE(ry): you can update the state by writing "normal" code
-      }
-    };
-    mag->onDragStart = arg->onDragStart = dragStart;
-    mag->onValueChange = arg->onValueChange = valueChange;
-    addAndMakeVisible(mag);
-    addAndMakeVisible(arg);
+    auto root = processor.state.getRootFromTreeNode(child);
+    auto *point = points.add(new ComplexPlaneEditor::RootPoint(this, root));
+    addAndMakeVisible(point);
     resized();
+  }
+
+  void valueTreeChildRemoved(juce::ValueTree&, juce::ValueTree&, int) override
+  {
+    points.removeLast();
+    repaint();
   }
 
   juce::TextButton addRoot;
   juce::TextButton delRoot;
   juce::TextButton undo;
   juce::TextButton redo;
-  juce::OwnedArray<Slider> sliders;
-  AudioPluginAudioProcessor &processorRef;
+  juce::OwnedArray<RootPoint> points;
+
+  const double worldRange = 3.0; // TODO(ry): make this variable with zoom
+
+  double pixelsPerUnitX;
+  double pixelsPerUnitY;
+  double unitsPerPixelX;
+  double unitsPerPixelY;
+
+  //FilterState &state;
+  AudioPluginAudioProcessor &processor;
 };
 
 //==============================================================================
@@ -139,7 +234,7 @@ private:
   // access the processor object that created it.
   AudioPluginAudioProcessor& processorRef;
 
-  RootSliderComponent rootSliders;
+  ComplexPlaneEditor complexPlaneEditor;
   CoefficientsComponent coefficients;
 
   JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (AudioPluginAudioProcessorEditor)
