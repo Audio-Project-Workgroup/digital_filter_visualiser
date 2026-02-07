@@ -11,6 +11,9 @@ public:
   {
     processor.state.addListener(this);
 
+    pixelsPerUnit = 100.0;
+    unitsPerPixel = 1.0 / pixelsPerUnit;
+
     addRoot.setBounds(100, 100, 100, 50);
     delRoot.setBounds(100, 150, 100, 50);
     undo.setBounds(200, 100, 100, 50);
@@ -75,7 +78,7 @@ public:
       // TODO(ry): handle the case of dragging a root off of the real axis
       if(auto *rootPtr = root.get())
       {
-        auto worldUnitsFromPixels = juce::Point<double>(parent->unitsPerPixelX, -parent->unitsPerPixelY);
+        auto worldUnitsFromPixels = juce::Point<double>(parent->unitsPerPixel, -parent->unitsPerPixel);
         auto dragOffsetPixels = e.getOffsetFromDragStart().toDouble();
         auto dragOffsetWorld = worldUnitsFromPixels * dragOffsetPixels;
         auto newRootValue = valueAtDragStart + c128(dragOffsetWorld.getX(), dragOffsetWorld.getY());
@@ -98,7 +101,7 @@ public:
 
     void updateBounds(c128 value)
     {
-      auto pixelsFromWorldUnits = juce::Point<double>(parent->pixelsPerUnitX, -parent->pixelsPerUnitY);
+      auto pixelsFromWorldUnits = juce::Point<double>(parent->pixelsPerUnit, -parent->pixelsPerUnit);
       auto newPos = pixelsFromWorldUnits * juce::Point<double>(value.real(), value.imag());
       setCentrePosition(juce::roundToInt(newPos.getX()), juce::roundToInt(newPos.getY()));
     }
@@ -121,12 +124,30 @@ public:
     c128 valueAtDragStart;
   };
 
+  void mouseWheelMove(const juce::MouseEvent&, const juce::MouseWheelDetails &w) override
+  {
+    auto delta = w.isReversed ? -w.deltaY : w.deltaY;
+    pixelsPerUnit *= (1.0 + delta);
+    unitsPerPixel = 1.0 / pixelsPerUnit;
+    repaint();
+  }
+
+  void mouseDown(const juce::MouseEvent&) override
+  {
+    worldCenterAtDragStart = worldCenter;
+  }
+
+  void mouseDrag(const juce::MouseEvent &e) override
+  {
+    auto offsetPixels = e.getOffsetFromDragStart().toDouble();
+    const auto worldUnitsFromPixels = juce::Point<double>(unitsPerPixel, -unitsPerPixel);
+    auto offsetWorld = worldUnitsFromPixels * offsetPixels;
+    worldCenter = worldCenterAtDragStart + offsetWorld;
+    repaint();
+  }
+
   void resized() override
   {
-    pixelsPerUnitX = getWidth() / worldRange;
-    pixelsPerUnitY = getHeight() / worldRange;
-    unitsPerPixelX = 1.0 / pixelsPerUnitX;
-    unitsPerPixelY = 1.0 / pixelsPerUnitY;
     for(auto *p : points)
     {
       if(auto *root = p->root.get())
@@ -143,34 +164,59 @@ public:
     const juce::Colour lineColor = juce::Colours::snow;
     const juce::Colour circleColor = juce::Colours::goldenrod;
 
-    // TODO(ry): label axes, lines
+    // TODO(ry): axis & line labels
 
-    auto center = getLocalBounds().getCentre().toFloat();
+    const auto pixelsFromWorldUnits = juce::Point<double>(pixelsPerUnit, -pixelsPerUnit);
+    auto worldCenterPixels = pixelsFromWorldUnits * worldCenter;
+    auto regionCenter = getLocalBounds().getCentre().toDouble();
+    auto centerPixels = regionCenter + worldCenterPixels;
 
     // NOTE(ry): draw background
     g.fillAll(backgroundColor);
 
     // NOTE(ry): draw axes
-    g.setColour(axisColor);
-    g.drawVerticalLine(center.x, 0.f, r32(getHeight()));
-    g.drawHorizontalLine(center.y, 0.f, r32(getWidth()));
+    {
+      g.setColour(axisColor);
+      g.drawVerticalLine(centerPixels.x, 0.f, r32(getHeight()));
+      g.drawHorizontalLine(centerPixels.y, 0.f, r32(getWidth()));
+    }
 
     // NOTE(ry): draw unit circle
-    g.setColour(circleColor);
-    auto radiusX = r32(pixelsPerUnitX);
-    auto radiusY = r32(pixelsPerUnitY);
-    auto minX = center.x - radiusX;
-    auto minY = center.y - radiusY;
-    auto widthX = 2.f * radiusX;
-    auto widthY = 2.f * radiusY;
-    g.drawEllipse(minX, minY, widthX, widthY, 1.f);
+    {
+      g.setColour(circleColor);
+      auto radius = pixelsPerUnit;
+      auto minX = centerPixels.x - radius;
+      auto minY = centerPixels.y - radius;
+      auto diameter = 2.f * radius;
+      g.drawEllipse(minX, minY, diameter, diameter, 1.f);
+    }
 
     // NOTE(ry): draw lines
-    g.setColour(lineColor);
-    g.drawVerticalLine(center.x - radiusX, 0.f, r32(getHeight()));
-    g.drawVerticalLine(center.x + radiusX, 0.f, r32(getHeight()));
-    g.drawHorizontalLine(center.y - radiusY, 0.f, r32(getWidth()));
-    g.drawHorizontalLine(center.y + radiusY, 0.f, r32(getWidth()));
+    {
+      g.setColour(lineColor);
+      auto at = centerPixels + juce::Point<double>(pixelsPerUnit, pixelsPerUnit);
+      while(at.x < getWidth())
+      {
+        g.drawVerticalLine(at.x, 0.f, r32(getHeight()));
+        at.x += pixelsPerUnit;
+      }
+      while(at.y < getHeight())
+      {
+        g.drawHorizontalLine(at.y, 0.f, r32(getWidth()));
+        at.y += pixelsPerUnit;
+      }
+      at = centerPixels - juce::Point<double>(pixelsPerUnit, pixelsPerUnit);
+      while(at.x > 0)
+      {
+        g.drawVerticalLine(at.x, 0.f, r32(getHeight()));
+        at.x -= pixelsPerUnit;
+      }
+      while(at.y > 0)
+      {
+        g.drawHorizontalLine(at.y, 0.f, r32(getWidth()));
+        at.y -= pixelsPerUnit;
+      }
+    }
   }
 
 private:
@@ -196,12 +242,10 @@ private:
   juce::TextButton redo;
   juce::OwnedArray<RootPoint> points;
 
-  const double worldRange = 3.0; // TODO(ry): make this variable with zoom
-
-  double pixelsPerUnitX;
-  double pixelsPerUnitY;
-  double unitsPerPixelX;
-  double unitsPerPixelY;
+  double pixelsPerUnit;
+  double unitsPerPixel;
+  juce::Point<double> worldCenter;
+  juce::Point<double> worldCenterAtDragStart;
 
   //FilterState &state;
   AudioPluginAudioProcessor &processor;
@@ -214,7 +258,10 @@ public:
   CoefficientsComponent();
   ~CoefficientsComponent();
 
-  //void paint(juce::Graphics&) override;
+  void paint(juce::Graphics& g) override
+  {
+    g.fillAll(juce::Colours::white);
+  }
 private:
 };
 
