@@ -5,6 +5,14 @@
 //==============================================================================
 class ComplexPlaneEditor final : public juce::Component, private juce::ValueTree::Listener
 {
+  /** TODO(ry):
+   * better root creation interface (ability to create poles, increase root order)
+   * merge and split roots
+   * dragging roots off of real axis logic
+   * restore a root to its previous position when undoing its deletion
+   * visually indicate when a root is being hovered over (highlight, show tooltip)
+   */
+
 public:
   ComplexPlaneEditor(AudioPluginAudioProcessor &p)
     : addRoot("+"), delRoot("-"), undo("undo"), redo("redo"), processor(p)
@@ -102,9 +110,10 @@ public:
 
     void updateBounds(c128 value)
     {
-      auto pixelsFromWorldUnits = juce::Point<double>(parent->pixelsPerUnit, -parent->pixelsPerUnit);
-      auto newPos = pixelsFromWorldUnits * juce::Point<double>(value.real(), value.imag());
-      setCentrePosition(juce::roundToInt(newPos.getX()), juce::roundToInt(newPos.getY()));
+      auto pixelX = value.real();
+      auto pixelY = value.imag();
+      parent->pixelsFromWorldUnits.transformPoint(pixelX, pixelY);
+      setCentrePosition(pixelX, pixelY);
     }
 
     FilterRoot::Ptr root;
@@ -127,10 +136,13 @@ public:
 
   void mouseWheelMove(const juce::MouseEvent&, const juce::MouseWheelDetails &w) override
   {
+    // TOOD(ry): zoom towards cursor position
     auto delta = w.isReversed ? -w.deltaY : w.deltaY;
     pixelsPerUnit *= (1.0 + delta);
     unitsPerPixel = 1.0 / pixelsPerUnit;
     //unitsPerLine = std::max(std::floor(100.0 * unitsPerPixel), 1.0); // TODO(ry): update this sensibly
+
+    updateTransformsAndChildBounds();
     repaint();
   }
 
@@ -142,21 +154,17 @@ public:
   void mouseDrag(const juce::MouseEvent &e) override
   {
     auto offsetPixels = e.getOffsetFromDragStart().toDouble();
-    const auto worldUnitsFromPixels = juce::Point<double>(unitsPerPixel, unitsPerPixel);
-    auto offsetWorld = worldUnitsFromPixels * offsetPixels;
+    const auto worldUnitsFromPixelsScale = juce::Point<double>(unitsPerPixel, unitsPerPixel);
+    auto offsetWorld = worldUnitsFromPixelsScale * offsetPixels;
     worldCenter = worldCenterAtDragStart + offsetWorld;
+
+    updateTransformsAndChildBounds();
     repaint();
   }
 
   void resized() override
   {
-    for(auto *p : points)
-    {
-      if(auto *root = p->root.get())
-      {
-        p->updateBounds(root->value);
-      }
-    }
+    updateTransformsAndChildBounds();
   }
 
   void paint(juce::Graphics &g) override
@@ -175,16 +183,8 @@ public:
     // NOTE(ry): draw background
     g.fillAll(backgroundColor);
 
-    // NOTE(ry): compute transforms between screen space and world space
-    auto localBounds = getLocalBounds().toDouble();
-    auto regionCenter = localBounds.getCentre();
-    auto pixelsFromWorldUnits = juce::AffineTransform()
-      .translated(worldCenter.x, -worldCenter.y)
-      .scaled(pixelsPerUnit, -pixelsPerUnit)
-      .translated(regionCenter.x, regionCenter.y);
-    auto worldUnitsFromPixels = pixelsFromWorldUnits.inverted();
-
     // NOTE(ry): what a shit api this is
+    auto localBounds = getLocalBounds().toDouble();
     auto leftWorld = localBounds.getX();
     auto topWorld = localBounds.getY();
     auto rightWorld = localBounds.getRight();
@@ -232,7 +232,31 @@ public:
     }
   }
 
+  juce::AffineTransform pixelsFromWorldUnits;
+  juce::AffineTransform worldUnitsFromPixels;
+
 private:
+
+  void updateTransformsAndChildBounds(void)
+  {
+    // NOTE(ry): compute transforms between screen space and world space
+    auto localBounds = getLocalBounds().toDouble();
+    auto regionCenter = localBounds.getCentre();
+    pixelsFromWorldUnits = juce::AffineTransform()
+      .translated(worldCenter.x, -worldCenter.y)
+      .scaled(pixelsPerUnit, -pixelsPerUnit)
+      .translated(regionCenter.x, regionCenter.y);
+    worldUnitsFromPixels = pixelsFromWorldUnits.inverted();
+
+    // NOTE(ry): update child bounds (using new transforms)
+    for(auto *p : points)
+    {
+      if(auto *root = p->root.get())
+      {
+        p->updateBounds(root->value);
+      }
+    }
+  }
 
   void valueTreeChildAdded(juce::ValueTree &parent, juce::ValueTree &child) override
   {
