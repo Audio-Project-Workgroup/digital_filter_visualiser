@@ -140,9 +140,8 @@ public:
     c128 valueAtDragStart;
   };
 
-  void mouseWheelMove(const juce::MouseEvent&, const juce::MouseWheelDetails &w) override
+  void mouseWheelMove(const juce::MouseEvent &e, const juce::MouseWheelDetails &w) override
   {
-    // TODO(ry): zoom towards cursor position
     auto delta = w.isReversed ? -w.deltaY : w.deltaY;
     pixelsPerUnit *= (1.0 + delta);
     unitsPerPixel = 1.0 / pixelsPerUnit;
@@ -155,6 +154,28 @@ public:
       auto logFraction = std::log10(fraction);
       auto base = (logFraction < 1.0/3.0) ? 1 : (logFraction < 2.0/3.0) ? 2 : 5;
       unitsPerLine = base * std::pow(10.0, exponent);
+    }
+
+    // NOTE(ry): update world center
+    {
+      // NOTE(ry): get mouse position in old coordinates
+      auto oldMouseP = e.position.toDouble();
+      auto oldMousePX = oldMouseP.x;
+      auto oldMousePY = oldMouseP.y;
+      worldUnitsFromPixels.transformPoint(oldMousePX, oldMousePY);
+
+      updateTransforms();
+
+      // NOTE(ry): get mouse position in new coordinates
+      auto newMousePX = oldMouseP.x;
+      auto newMousePY = oldMouseP.y;
+      worldUnitsFromPixels.transformPoint(newMousePX, newMousePY);
+
+      // NOTE(ry): move world center so local mouse position doesn't change during zoom
+      auto mouseOffsetX = newMousePX - oldMousePX;
+      auto mouseOffsetY = newMousePY - oldMousePY;
+      worldCenter.x += mouseOffsetX;
+      worldCenter.y -= mouseOffsetY;
     }
 
     updateTransformsAndChildBounds();
@@ -252,7 +273,7 @@ public:
 
 private:
 
-  void updateTransformsAndChildBounds(void)
+  void updateTransforms(void)
   {
     // NOTE(ry): compute transforms between screen space and world space
     auto localBounds = getLocalBounds().toDouble();
@@ -262,6 +283,11 @@ private:
       .scaled(pixelsPerUnit, -pixelsPerUnit)
       .translated(regionCenter.x, regionCenter.y);
     worldUnitsFromPixels = pixelsFromWorldUnits.inverted();
+  }
+
+  void updateTransformsAndChildBounds(void)
+  {
+    updateTransforms();
 
     // NOTE(ry): update child bounds (using new transforms)
     for(auto *p : points)
