@@ -6,11 +6,12 @@
 class ComplexPlaneEditor final : public juce::Component, private juce::ValueTree::Listener
 {
   /** TODO(ry):
-   * better root creation interface (ability to create poles, increase root order)
+   * better root creation interface (ability to create poles, increase/decrease root order)
    * merge and split roots
    * dragging roots off of real axis logic
    * restore a root to its previous position when undoing its deletion
    * visually indicate when a root is being hovered over (highlight, show tooltip)
+   * label axes and grid lines
    */
 
 public:
@@ -110,6 +111,11 @@ public:
 
     void updateBounds(c128 value)
     {
+      // NOTE(ry): it's unfathomable to me how anyone could come up with such a
+      // simple yet unintuitive api. It'd be so nice if I could give the points
+      // different names depending on their coordinate spaces. And since it
+      // mutates, at least pass by pointer so I can tell that from looking at
+      // the call site (instead of this sour comment).
       auto pixelX = value.real();
       auto pixelY = value.imag();
       parent->pixelsFromWorldUnits.transformPoint(pixelX, pixelY);
@@ -136,11 +142,20 @@ public:
 
   void mouseWheelMove(const juce::MouseEvent&, const juce::MouseWheelDetails &w) override
   {
-    // TOOD(ry): zoom towards cursor position
+    // TODO(ry): zoom towards cursor position
     auto delta = w.isReversed ? -w.deltaY : w.deltaY;
     pixelsPerUnit *= (1.0 + delta);
     unitsPerPixel = 1.0 / pixelsPerUnit;
-    //unitsPerLine = std::max(std::floor(100.0 * unitsPerPixel), 1.0); // TODO(ry): update this sensibly
+
+    // NOTE(ry): update grid line resolution
+    {
+      auto scaled = 100.0 * unitsPerPixel;
+      auto exponent = std::floor(std::log10(scaled));
+      auto fraction = scaled / std::pow(10.0, exponent);
+      auto logFraction = std::log10(fraction);
+      auto base = (logFraction < 1.0/3.0) ? 1 : (logFraction < 2.0/3.0) ? 2 : 5;
+      unitsPerLine = base * std::pow(10.0, exponent);
+    }
 
     updateTransformsAndChildBounds();
     repaint();
