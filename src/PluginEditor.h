@@ -10,7 +10,7 @@ class ComplexPlaneEditor final : public juce::Component, private juce::ValueTree
    * merge and split roots
    * visually indicate when a root is being hovered over (highlight, show tooltip)
    * restore a root to its previous position when undoing its deletion
-   * label axes and grid lines
+   * improve axis label positioning relative to grid lines, and make all labels always visible
    */
 
 public:
@@ -86,7 +86,6 @@ public:
 
     void mouseDrag(const juce::MouseEvent &e) override
     {
-      // TODO(ry): handle the case of dragging a root off of the real axis
       if(auto *rootPtr = root.get())
       {
         auto worldUnitsFromPixels = juce::Point<double>(parent->unitsPerPixel, -parent->unitsPerPixel);
@@ -216,15 +215,12 @@ public:
     auto const circleColor = juce::Colours::goldenrod;
     auto const textColor = juce::Colours::white;
 
-    auto const fontHeightPixels = 32.f;
+    auto const axisLabelFontHeightPixels = 32.f;
+    auto const gridLineLabelFontHeightPixels = 24.f;
 
     auto const axisThicknessPixels = 3;
     auto const circleThicknessPixels = 3;
     auto const lineThicknessPixels = 2;
-
-    // TODO(ry): axis & line labels
-    auto font = juce::Font(juce::FontOptions(fontHeightPixels * unitsPerPixel));
-    auto ga = juce::GlyphArrangement();
 
     // NOTE(ry): draw background
     g.fillAll(backgroundColor);
@@ -238,48 +234,114 @@ public:
     worldUnitsFromPixels.transformPoint(leftWorld, topWorld);
     worldUnitsFromPixels.transformPoint(rightWorld, bottomWorld);
 
-    juce::Graphics::ScopedSaveState savedGraphicsState(g);
-    g.addTransform(pixelsFromWorldUnits);
-
-    // NOTE(ry): draw axes
-    g.setColour(axisColor);
-    g.drawLine(0, bottomWorld, 0, topWorld, axisThicknessPixels * unitsPerPixel);
-    g.drawLine(leftWorld, 0, rightWorld, 0, axisThicknessPixels * unitsPerPixel);
-
-    // NOTE(ry): draw axis labels
-    g.setColour(textColor);
-    ga.addLineOfText(font, "x", juce::jlimit(leftWorld, rightWorld - 0.5, 0.2), -(bottomWorld + 0.5));
-    ga.addLineOfText(font, "y", rightWorld - 0.5, juce::jlimit(-topWorld, -bottomWorld, 0.2));
-    ga.draw(g, juce::AffineTransform::scale(1.f, -1.f));
-
-    // NOTE(ry): draw unit circle
-    g.setColour(circleColor);
-    g.drawEllipse(-1, -1, 2, 2, circleThicknessPixels * unitsPerPixel);
-
-    // NOTE(ry): draw lines
     {
-      g.setColour(lineColor);
-      auto at = juce::Point<double>(unitsPerLine, unitsPerLine);
-      while(at.x < rightWorld)
+      juce::Graphics::ScopedSaveState savedGraphicsState(g);
+      g.addTransform(pixelsFromWorldUnits);
+
+      // NOTE(ry): draw axes
+      g.setColour(axisColor);
+      g.drawLine(0, bottomWorld, 0, topWorld, axisThicknessPixels * unitsPerPixel);
+      g.drawLine(leftWorld, 0, rightWorld, 0, axisThicknessPixels * unitsPerPixel);
+
+      // NOTE(ry): draw unit circle
+      g.setColour(circleColor);
+      g.drawEllipse(-1, -1, 2, 2, circleThicknessPixels * unitsPerPixel);
+
+      // NOTE(ry): draw lines
       {
-        g.drawLine(at.x, bottomWorld, at.x, topWorld, lineThicknessPixels * unitsPerPixel);
-        at.x += unitsPerLine;
+        g.setColour(lineColor);
+        auto at = juce::Point<double>(unitsPerLine, unitsPerLine);
+        while(at.x < rightWorld)
+        {
+          g.drawLine(at.x, bottomWorld, at.x, topWorld, lineThicknessPixels * unitsPerPixel);
+          at.x += unitsPerLine;
+        }
+        while(at.y < topWorld)
+        {
+          g.drawLine(leftWorld, at.y, rightWorld, at.y, lineThicknessPixels * unitsPerPixel);
+          at.y += unitsPerLine;
+        }
+        at = juce::Point<double>(-unitsPerLine, -unitsPerLine);
+        while(at.x > leftWorld)
+        {
+          g.drawLine(at.x, bottomWorld, at.x, topWorld, lineThicknessPixels * unitsPerPixel);
+          at.x -= unitsPerLine;
+        }
+        while(at.y > bottomWorld)
+        {
+          g.drawLine(leftWorld, at.y, rightWorld, at.y, lineThicknessPixels * unitsPerPixel);
+          at.y -= unitsPerLine;
+        }
       }
-      while(at.y < topWorld)
+    }
+
+    // NOTE(ry): draw axis and grid line labels
+    {
+      g.setColour(textColor);
+      g.setFont(juce::Font(juce::FontOptions(axisLabelFontHeightPixels)));
+
+      DBG("world center: (" << worldCenter.x << ", " << worldCenter.y << ")");
+
+      // NOTE(ry): draw axis labels
       {
-        g.drawLine(leftWorld, at.y, rightWorld, at.y, lineThicknessPixels * unitsPerPixel);
-        at.y += unitsPerLine;
+        auto reLabelX = rightWorld;
+        auto reLabelY = 0.0;
+        auto imLabelX = 0.0;
+        auto imLabelY = topWorld;
+        pixelsFromWorldUnits.transformPoint(reLabelX, reLabelY);
+        pixelsFromWorldUnits.transformPoint(imLabelX, imLabelY);
+
+        g.drawSingleLineText("Re",
+                             reLabelX - 50,
+                             juce::jlimit(localBounds.getY() + axisLabelFontHeightPixels,
+                                          localBounds.getBottom(),
+                                          reLabelY));
+        g.drawSingleLineText("Im",
+                             juce::jlimit(localBounds.getX(),
+                                          localBounds.getRight() - 50,
+                                          imLabelX),
+                             imLabelY + axisLabelFontHeightPixels);
       }
-      at = juce::Point<double>(-unitsPerLine, -unitsPerLine);
-      while(at.x > leftWorld)
+
+      // TODO(ry): this seems to get laggy when zoomed in
+      // NOTE(ry): draw grid line labels
       {
-        g.drawLine(at.x, bottomWorld, at.x, topWorld, lineThicknessPixels * unitsPerPixel);
-        at.x -= unitsPerLine;
-      }
-      while(at.y > bottomWorld)
-      {
-        g.drawLine(leftWorld, at.y, rightWorld, at.y, lineThicknessPixels * unitsPerPixel);
-        at.y -= unitsPerLine;
+        g.setFont(juce::Font(juce::FontOptions(gridLineLabelFontHeightPixels)));
+        auto atX = 0.0;
+        auto atY = 0.0;
+        drawNumberAtPoint(0, atX, atY, g);
+
+        atX = unitsPerLine;
+        atY = 0.0;
+        while(atX < rightWorld)
+        {
+          drawNumberAtPoint(atX, atX, atY, g);
+          atX += unitsPerLine;
+        }
+
+        atX = 0.0;
+        atY = unitsPerLine;
+        while(atY < topWorld)
+        {
+          drawNumberAtPoint(atY, atX, atY, g);
+          atY += unitsPerLine;
+        }
+
+        atX = -unitsPerLine;
+        atY = 0.0;
+        while(atX > leftWorld)
+        {
+          drawNumberAtPoint(atX, atX, atY, g);
+          atX -= unitsPerLine;
+        }
+
+        atX = 0.0;
+        atY = -unitsPerLine;
+        while(atY > bottomWorld)
+        {
+          drawNumberAtPoint(atY, atX, atY, g);
+          atY -= unitsPerLine;
+        }
       }
     }
   }
@@ -288,6 +350,15 @@ public:
   juce::AffineTransform worldUnitsFromPixels;
 
 private:
+
+  inline void
+  drawNumberAtPoint(r64 num, r64 atWorldX, r64 atWorldY, juce::Graphics &g)
+  {
+    auto atPixelsX = atWorldX;
+    auto atPixelsY = atWorldY;
+    pixelsFromWorldUnits.transformPoint(atPixelsX, atPixelsY);
+    g.drawSingleLineText(juce::String(num), atPixelsX, atPixelsY);
+  }
 
   void updateTransforms(void)
   {
