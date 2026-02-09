@@ -29,12 +29,12 @@ public:
     undo.setBounds(200, 100, 100, 50);
     redo.setBounds(200, 150, 100, 50);
 
-    // TODO(ry): better add/remove interface & logic
+    // TODO(ry): better add/remove interface & logic (add poles, remove particular roots)
     addRoot.onClick = [this]{
       processor.state.add(1);
     };
     delRoot.onClick = [this]{
-      processor.state.remove(points.getLast()->root);
+      processor.state.remove(points.getLast()->root); // TODO(ry): remove a paritcular root
     };
 
     undo.onClick = [this]{
@@ -93,7 +93,12 @@ public:
         auto dragOffsetWorld = worldUnitsFromPixels * dragOffsetPixels;
         auto newRootValue = valueAtDragStart + c128(dragOffsetWorld.getX(), dragOffsetWorld.getY());
         if(rootPtr->order < 0) newRootValue /= std::abs(newRootValue); // TODO(ry): better stability clamp!
+        //if(rootPtr->conjugate) { /* TODO(ry): propagate drag to conjugate */ }
+
+        // NOTE(ry): update all properties related to this root
         rootPtr->value = newRootValue;
+        // TODO(ry): merging logic (need to know where other roots are)
+        // TODO(ry): splitting logic (create new root, subtract new root order from current root order)
       }
     }
 
@@ -107,6 +112,7 @@ public:
       }
       g.setColour(color);
       g.fillEllipse(getLocalBounds().toFloat());
+      // TODO(ry): draw conjugate (flip y on local bounds)
     }
 
     void updateBounds(c128 value)
@@ -205,16 +211,21 @@ public:
 
   void paint(juce::Graphics &g) override
   {
-    const juce::Colour backgroundColor = juce::Colour(0x08, 0x0C, 0x1C);
-    const juce::Colour axisColor = juce::Colours::navajowhite;
-    const juce::Colour lineColor = juce::Colours::snow;
-    const juce::Colour circleColor = juce::Colours::goldenrod;
+    auto const backgroundColor = juce::Colour(0x08, 0x0C, 0x1C);
+    auto const axisColor = juce::Colours::navajowhite;
+    auto const lineColor = juce::Colours::snow;
+    auto const circleColor = juce::Colours::goldenrod;
+    auto const textColor = juce::Colours::white;
 
-    const auto axisThicknessPixels = 3;
-    const auto circleThicknessPixels = 3;
-    const auto lineThicknessPixels = 2;
+    auto const fontHeightPixels = 32.f;
+
+    auto const axisThicknessPixels = 3;
+    auto const circleThicknessPixels = 3;
+    auto const lineThicknessPixels = 2;
 
     // TODO(ry): axis & line labels
+    auto font = juce::Font(juce::FontOptions(fontHeightPixels * unitsPerPixel));
+    auto ga = juce::GlyphArrangement();
 
     // NOTE(ry): draw background
     g.fillAll(backgroundColor);
@@ -235,6 +246,12 @@ public:
     g.setColour(axisColor);
     g.drawLine(0, bottomWorld, 0, topWorld, axisThicknessPixels * unitsPerPixel);
     g.drawLine(leftWorld, 0, rightWorld, 0, axisThicknessPixels * unitsPerPixel);
+
+    // NOTE(ry): draw axis labels
+    g.setColour(textColor);
+    ga.addLineOfText(font, "x", juce::jlimit(leftWorld, rightWorld - 0.5, 0.2), -(bottomWorld + 0.5));
+    ga.addLineOfText(font, "y", rightWorld - 0.5, juce::jlimit(-topWorld, -bottomWorld, 0.2));
+    ga.draw(g, juce::AffineTransform::scale(1.f, -1.f));
 
     // NOTE(ry): draw unit circle
     g.setColour(circleColor);
@@ -310,7 +327,7 @@ private:
 
   void valueTreeChildRemoved(juce::ValueTree&, juce::ValueTree&, int) override
   {
-    points.removeLast();
+    points.removeLast(); // TODO(ry): remove the root point corresponding to the child that was removed
     repaint();
   }
 

@@ -101,6 +101,7 @@ struct FilterRoot
 
   juce::ValueTree node; // each root manages its own node in the state tree
 
+  // TODO(ry): conjugate field can go away if we just assume it exists
   juce::CachedValue<int> conjugate; // the index of this root's conjugate node in the state tree
   CachedComplex value;
   juce::CachedValue<int> order;
@@ -230,7 +231,10 @@ private:
     }
   }
 
+  // TODO(ry): separate trees for filter roots and parameters/automation
   juce::AudioProcessorValueTreeState apvts;
+  juce::ValueTree root;
+  juce::UndoManager um;
 };
 
 //==============================================================================
@@ -239,7 +243,6 @@ class AudioPluginAudioProcessor final : public juce::AudioProcessor
 public:
 
   using SampleType = float;
-  //using CoefficientType = juce::SmoothedValue<SampleType, juce::ValueSmoothingTypes::Linear>;
 
   //==============================================================================
   AudioPluginAudioProcessor();
