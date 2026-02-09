@@ -8,9 +8,8 @@ class ComplexPlaneEditor final : public juce::Component, private juce::ValueTree
   /** TODO(ry):
    * better root creation interface (ability to create poles, increase/decrease root order)
    * merge and split roots
-   * dragging roots off of real axis logic
-   * restore a root to its previous position when undoing its deletion
    * visually indicate when a root is being hovered over (highlight, show tooltip)
+   * restore a root to its previous position when undoing its deletion
    * label axes and grid lines
    */
 
@@ -57,7 +56,8 @@ public:
   class RootPoint final : public juce::Component, private juce::ValueTree::Listener
   {
   public:
-    RootPoint(ComplexPlaneEditor *e, FilterRoot::Ptr r) : root(r), parent(e)
+
+    RootPoint(ComplexPlaneEditor *e, bool c, FilterRoot::Ptr r) : isConjugate(c), root(r), parent(e)
     {
       if(auto *rootPtr = root.get())
       {
@@ -80,6 +80,7 @@ public:
       if(auto *rootPtr = root.get())
       {
         valueAtDragStart = rootPtr->value;
+        if(isConjugate) valueAtDragStart = std::conj(valueAtDragStart);
       }
     }
 
@@ -93,7 +94,6 @@ public:
         auto dragOffsetWorld = worldUnitsFromPixels * dragOffsetPixels;
         auto newRootValue = valueAtDragStart + c128(dragOffsetWorld.getX(), dragOffsetWorld.getY());
         if(rootPtr->order < 0) newRootValue /= std::abs(newRootValue); // TODO(ry): better stability clamp!
-        //if(rootPtr->conjugate) { /* TODO(ry): propagate drag to conjugate */ }
 
         // NOTE(ry): update all properties related to this root
         rootPtr->value = newRootValue;
@@ -104,15 +104,13 @@ public:
 
     void paint(juce::Graphics &g) override
     {
-      juce::Colour color = juce::Colours::black; // default color is black
       if(auto *rootPtr = root.get())
       {
-        if(rootPtr->order < 0) color = juce::Colours::red; // poles are red
-        else if(rootPtr->order > 0) color = juce::Colours::white; // zeros are white
+        if(rootPtr->order < 0) g.setColour(juce::Colours::red); // poles are red
+        else if(rootPtr->order > 0) g.setColour(juce::Colours::white); // zeros are white
+
+        g.fillEllipse(getLocalBounds().toFloat());
       }
-      g.setColour(color);
-      g.fillEllipse(getLocalBounds().toFloat());
-      // TODO(ry): draw conjugate (flip y on local bounds)
     }
 
     void updateBounds(c128 value)
@@ -123,11 +121,12 @@ public:
       // mutates, at least pass by pointer so I can tell that from looking at
       // the call site (instead of this sour comment).
       auto pixelX = value.real();
-      auto pixelY = value.imag();
+      auto pixelY = isConjugate ? -value.imag() : value.imag();
       parent->pixelsFromWorldUnits.transformPoint(pixelX, pixelY);
       setCentrePosition(pixelX, pixelY);
     }
 
+    bool isConjugate;
     FilterRoot::Ptr root;
 
   private:
@@ -320,14 +319,17 @@ private:
   {
     juce::ignoreUnused(parent);
     auto root = processor.state.getRootFromTreeNode(child);
-    auto *point = points.add(new ComplexPlaneEditor::RootPoint(this, root));
+    auto *point = points.add(new RootPoint(this, false, root));
+    auto *conjugate = points.add(new RootPoint(this, true, root));
     addAndMakeVisible(point);
+    addAndMakeVisible(conjugate);
     resized();
   }
 
   void valueTreeChildRemoved(juce::ValueTree&, juce::ValueTree&, int) override
   {
     points.removeLast(); // TODO(ry): remove the root point corresponding to the child that was removed
+    points.removeLast();
     repaint();
   }
 

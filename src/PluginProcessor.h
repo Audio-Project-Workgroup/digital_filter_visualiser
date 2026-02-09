@@ -29,7 +29,6 @@ namespace IDs
   const juce::Identifier Root("Root");
   const juce::Identifier Zeros("Zeros");
   const juce::Identifier Poles("Poles");
-  const juce::Identifier Conjugate("Conjugate");
   const juce::Identifier ValueRe("ValueReal");
   const juce::Identifier ValueIm("ValueImag");
   const juce::Identifier Order("Order");
@@ -93,7 +92,6 @@ struct FilterRoot
 
   FilterRoot(juce::ValueTree v, juce::UndoManager *um) : node(v)
   {
-    conjugate.referTo(node, IDs::Conjugate, um);
     value.re.referTo(node, IDs::ValueRe, um);
     value.im.referTo(node, IDs::ValueIm, um);
     order.referTo(node, IDs::Order, um);
@@ -101,8 +99,6 @@ struct FilterRoot
 
   juce::ValueTree node; // each root manages its own node in the state tree
 
-  // TODO(ry): conjugate field can go away if we just assume it exists
-  juce::CachedValue<int> conjugate; // the index of this root's conjugate node in the state tree
   CachedComplex value;
   juce::CachedValue<int> order;
 
@@ -134,7 +130,6 @@ struct FilterState : private juce::ValueTree::Listener
     newNode.setProperty(IDs::Order, newOrder, apvts.undoManager);
     newNode.setProperty(IDs::ValueRe, 0.0, apvts.undoManager);
     newNode.setProperty(IDs::ValueIm, 0.0, apvts.undoManager);
-    newNode.setProperty(IDs::Conjugate, -1, apvts.undoManager);
 
     if(newOrder > 0)
     {
@@ -233,8 +228,8 @@ private:
 
   // TODO(ry): separate trees for filter roots and parameters/automation
   juce::AudioProcessorValueTreeState apvts;
-  juce::ValueTree root;
-  juce::UndoManager um;
+  // juce::ValueTree root;
+  // juce::UndoManager um;
 };
 
 //==============================================================================
