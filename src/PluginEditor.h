@@ -10,7 +10,7 @@ class ComplexPlaneEditor final : public juce::Component, private juce::ValueTree
    * merge and split roots
    * visually indicate when a root is being hovered over (highlight, show tooltip)
    * restore a root to its previous position when undoing its deletion
-   * improve axis label positioning relative to grid lines, and make all labels always visible
+   * improve axis label positioning relative to grid lines
    */
 
 public:
@@ -222,6 +222,10 @@ public:
     auto const circleThicknessPixels = 3;
     auto const lineThicknessPixels = 2;
 
+    auto const eps = 1e-6;
+
+    auto const textRightOffsetPixels = 50;
+
     // NOTE(ry): draw background
     g.fillAll(backgroundColor);
 
@@ -250,27 +254,21 @@ public:
       // NOTE(ry): draw lines
       {
         g.setColour(lineColor);
-        auto at = juce::Point<double>(unitsPerLine, unitsPerLine);
-        while(at.x < rightWorld)
+
+        for(auto lineX = std::floor(leftWorld / unitsPerLine)*unitsPerLine;
+            lineX < rightWorld;
+            lineX += unitsPerLine)
         {
-          g.drawLine(at.x, bottomWorld, at.x, topWorld, lineThicknessPixels * unitsPerPixel);
-          at.x += unitsPerLine;
+          if(-eps >= lineX || lineX >= eps)
+          { g.drawLine(lineX, bottomWorld, lineX, topWorld, lineThicknessPixels * unitsPerPixel); }
         }
-        while(at.y < topWorld)
+
+        for(auto lineY = std::floor(bottomWorld / unitsPerLine)*unitsPerLine;
+            lineY < topWorld;
+            lineY += unitsPerLine)
         {
-          g.drawLine(leftWorld, at.y, rightWorld, at.y, lineThicknessPixels * unitsPerPixel);
-          at.y += unitsPerLine;
-        }
-        at = juce::Point<double>(-unitsPerLine, -unitsPerLine);
-        while(at.x > leftWorld)
-        {
-          g.drawLine(at.x, bottomWorld, at.x, topWorld, lineThicknessPixels * unitsPerPixel);
-          at.x -= unitsPerLine;
-        }
-        while(at.y > bottomWorld)
-        {
-          g.drawLine(leftWorld, at.y, rightWorld, at.y, lineThicknessPixels * unitsPerPixel);
-          at.y -= unitsPerLine;
+          if(-eps >= lineY || lineY >= eps)
+          { g.drawLine(leftWorld, lineY, rightWorld, lineY, lineThicknessPixels * unitsPerPixel); }
         }
       }
     }
@@ -279,8 +277,6 @@ public:
     {
       g.setColour(textColor);
       g.setFont(juce::Font(juce::FontOptions(axisLabelFontHeightPixels)));
-
-      DBG("world center: (" << worldCenter.x << ", " << worldCenter.y << ")");
 
       // NOTE(ry): draw axis labels
       {
@@ -291,56 +287,38 @@ public:
         pixelsFromWorldUnits.transformPoint(reLabelX, reLabelY);
         pixelsFromWorldUnits.transformPoint(imLabelX, imLabelY);
 
-        g.drawSingleLineText("Re",
-                             reLabelX - 50,
-                             juce::jlimit(localBounds.getY() + axisLabelFontHeightPixels,
-                                          localBounds.getBottom(),
-                                          reLabelY));
-        g.drawSingleLineText("Im",
-                             juce::jlimit(localBounds.getX(),
-                                          localBounds.getRight() - 50,
-                                          imLabelX),
-                             imLabelY + axisLabelFontHeightPixels);
+        reLabelX -= textRightOffsetPixels;
+        reLabelY = std::clamp(reLabelY, localBounds.getY() + axisLabelFontHeightPixels, localBounds.getBottom());
+        imLabelX = std::clamp(imLabelX, localBounds.getX(), localBounds.getRight() - textRightOffsetPixels);
+        imLabelY += axisLabelFontHeightPixels;
+        g.drawSingleLineText("Re", reLabelX, reLabelY);
+        g.drawSingleLineText("Im", imLabelX, imLabelY);
       }
 
-      // TODO(ry): this seems to get laggy when zoomed in
       // NOTE(ry): draw grid line labels
       {
         g.setFont(juce::Font(juce::FontOptions(gridLineLabelFontHeightPixels)));
-        auto atX = 0.0;
-        auto atY = 0.0;
-        drawNumberAtPoint(0, atX, atY, g);
 
-        atX = unitsPerLine;
-        atY = 0.0;
-        while(atX < rightWorld)
+        for(auto labelX = std::floor(leftWorld / unitsPerLine)*unitsPerLine;
+            labelX < rightWorld;
+            labelX += unitsPerLine)
         {
-          drawNumberAtPoint(atX, atX, atY, g);
-          atX += unitsPerLine;
+          auto drawX = labelX;
+          auto drawY = 0.0;
+          pixelsFromWorldUnits.transformPoint(drawX, drawY);
+          drawY = std::clamp(drawY, localBounds.getY() + gridLineLabelFontHeightPixels, localBounds.getBottom());
+          g.drawSingleLineText(juce::String(labelX), drawX, drawY);
         }
 
-        atX = 0.0;
-        atY = unitsPerLine;
-        while(atY < topWorld)
+        for(auto labelY = std::floor(bottomWorld / unitsPerLine)*unitsPerLine;
+            labelY < topWorld;
+            labelY += unitsPerLine)
         {
-          drawNumberAtPoint(atY, atX, atY, g);
-          atY += unitsPerLine;
-        }
-
-        atX = -unitsPerLine;
-        atY = 0.0;
-        while(atX > leftWorld)
-        {
-          drawNumberAtPoint(atX, atX, atY, g);
-          atX -= unitsPerLine;
-        }
-
-        atX = 0.0;
-        atY = -unitsPerLine;
-        while(atY > bottomWorld)
-        {
-          drawNumberAtPoint(atY, atX, atY, g);
-          atY -= unitsPerLine;
+          auto drawX = 0.0;
+          auto drawY = labelY;
+          pixelsFromWorldUnits.transformPoint(drawX, drawY);
+          drawX = std::clamp(drawX, localBounds.getX(), localBounds.getRight() - textRightOffsetPixels);
+          g.drawSingleLineText(juce::String(labelY), drawX, drawY);
         }
       }
     }
@@ -350,15 +328,6 @@ public:
   juce::AffineTransform worldUnitsFromPixels;
 
 private:
-
-  inline void
-  drawNumberAtPoint(r64 num, r64 atWorldX, r64 atWorldY, juce::Graphics &g)
-  {
-    auto atPixelsX = atWorldX;
-    auto atPixelsY = atWorldY;
-    pixelsFromWorldUnits.transformPoint(atPixelsX, atPixelsY);
-    g.drawSingleLineText(juce::String(num), atPixelsX, atPixelsY);
-  }
 
   void updateTransforms(void)
   {
