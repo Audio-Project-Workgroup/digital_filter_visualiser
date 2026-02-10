@@ -15,7 +15,7 @@ class ComplexPlaneEditor final : public juce::Component, private juce::ValueTree
 
 public:
   ComplexPlaneEditor(AudioPluginAudioProcessor &p)
-    : addRoot("+"), delRoot("-"), undo("undo"), redo("redo"), processor(p)
+    : processor(p), addRoot("+"), delRoot("-"), undo("undo"), redo("redo")
   {
     processor.state.addListener(this);
 
@@ -178,8 +178,7 @@ public:
       // NOTE(ry): move world center so local mouse position doesn't change during zoom
       auto mouseOffsetX = newMousePX - oldMousePX;
       auto mouseOffsetY = newMousePY - oldMousePY;
-      worldCenter.x += mouseOffsetX;
-      worldCenter.y -= mouseOffsetY;
+      worldCenter -= juce::Point<double>(mouseOffsetX, mouseOffsetY);
     }
 
     updateTransformsAndChildBounds();
@@ -194,9 +193,9 @@ public:
   void mouseDrag(const juce::MouseEvent &e) override
   {
     auto offsetPixels = e.getOffsetFromDragStart().toDouble();
-    const auto worldUnitsFromPixelsScale = juce::Point<double>(unitsPerPixel, unitsPerPixel);
+    const auto worldUnitsFromPixelsScale = juce::Point<double>(unitsPerPixel, -unitsPerPixel);
     auto offsetWorld = worldUnitsFromPixelsScale * offsetPixels;
-    worldCenter = worldCenterAtDragStart + offsetWorld;
+    worldCenter = worldCenterAtDragStart - offsetWorld;
 
     updateTransformsAndChildBounds();
     repaint();
@@ -307,7 +306,10 @@ public:
           auto drawY = 0.0;
           pixelsFromWorldUnits.transformPoint(drawX, drawY);
           drawY = std::clamp(drawY, localBounds.getY() + gridLineLabelFontHeightPixels, localBounds.getBottom());
-          g.drawSingleLineText(juce::String(labelX), drawX, drawY);
+          if(eps <= labelX || labelX <= -eps)
+          { g.drawSingleLineText(juce::String(labelX), drawX, drawY); }
+          else
+          { g.drawSingleLineText(juce::String(0), drawX, drawY); }
         }
 
         for(auto labelY = std::floor(bottomWorld / unitsPerLine)*unitsPerLine;
@@ -318,7 +320,11 @@ public:
           auto drawY = labelY;
           pixelsFromWorldUnits.transformPoint(drawX, drawY);
           drawX = std::clamp(drawX, localBounds.getX(), localBounds.getRight() - textRightOffsetPixels);
-          g.drawSingleLineText(juce::String(labelY), drawX, drawY);
+
+          if(eps <= labelY || labelY <= -eps)
+          { g.drawSingleLineText(juce::String(labelY), drawX, drawY); }
+          else
+          { g.drawSingleLineText(juce::String(0), drawX, drawY); }
         }
       }
     }
@@ -335,7 +341,7 @@ private:
     auto localBounds = getLocalBounds().toDouble();
     auto regionCenter = localBounds.getCentre();
     pixelsFromWorldUnits = juce::AffineTransform()
-      .translated(worldCenter.x, -worldCenter.y)
+      .translated(-worldCenter.x, -worldCenter.y)
       .scaled(pixelsPerUnit, -pixelsPerUnit)
       .translated(regionCenter.x, regionCenter.y);
     worldUnitsFromPixels = pixelsFromWorldUnits.inverted();
@@ -373,20 +379,22 @@ private:
     repaint();
   }
 
+  double pixelsPerUnit;
+  double unitsPerPixel;
+  double unitsPerLine;
+
+  //FilterState &state;
+  AudioPluginAudioProcessor &processor;
+
+  juce::Point<double> worldCenter; // NOTE(ry): the center of the drawable region in world coordinates
+  juce::Point<double> worldCenterAtDragStart;
+
+  juce::OwnedArray<RootPoint> points;
+
   juce::TextButton addRoot;
   juce::TextButton delRoot;
   juce::TextButton undo;
   juce::TextButton redo;
-  juce::OwnedArray<RootPoint> points;
-
-  double pixelsPerUnit;
-  double unitsPerPixel;
-  double unitsPerLine;
-  juce::Point<double> worldCenter;
-  juce::Point<double> worldCenterAtDragStart;
-
-  //FilterState &state;
-  AudioPluginAudioProcessor &processor;
 };
 
 //==============================================================================
