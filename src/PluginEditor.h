@@ -8,6 +8,7 @@ class ComplexPlaneEditor final : public juce::Component, private juce::ValueTree
   /** TODO(ry):
    * better root creation interface (ability to create poles, increase/decrease root order)
    * merge and split roots
+   * snap roots to real axis (and indicate through the ui this is happening)
    * visually indicate when a root is being hovered over (highlight, show tooltip)
    * restore a root to its previous position when undoing its deletion
    * improve axis label positioning relative to grid lines
@@ -94,8 +95,9 @@ public:
         auto newRootValue = valueAtDragStart + c128(dragOffsetWorld.getX(), dragOffsetWorld.getY());
         if(rootPtr->order < 0) newRootValue /= std::abs(newRootValue); // TODO(ry): better stability clamp!
 
+
         // NOTE(ry): update all properties related to this root
-        rootPtr->value = newRootValue;
+        rootPtr->value = newRootValue; // TODO(ry): snap to real axis (ui confirmation)
         // TODO(ry): merging logic (need to know where other roots are)
         // TODO(ry): splitting logic (create new root, subtract new root order from current root order)
       }
@@ -364,18 +366,41 @@ private:
   void valueTreeChildAdded(juce::ValueTree &parent, juce::ValueTree &child) override
   {
     juce::ignoreUnused(parent);
+
     auto root = processor.state.getRootFromTreeNode(child);
     auto *point = points.add(new RootPoint(this, false, root));
     auto *conjugate = points.add(new RootPoint(this, true, root));
     addAndMakeVisible(point);
     addAndMakeVisible(conjugate);
+
     resized();
   }
 
-  void valueTreeChildRemoved(juce::ValueTree&, juce::ValueTree&, int) override
+  void valueTreeChildRemoved(juce::ValueTree &parent, juce::ValueTree &child, int index) override
   {
-    points.removeLast(); // TODO(ry): remove the root point corresponding to the child that was removed
-    points.removeLast();
+    juce::ignoreUnused(parent);
+    juce::ignoreUnused(index);
+
+    for(int i = points.size(); --i >= 0;)
+    {
+      if(auto *root = points[i]->root.get())
+      {
+        if(root->node == child)
+        {
+          // NOTE(ry): removing a point from the array because its root matches
+          // the node being removed
+          points.remove(i);
+        }
+      }
+      else
+      {
+        // NOTE(ry): removing a point from the array because its root was
+        // destroyed (it matched the node being removed in the filter state's
+        // callback)
+        points.remove(i);
+      }
+    }
+
     repaint();
   }
 
