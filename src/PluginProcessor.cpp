@@ -1,6 +1,8 @@
 #include "PluginProcessor.h"
 #include "PluginEditor.h"
 
+#include "FilterState.cpp"
+
 //==============================================================================
 AudioPluginAudioProcessor::AudioPluginAudioProcessor()
   : AudioProcessor (BusesProperties()
