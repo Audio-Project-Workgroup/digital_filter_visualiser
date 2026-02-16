@@ -7,6 +7,8 @@ FilterState(juce::AudioProcessor &p, juce::UndoManager *um)
     apvts.state = juce::ValueTree(IDs::FilterState);
   }
 
+  order = 0;
+
   auto zerosNode = apvts.state.getOrCreateChildWithName(IDs::Zeros, nullptr);
   auto polesNode = apvts.state.getOrCreateChildWithName(IDs::Poles, nullptr);
 
@@ -20,7 +22,7 @@ add(s32 newOrder)
 {
   juce::ValueTree newNode(IDs::Root);
   newNode.setProperty(IDs::Order, newOrder, apvts.undoManager);
-  newNode.setProperty(IDs::ValueRe, 0.0, apvts.undoManager);
+  newNode.setProperty(IDs::ValueRe, 1.0, apvts.undoManager);
   newNode.setProperty(IDs::ValueIm, 0.0, apvts.undoManager);
 
   if(newOrder > 0)
@@ -35,6 +37,7 @@ add(s32 newOrder)
   {
     jassertfalse; // order must be nonzero;
   }
+
   FilterRoot::Ptr result = getRootFromTreeNode(newNode);
   return(result);
 }
@@ -94,7 +97,7 @@ valueTreeChildAdded(juce::ValueTree &parent, juce::ValueTree &child)
     {
       poles.add(new FilterRoot(child, apvts.undoManager));
     }
-      order += u32(std::abs(s32(child.getProperty(IDs::Order))));
+    order += u32(std::abs(s32(child.getProperty(IDs::Order))));
   }
 }
 
@@ -113,6 +116,15 @@ valueTreeChildRemoved(juce::ValueTree &parent, juce::ValueTree &child, int index
       else if(parent.hasType(IDs::Poles))
       {
         poles.removeObject(root);
+      }
+
+      if(juce::exactlyEqual(r64(child.getProperty(IDs::ValueIm)), 0.0))
+      {
+        order -= u32(std::abs(s32(child.getProperty(IDs::Order))));
+      }
+      else
+      {
+        order -= 2*u32(std::abs(s32(child.getProperty(IDs::Order))));
       }
     }
   }

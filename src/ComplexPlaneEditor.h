@@ -3,11 +3,10 @@ class ComplexPlaneEditor final : public juce::Component, private juce::ValueTree
   /** TODO(ry):
    * better root creation interface (ability to create poles, increase/decrease root order)
    * merge and split roots
-   * snap roots to real axis (and indicate through the ui this is happening)
+   * visually indicate snaping roots to real axis
    * visually indicate when a root is being hovered over (highlight, show tooltip)
    * restore a root to its previous position when undoing its deletion
    * improve axis label positioning relative to grid lines
-   * update filter state order when root pairs are in the same position or not
    */
 
 public:
@@ -37,6 +36,8 @@ public:
 
     ComplexPlaneEditor *parent;
     c128 valueAtDragStart;
+
+    bool wasOnAxis;
   };
 
   void mouseWheelMove(const juce::MouseEvent &e, const juce::MouseWheelDetails &w) override;

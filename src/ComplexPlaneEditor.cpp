@@ -4,6 +4,8 @@ ComplexPlaneEditor::RootPoint::
 RootPoint(ComplexPlaneEditor *e, bool c, FilterRoot::Ptr r)
   : isConjugate(c), root(r), parent(e)
 {
+  wasOnAxis = true;
+
   if(auto *rootPtr = root.get())
   {
     rootPtr->node.addListener(this);
@@ -28,7 +30,10 @@ mouseDown(const juce::MouseEvent &e)
   if(auto *rootPtr = root.get())
   {
     valueAtDragStart = rootPtr->value;
-    if(isConjugate) valueAtDragStart = std::conj(valueAtDragStart);
+    if(isConjugate)
+    {
+      valueAtDragStart = std::conj(valueAtDragStart);
+    }
   }
 }
 
@@ -41,8 +46,22 @@ mouseDrag(const juce::MouseEvent &e)
     auto dragOffsetPixels = e.getOffsetFromDragStart().toDouble();
     auto dragOffsetWorld = worldUnitsFromPixels * dragOffsetPixels;
     auto newRootValue = valueAtDragStart + c128(dragOffsetWorld.getX(), dragOffsetWorld.getY());
-    if(rootPtr->order < 0) newRootValue /= std::abs(newRootValue); // TODO(ry): better stability clamp!
 
+    auto const snapThresholdPixels = 18.0; // TODO(ry): tune
+    auto snapThresholdWorld = parent->unitsPerPixel * snapThresholdPixels;
+
+    // NOTE(ry): snap to axis
+    if(std::abs(newRootValue.imag()) < snapThresholdWorld)
+    {
+      newRootValue = c128(newRootValue.real(), 0.0);
+    }
+
+    // TODO(ry): better stability clamp!
+    // NOTE(ry): stability clamp
+    if(rootPtr->order < 0)
+    {
+      newRootValue /= std::abs(newRootValue);
+    }
 
     // NOTE(ry): update all properties related to this root
     rootPtr->value = newRootValue; // TODO(ry): snap to real axis (ui confirmation)
@@ -85,6 +104,22 @@ valueTreePropertyChanged(juce::ValueTree &node, const juce::Identifier &property
     double valueRe = node.getProperty(IDs::ValueRe);
     double valueIm = node.getProperty(IDs::ValueIm);
     updateBounds(c128(valueRe, valueIm));
+
+    int order = node.getProperty(IDs::Order);
+    auto isOnAxis = juce::exactlyEqual(valueIm, 0.0);
+    if(isOnAxis != wasOnAxis && !isConjugate)
+    {
+      // NOTE(ry): update filter order if a conjugate root was created or destroyed
+      if(isOnAxis)
+      {
+        parent->processor.state.order -= u32(std::abs(order));
+      }
+      else
+      {
+        parent->processor.state.order += u32(std::abs(order));
+      }
+    }
+    wasOnAxis = isOnAxis;
   }
 }
 
@@ -110,7 +145,7 @@ ComplexPlaneEditor(AudioPluginAudioProcessor &p)
     processor.state.add(1);
   };
   delRoot.onClick = [this]{
-    // NOTE: guard against when points array is empty
+    // NOTE(ry): guard against when points array is empty
     if(auto *point = points.getLast())  // TODO(ry): remove a paritcular root
     {
       processor.state.remove(point->root);
