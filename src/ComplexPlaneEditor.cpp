@@ -110,7 +110,11 @@ ComplexPlaneEditor(AudioPluginAudioProcessor &p)
     processor.state.add(1);
   };
   delRoot.onClick = [this]{
-    processor.state.remove(points.getLast()->root); // TODO(ry): remove a paritcular root
+    // NOTE: guard against when points array is empty
+    if(auto *point = points.getLast())  // TODO(ry): remove a paritcular root
+    {
+      processor.state.remove(point->root);
+    }
   };
 
   undo.onClick = [this]{

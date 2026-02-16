@@ -7,6 +7,7 @@ class ComplexPlaneEditor final : public juce::Component, private juce::ValueTree
    * visually indicate when a root is being hovered over (highlight, show tooltip)
    * restore a root to its previous position when undoing its deletion
    * improve axis label positioning relative to grid lines
+   * update filter state order when root pairs are in the same position or not
    */
 
 public:
