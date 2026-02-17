@@ -4,8 +4,6 @@ ComplexPlaneEditor::RootPoint::
 RootPoint(ComplexPlaneEditor *e, bool c, FilterRoot::Ptr r)
   : isConjugate(c), root(r), parent(e)
 {
-  wasOnAxis = true;
-
   if(auto *rootPtr = root.get())
   {
     rootPtr->node.addListener(this);
@@ -104,22 +102,6 @@ valueTreePropertyChanged(juce::ValueTree &node, const juce::Identifier &property
     double valueRe = node.getProperty(IDs::ValueRe);
     double valueIm = node.getProperty(IDs::ValueIm);
     updateBounds(c128(valueRe, valueIm));
-
-    int order = node.getProperty(IDs::Order);
-    auto isOnAxis = juce::exactlyEqual(valueIm, 0.0);
-    if(isOnAxis != wasOnAxis && !isConjugate)
-    {
-      // NOTE(ry): update filter order if a conjugate root was created or destroyed
-      if(isOnAxis)
-      {
-        parent->processor.state.order -= u32(std::abs(order));
-      }
-      else
-      {
-        parent->processor.state.order += u32(std::abs(order));
-      }
-    }
-    wasOnAxis = isOnAxis;
   }
 }
 

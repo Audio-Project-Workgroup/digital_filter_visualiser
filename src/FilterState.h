@@ -77,6 +77,8 @@ struct FilterRoot
   CachedComplex value;
   juce::CachedValue<int> order;
 
+  bool wasOnAxis;
+
 private:
   JUCE_DECLARE_WEAK_REFERENCEABLE(FilterRoot);
 };
@@ -99,9 +101,9 @@ struct FilterState : private juce::ValueTree::Listener
 
 private:
 
-  void valueTreeChildAdded(juce::ValueTree &parent, juce::ValueTree &child);
-
-  void valueTreeChildRemoved(juce::ValueTree &parent, juce::ValueTree &child, int index);
+  void valueTreeChildAdded(juce::ValueTree &parent, juce::ValueTree &child) override;
+  void valueTreeChildRemoved(juce::ValueTree &parent, juce::ValueTree &child, int index) override;
+  void valueTreePropertyChanged(juce::ValueTree &node, const juce::Identifier &property) override;
 
   // TODO(ry): separate trees for filter roots and parameters/automation
   juce::AudioProcessorValueTreeState apvts;

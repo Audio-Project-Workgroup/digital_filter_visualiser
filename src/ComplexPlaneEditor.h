@@ -36,8 +36,6 @@ public:
 
     ComplexPlaneEditor *parent;
     c128 valueAtDragStart;
-
-    bool wasOnAxis;
   };
 
   void mouseWheelMove(const juce::MouseEvent &e, const juce::MouseWheelDetails &w) override;

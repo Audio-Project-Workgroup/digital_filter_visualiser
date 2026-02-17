@@ -39,6 +39,7 @@ add(s32 newOrder)
   }
 
   FilterRoot::Ptr result = getRootFromTreeNode(newNode);
+  result.get()->wasOnAxis = true;
   return(result);
 }
 
@@ -99,6 +100,8 @@ valueTreeChildAdded(juce::ValueTree &parent, juce::ValueTree &child)
     }
     order += u32(std::abs(s32(child.getProperty(IDs::Order))));
   }
+
+  DBG("filter order: " << int(order));
 }
 
 void FilterState::
@@ -126,6 +129,41 @@ valueTreeChildRemoved(juce::ValueTree &parent, juce::ValueTree &child, int index
       {
         order -= 2*u32(std::abs(s32(child.getProperty(IDs::Order))));
       }
+    }
+  }
+
+  DBG("filter order: " << int(order));
+}
+
+void FilterState::
+valueTreePropertyChanged(juce::ValueTree &node, const juce::Identifier &property)
+{
+  if(property == IDs::ValueRe || property == IDs::ValueIm)
+  {
+    if(auto *root = getRootFromTreeNode(node).get())
+    {
+      double valueIm = node.getProperty(IDs::ValueIm);
+      auto isOnAxis = juce::exactlyEqual(valueIm, 0.0);
+      if(isOnAxis != root->wasOnAxis)
+      {
+        // NOTE(ry): update filter order if a conjugate root was created or destroyed
+        int rootOrder = node.getProperty(IDs::Order);
+        if(isOnAxis)
+        {
+          order -= u32(std::abs(rootOrder));
+        }
+        else
+        {
+          order += u32(std::abs(rootOrder));
+        }
+        DBG("filter order: " << int(order));
+        // TODO(ry): maintain causality through update to origin pole
+      }
+      root->wasOnAxis = isOnAxis;
+    }
+    else if(property == IDs::Order)
+    {
+      // TODO(ry): maintain causality through update to origin pole
     }
   }
 }
