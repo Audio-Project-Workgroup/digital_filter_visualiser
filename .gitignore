@@ -4,3 +4,6 @@
 build
 
 src/TAGS
+src/JUCE
+src/out
+.vs/*
