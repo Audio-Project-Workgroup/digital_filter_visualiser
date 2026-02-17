@@ -97,13 +97,16 @@ struct FilterState : private juce::ValueTree::Listener
 
   juce::OwnedArray<FilterRoot> zeros;
   juce::OwnedArray<FilterRoot> poles;
-  u32 order;
+  u32 finiteZerosOrder; // NOTE(ry): the sum of the orders of all zeros in the finite plane. Causality requires this be at most the total order.
+  u32 totalOrder; // NOTE(ry): the total order of the filter. Causality requires this to equal the sum of the negative orders of all poles.
 
 private:
 
   void valueTreeChildAdded(juce::ValueTree &parent, juce::ValueTree &child) override;
   void valueTreeChildRemoved(juce::ValueTree &parent, juce::ValueTree &child, int index) override;
   void valueTreePropertyChanged(juce::ValueTree &node, const juce::Identifier &property) override;
+
+  void incrementFilterOrder(int delta, bool isPole);
 
   // TODO(ry): separate trees for filter roots and parameters/automation
   juce::AudioProcessorValueTreeState apvts;

@@ -7,7 +7,8 @@ FilterState(juce::AudioProcessor &p, juce::UndoManager *um)
     apvts.state = juce::ValueTree(IDs::FilterState);
   }
 
-  order = 0;
+  totalOrder = 0;
+  finiteZerosOrder = 0;
 
   auto zerosNode = apvts.state.getOrCreateChildWithName(IDs::Zeros, nullptr);
   auto polesNode = apvts.state.getOrCreateChildWithName(IDs::Poles, nullptr);
@@ -20,9 +21,11 @@ FilterState(juce::AudioProcessor &p, juce::UndoManager *um)
 FilterRoot::Ptr FilterState::
 add(s32 newOrder)
 {
+  jassert(newOrder != 0);
+
   juce::ValueTree newNode(IDs::Root);
   newNode.setProperty(IDs::Order, newOrder, apvts.undoManager);
-  newNode.setProperty(IDs::ValueRe, 1.0, apvts.undoManager);
+  newNode.setProperty(IDs::ValueRe, newOrder > 0 ? 1.0 : 0.0, apvts.undoManager);
   newNode.setProperty(IDs::ValueIm, 0.0, apvts.undoManager);
 
   if(newOrder > 0)
@@ -93,15 +96,16 @@ valueTreeChildAdded(juce::ValueTree &parent, juce::ValueTree &child)
     if(parent.hasType(IDs::Zeros))
     {
       zeros.add(new FilterRoot(child, apvts.undoManager));
+      incrementFilterOrder(std::abs(s32(child.getProperty(IDs::Order))), false);
     }
     else if(parent.hasType(IDs::Poles))
     {
       poles.add(new FilterRoot(child, apvts.undoManager));
+      incrementFilterOrder(std::abs(s32(child.getProperty(IDs::Order))), true);
     }
-    order += u32(std::abs(s32(child.getProperty(IDs::Order))));
   }
 
-  DBG("filter order: " << int(order));
+  DBG("filter order: " << int(totalOrder));
 }
 
 void FilterState::
@@ -112,6 +116,7 @@ valueTreeChildRemoved(juce::ValueTree &parent, juce::ValueTree &child, int index
   {
     if(auto root = getRootFromTreeNode(child).get())
     {
+      bool isPole = false;
       if(parent.hasType(IDs::Zeros))
       {
         zeros.removeObject(root);
@@ -119,20 +124,21 @@ valueTreeChildRemoved(juce::ValueTree &parent, juce::ValueTree &child, int index
       else if(parent.hasType(IDs::Poles))
       {
         poles.removeObject(root);
+        isPole = true;
       }
 
       if(juce::exactlyEqual(r64(child.getProperty(IDs::ValueIm)), 0.0))
       {
-        order -= u32(std::abs(s32(child.getProperty(IDs::Order))));
+        incrementFilterOrder(-std::abs(s32(child.getProperty(IDs::Order))), isPole);
       }
       else
       {
-        order -= 2*u32(std::abs(s32(child.getProperty(IDs::Order))));
+        incrementFilterOrder(-2*std::abs(s32(child.getProperty(IDs::Order))), isPole);
       }
     }
   }
 
-  DBG("filter order: " << int(order));
+  DBG("filter order: " << int(totalOrder));
 }
 
 void FilterState::
@@ -148,16 +154,16 @@ valueTreePropertyChanged(juce::ValueTree &node, const juce::Identifier &property
       {
         // NOTE(ry): update filter order if a conjugate root was created or destroyed
         int rootOrder = node.getProperty(IDs::Order);
+        bool isPole = rootOrder < 0;
         if(isOnAxis)
         {
-          order -= u32(std::abs(rootOrder));
+          incrementFilterOrder(-std::abs(rootOrder), isPole);
         }
         else
         {
-          order += u32(std::abs(rootOrder));
+          incrementFilterOrder(std::abs(rootOrder), isPole);
         }
-        DBG("filter order: " << int(order));
-        // TODO(ry): maintain causality through update to origin pole
+        DBG("filter order: " << int(totalOrder));
       }
       root->wasOnAxis = isOnAxis;
     }
@@ -166,4 +172,36 @@ valueTreePropertyChanged(juce::ValueTree &node, const juce::Identifier &property
       // TODO(ry): maintain causality through update to origin pole
     }
   }
+}
+
+void FilterState::
+incrementFilterOrder(int delta, bool isPole)
+{
+  // NOTE(ry): increment the appropriate order variable
+  if(isPole)
+  {
+    s32 result = s32(totalOrder) + delta;
+    jassert(result >= 0);
+    totalOrder = u32(result);
+  }
+  else
+  {
+    s32 result = s32(finiteZerosOrder) + delta;
+    jassert(result >= 0);
+    finiteZerosOrder = u32(result);
+  }
+
+  // NOTE(ry): make sure the order invariant is satisfied
+  if(finiteZerosOrder > totalOrder)
+  {
+    // NOTE(ry): add a pole to make up for the difference in order
+    // TODO(ry): automatically merge newly created roots so we don't have
+    // multiple slack poles lying on top of each other
+    u32 slack = finiteZerosOrder - totalOrder;
+    add(-s32(slack));
+    // NOTE(ry): `add()` itself calls `incrementFilterOrder()`, but we don't end
+    // up in an infinite loop since this branch will not be taken in the second
+    // call (the invariant will have been satisfied)
+  }
+  jassert(totalOrder >= finiteZerosOrder);
 }

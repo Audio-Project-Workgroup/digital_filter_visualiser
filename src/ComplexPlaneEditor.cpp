@@ -54,11 +54,14 @@ mouseDrag(const juce::MouseEvent &e)
       newRootValue = c128(newRootValue.real(), 0.0);
     }
 
-    // TODO(ry): better stability clamp!
-    // NOTE(ry): stability clamp
     if(rootPtr->order < 0)
     {
-      newRootValue /= std::abs(newRootValue);
+      // TODO(ry): better stability clamp!
+      // NOTE(ry): stability clamp
+      if(std::abs(newRootValue) >= 1)
+      {
+        newRootValue /= std::abs(newRootValue);
+      }
     }
 
     // NOTE(ry): update all properties related to this root
