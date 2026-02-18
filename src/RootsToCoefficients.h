@@ -10,11 +10,7 @@ public:
 
 		int order = 0;
 		for (const auto* root : roots)
-		{
-			int rootOrder = root->order.get();
-			bool isReal = root->value.im.get() == 0;
-			order += isReal ? rootOrder : 2 * rootOrder;
-		}
+			order += std::abs(root->order.get());
 
 		// Sort roots by magnitude for reducing numerical mistakes
 
@@ -48,12 +44,12 @@ public:
 			auto* root = roots[rootIndexes[i].index];
 			const double re = root->value.re.get();
 			const double im = root->value.im.get();
-			const int order = root->order.get();
+			const int rootOrder = std::abs(root->order.get());
 			if (im == 0) // One real root
 			{
 				const double a0 = -re;
 				const double a1 = 1.0;
-				for (int i = 0; i < order; i++)
+				for (int i = 0; i < rootOrder; i++)
 				{
 					for (int j = nonZeroCoeffCount - 1; j >= 0; j--)
 					{
@@ -69,7 +65,7 @@ public:
 				const double a0 = re * re + im * im;
 				const double a1 = -2.0 * re;
 				const double a2 = 1.0;
-				for (int i = 0; i < order; i++)
+				for (int i = 0; i < rootOrder; i++)
 				{
 					for (int j = nonZeroCoeffCount - 1; j >= 0; j--)
 					{
