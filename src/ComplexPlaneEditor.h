@@ -1,4 +1,7 @@
-class ComplexPlaneEditor final : public juce::Component, private juce::ValueTree::Listener
+class ComplexPlaneEditor final
+  : public juce::Component,
+    private juce::Slider::Listener,
+    private juce::ValueTree::Listener
 {
   /** TODO(ry):
    * better root creation interface (ability to create poles, increase/decrease root order)
@@ -54,8 +57,11 @@ private:
   void updateTransforms(void);
   void updateTransformsAndChildBounds(void);
 
+  void sliderValueChanged(juce::Slider *slider) override;
+
   void valueTreeChildAdded(juce::ValueTree &parent, juce::ValueTree &child) override;
   void valueTreeChildRemoved(juce::ValueTree &parent, juce::ValueTree &child, int index) override;
+  void valueTreePropertyChanged(juce::ValueTree &node, const juce::Identifier &property) override;
 
   double pixelsPerUnit;
   double unitsPerPixel;
@@ -69,6 +75,9 @@ private:
 
   juce::OwnedArray<RootPoint> points;
 
+  juce::Slider gainSlider;
+
+  // NOTE(ry): debug ui
   juce::TextButton addRoot;
   juce::TextButton delRoot;
   juce::TextButton undo;

@@ -120,6 +120,18 @@ ComplexPlaneEditor(AudioPluginAudioProcessor &p)
   unitsPerPixel = 1.0 / pixelsPerUnit;
   unitsPerLine = 1;
 
+  // NOTE(ry): gain slider setup
+  gainSlider.setSliderStyle(juce::Slider::LinearHorizontal);
+  gainSlider.setColour(juce::Slider::thumbColourId, juce::Colours::orange);
+  gainSlider.setColour(juce::Slider::trackColourId, juce::Colours::white);
+  gainSlider.setBounds(0, 0, 400, 100);
+  gainSlider.setRange(-90.f, 6.f, 0.f);
+  gainSlider.setTextValueSuffix(" dB");
+  gainSlider.setValue(processor.state.gain, juce::dontSendNotification);
+  gainSlider.addListener(this);
+  addAndMakeVisible(gainSlider);
+
+  // NOTE(ry): debug ui setup
   addRoot.setBounds(100, 100, 100, 50);
   delRoot.setBounds(100, 150, 100, 50);
   undo.setBounds(200, 100, 100, 50);
@@ -376,6 +388,17 @@ updateTransformsAndChildBounds(void)
 }
 
 void ComplexPlaneEditor::
+sliderValueChanged(juce::Slider *slider)
+{
+  if(slider == &gainSlider)
+  {
+    auto const dB = slider->getValue();
+    auto const amp = juce::Decibels::decibelsToGain(dB);
+    processor.state.gain = amp;
+  }
+}
+
+void ComplexPlaneEditor::
 valueTreeChildAdded(juce::ValueTree &parent, juce::ValueTree &child)
 {
   juce::ignoreUnused(parent);
@@ -416,4 +439,15 @@ valueTreeChildRemoved(juce::ValueTree &parent, juce::ValueTree &child, int index
   }
 
   repaint();
+}
+
+void ComplexPlaneEditor::
+valueTreePropertyChanged(juce::ValueTree &node, const juce::Identifier &property)
+{
+  if(property == IDs::Gain)
+  {
+    auto const amp = r64(node.getProperty(IDs::Gain));
+    auto const dB = juce::Decibels::gainToDecibels(amp);
+    gainSlider.setValue(dB, juce::dontSendNotification);
+  }
 }

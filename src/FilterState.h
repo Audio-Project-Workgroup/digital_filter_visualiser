@@ -1,4 +1,4 @@
-#pragma onc
+#pragma once
 
 using u8 = uint8_t;
 using u16 = uint16_t;
@@ -24,6 +24,7 @@ namespace IDs
   const juce::Identifier Root("Root");
   const juce::Identifier Zeros("Zeros");
   const juce::Identifier Poles("Poles");
+  const juce::Identifier Gain("Gain");
   const juce::Identifier ValueRe("ValueReal");
   const juce::Identifier ValueIm("ValueImag");
   const juce::Identifier Order("Order");
@@ -117,6 +118,7 @@ struct FilterState : private juce::ValueTree::Listener
 
   juce::OwnedArray<FilterRoot> zeros;
   juce::OwnedArray<FilterRoot> poles;
+  juce::CachedValue<double> gain;
   u32 finiteZerosOrder; // NOTE(ry): the sum of the orders of all zeros in the finite plane. Causality requires this be at most the total order.
   u32 totalOrder; // NOTE(ry): the total order of the filter. Causality requires this to equal the sum of the negative orders of all poles.
 

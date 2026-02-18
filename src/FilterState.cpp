@@ -13,6 +13,9 @@ FilterState(juce::AudioProcessor &p, juce::UndoManager *um)
   auto zerosNode = apvts.state.getOrCreateChildWithName(IDs::Zeros, nullptr);
   auto polesNode = apvts.state.getOrCreateChildWithName(IDs::Poles, nullptr);
 
+  apvts.state.setProperty(IDs::Gain, 0.0, nullptr);
+  gain.referTo(apvts.state, IDs::Gain, um);
+
   apvts.state.addListener(this);
   zerosNode.addListener(this);
   polesNode.addListener(this);
