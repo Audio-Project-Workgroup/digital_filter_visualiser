@@ -1,7 +1,4 @@
-#include "PluginProcessor.h"
 #include "PluginEditor.h"
-
-#include "ComplexPlaneEditor.cpp"
 
 //==============================================================================
 CoefficientsComponent::CoefficientsComponent()

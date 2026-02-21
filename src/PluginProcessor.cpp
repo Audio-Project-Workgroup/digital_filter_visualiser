@@ -1,7 +1,6 @@
 #include "PluginProcessor.h"
 #include "PluginEditor.h"
-
-#include "FilterState.cpp"
+#include "ProcessorChainModifier.h"
 
 //==============================================================================
 AudioPluginAudioProcessor::AudioPluginAudioProcessor()
@@ -12,12 +11,35 @@ AudioPluginAudioProcessor::AudioPluginAudioProcessor()
 #endif
                     .withOutput ("Output", juce::AudioChannelSet::stereo(), true)
 #endif
-                    ), state(*this, &um),
-    filter(juce::dsp::IIR::Coefficients<SampleType>::makeLowPass(44100.0, 1200.f, 0.1f))
-{}
+    ),
+    state(*this, &um),
+    activeState(new FullState<SampleType>),
+    pendingState(new FullState<SampleType>)
+    {
+        um.addChangeListener(this);
+    }
+
 
 AudioPluginAudioProcessor::~AudioPluginAudioProcessor()
-{}
+{
+    um.removeChangeListener(this);
+
+    auto* activePtr = activeState.exchange(nullptr);
+    if (activePtr != nullptr)
+    {
+        while (isActiveStateUsed.load())
+            juce::Thread::sleep(1);
+        delete activePtr;
+    }
+
+    if (pendingState != nullptr)
+    {
+        while (isPendingStateUsed.load())
+            juce::Thread::sleep(1);
+        delete pendingState;
+        pendingState = nullptr;
+    }
+}
 
 //==============================================================================
 const juce::String AudioPluginAudioProcessor::getName() const
@@ -87,13 +109,43 @@ void AudioPluginAudioProcessor::changeProgramName (int index, const juce::String
 //==============================================================================
 void AudioPluginAudioProcessor::prepareToPlay (double sampleRate, int samplesPerBlock)
 {
-  *filter.state = *juce::dsp::IIR::Coefficients<SampleType>::makeLowPass(sampleRate, 1200.f, 0.1f);
-  juce::dsp::ProcessSpec spec = {};
-  spec.sampleRate = sampleRate;
-  spec.maximumBlockSize = juce::uint32(samplesPerBlock);
-  spec.numChannels = juce::uint32(getTotalNumOutputChannels());
-  filter.prepare(spec);
-  filter.reset();
+    std::lock_guard<std::mutex> lock(stateMutex);
+
+    crossFadeBuffer.setSize(getTotalNumInputChannels(), samplesPerBlock);
+
+    juce::dsp::ProcessSpec newSpec
+    {
+        sampleRate, 
+        juce::uint32(samplesPerBlock), 
+        juce::uint32(1) // one channel per filter!
+    };
+    spec = newSpec;
+    auto numChannels = juce::uint32(getTotalNumOutputChannels());
+
+    isActiveStateUsed.store(true);
+    isPendingStateUsed.store(true);
+
+    if (auto activeProc = activeState.load())
+        if (pendingState != nullptr)
+        {
+            activeProc->clear(true);
+            pendingState->clear(true);
+
+            for (auto i = 0; i < numChannels; i++)
+            {
+                auto* activeItem = new ProcessorChain<SampleType>;
+                activeItem->prepare(spec);
+                activeProc->add(activeItem);
+                auto* pendingItem = new ProcessorChain<SampleType>;
+                pendingItem->prepare(spec);
+                pendingState->add(pendingItem);
+            }
+
+            ProcessorChainModifier::RootsToJuceCoeffs(state, activeState.load(), spec);
+        }
+    isPrepared = true;
+    isPendingStateUsed.store(false);
+    isActiveStateUsed.store(false);
 }
 
 void AudioPluginAudioProcessor::releaseResources()
@@ -129,32 +181,73 @@ bool AudioPluginAudioProcessor::isBusesLayoutSupported (const BusesLayout& layou
 void AudioPluginAudioProcessor::processBlock (juce::AudioBuffer<SampleType>& buffer,
                                               juce::MidiBuffer& midiMessages)
 {
-  juce::ignoreUnused (midiMessages);
+    juce::ignoreUnused(midiMessages);
+    juce::ScopedNoDenormals noDenormals;
 
-  juce::ScopedNoDenormals noDenormals;
-  auto totalNumInputChannels  = getTotalNumInputChannels();
-  auto totalNumOutputChannels = getTotalNumOutputChannels();
+    const int totalNumInputChannels = getTotalNumInputChannels();
+    const int totalNumOutputChannels = getTotalNumOutputChannels();
+    const int numSamples = buffer.getNumSamples();
+    if (numSamples <= 0)
+        return;
 
-  // In case we have more outputs than inputs, this code clears any output
-  // channels that didn't contain input data, (because these aren't
-  // guaranteed to be empty - they may contain garbage).
-  // This is here to avoid people getting screaming feedback
-  // when they first compile a plugin, but obviously you don't need to keep
-  // this code if your algorithm always overwrites all the output channels.
-  for (auto i = totalNumInputChannels; i < totalNumOutputChannels; ++i)
-    buffer.clear (i, 0, buffer.getNumSamples());
+    // In case we have more outputs than inputs, this code clears any output
+    // channels that didn't contain input data, (because these aren't
+    // guaranteed to be empty - they may contain garbage).
+    // This is here to avoid people getting screaming feedback
+    // when they first compile a plugin, but obviously you don't need to keep
+    // this code if your algorithm always overwrites all the output channels.
+    for (auto i = totalNumInputChannels; i < totalNumOutputChannels; ++i)
+        buffer.clear(i, 0, numSamples);
 
-  juce::dsp::AudioBlock<SampleType> block(buffer);
-  filter.process(juce::dsp::ProcessContextReplacing<SampleType>(block));
+    if (isNewStateReady.load())
+    {
+        auto* activeProc = activeState.load();
+        juce::dsp::AudioBlock<SampleType> block(buffer);
+        juce::dsp::AudioBlock<SampleType> crossFadeBlock(crossFadeBuffer);
 
-/*
-  for (int channel = 0; channel < totalNumInputChannels; ++channel)
-  {
-    auto* channelData = buffer.getWritePointer (channel);
-    juce::ignoreUnused (channelData);
-    // ..do something to the data...
-  }
-*/
+        for (auto ch = 0; ch < totalNumInputChannels; ch++)
+        {
+            crossFadeBuffer.copyFrom(ch, 0, buffer.getReadPointer(ch), numSamples);
+
+            auto oldBlock = block.getSingleChannelBlock(ch);
+            juce::dsp::ProcessContextReplacing<SampleType> oldContext(oldBlock);
+            activeProc->getUnchecked(ch)->process(oldContext);
+
+            auto newBlock = crossFadeBlock.getSingleChannelBlock(ch);
+            juce::dsp::ProcessContextReplacing<SampleType> newContext(newBlock);
+            pendingState->getUnchecked(ch)->process(newContext);
+
+            buffer.applyGainRamp(ch, 0, numSamples, 1.0f, 0.0f);
+            buffer.addFromWithRamp(ch, 0, crossFadeBuffer.getReadPointer(ch), numSamples, 0.0f, 1.0f);
+        }
+
+        auto* old = activeState.exchange(pendingState);
+        pendingState = old;
+        isNewStateReady.store(false);
+    }
+    //else
+    {
+        auto* proc = activeState.load();
+        juce::dsp::AudioBlock<SampleType> block(buffer);
+
+        for (auto ch = 0; ch < totalNumInputChannels; ch++)
+        {
+            auto channelBlock = block.getSingleChannelBlock(ch);
+            juce::dsp::ProcessContextReplacing<SampleType> context(channelBlock);
+            proc->getUnchecked(ch)->process(context);
+        }
+    }
+
+    for (int ch = 0; ch < buffer.getNumChannels(); ++ch)
+    {
+        auto* data = buffer.getWritePointer(ch);
+
+        for (int i = 0; i < buffer.getNumSamples(); ++i)
+        {
+            if (!std::isfinite(data[i]))
+                data[i] = 0.0f;
+        }
+    }
 }
 
 //==============================================================================
@@ -182,6 +275,14 @@ void AudioPluginAudioProcessor::setStateInformation (const void* data, int sizeI
   // You should use this method to restore your parameters from this memory block,
   // whose contents will have been created by the getStateInformation() call.
   juce::ignoreUnused (data, sizeInBytes);
+}
+
+void AudioPluginAudioProcessor::changeListenerCallback(juce::ChangeBroadcaster* source)
+{
+    if (source == &um)
+    {
+        ProcessorChainModifier::Process(*this);
+    }
 }
 
 //==============================================================================

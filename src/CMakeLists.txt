@@ -29,6 +29,8 @@ target_sources(
   PRIVATE
   PluginEditor.cpp
   PluginProcessor.cpp
+  FilterState.cpp
+  ComplexPlaneEditor.cpp
 )
 
 target_compile_definitions(

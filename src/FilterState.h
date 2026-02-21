@@ -1,4 +1,6 @@
-#pragma onc
+#pragma once
+#include <juce_audio_processors/juce_audio_processors.h>
+#include <juce_dsp/juce_dsp.h>
 
 using u8 = uint8_t;
 using u16 = uint16_t;

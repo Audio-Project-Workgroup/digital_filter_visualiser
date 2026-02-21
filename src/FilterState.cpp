@@ -1,3 +1,5 @@
+#include "FilterState.h"
+
 FilterState::
 FilterState(juce::AudioProcessor &p, juce::UndoManager *um)
   : apvts(p, um)

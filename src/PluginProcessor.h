@@ -4,9 +4,10 @@
 #include <juce_dsp/juce_dsp.h>
 
 #include "FilterState.h"
+#include "ProcessorChain.h"
 
 //==============================================================================
-class AudioPluginAudioProcessor final : public juce::AudioProcessor
+class AudioPluginAudioProcessor final : public juce::AudioProcessor, juce::ChangeListener
 {
 public:
 
@@ -47,15 +48,27 @@ public:
   //==============================================================================
   void getStateInformation (juce::MemoryBlock& destData) override;
   void setStateInformation (const void* data, int sizeInBytes) override;
+  
+  //==============================================================================
+  void 	changeListenerCallback(juce::ChangeBroadcaster* source) override;
 
   //juce::AudioProcessorValueTreeState state;
   FilterState state;
   juce::UndoManager um;
+  std::atomic<FullState<SampleType>*> activeState;
+  FullState<SampleType>* pendingState;
+  std::atomic<bool> isActiveStateUsed{ false };
+  std::atomic<bool> isPendingStateUsed{ false };
+  std::atomic<bool> isNewStateReady{ false };
+
+  // This mutex avoids races when reading spec in ProcessorChainModifier class 
+  // while writing it in prepareToPlay.
+  std::mutex stateMutex;
+  bool isPrepared = false;
+  juce::dsp::ProcessSpec spec;
 
 private:
-
-  juce::dsp::ProcessorDuplicator<juce::dsp::IIR::Filter<SampleType>, juce::dsp::IIR::Coefficients<SampleType>> filter;
-
+	juce::AudioBuffer<float> crossFadeBuffer;
   //==============================================================================
   JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (AudioPluginAudioProcessor)
 };

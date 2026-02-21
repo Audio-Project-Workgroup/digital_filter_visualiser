@@ -1,3 +1,11 @@
+#pragma once
+
+#include <juce_audio_processors/juce_audio_processors.h>
+#include <juce_dsp/juce_dsp.h>
+
+#include "FilterState.h"
+#include "PluginProcessor.h"
+
 class ComplexPlaneEditor final : public juce::Component, private juce::ValueTree::Listener
 {
   /** TODO(ry):

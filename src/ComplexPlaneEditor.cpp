@@ -1,5 +1,7 @@
 // NOTE(ry): ComplexPlaneEditor::RootPoint implementations
 
+#include "ComplexPlaneEditor.h"
+
 ComplexPlaneEditor::RootPoint::
 RootPoint(ComplexPlaneEditor *e, bool c, FilterRoot::Ptr r)
   : isConjugate(c), root(r), parent(e)
