@@ -160,6 +160,9 @@ public:
 				firCascade[i]->prepare(spec);
 			}
 			firCascade.removeRange(firFiltersSize, firCascade.size() - firFiltersSize); // TODO: don't delete objects for optimization?
+		
+			//4d. Gain
+			proc->gain.setGainLinear(state.gain.get());
 		}
 	}
 
@@ -300,14 +303,6 @@ private:
 		jassert(isPoleReal || !shouldPoleBePaired);
 		float b0, b1, b2, a0, a1, a2;
 
-		if (zeroIndex == -1) // no zeros
-		{
-			b0 = 1.0;
-			b1 = b2 = 0;
-		}
-		else
-			calculatePolynomialCoefficients(zeros[zeroIndex], false, b0, b1, b2);
-
 		if (shouldPoleBePairedWithDelay) // 1-order pole + delay (pole in null)
 		{
 			a0 = 1.f;
@@ -316,6 +311,19 @@ private:
 		}
 		else 
 			calculatePolynomialCoefficients(pole, shouldEqualPoleBeTaken, a0, a1, a2);
+
+		if (zeroIndex != -1) 
+			calculatePolynomialCoefficients(zeros[zeroIndex], false, b0, b1, b2);
+		else if (a0 == 0) // no zeros, 1-order pole
+		{
+			b1 = 1.0;
+			b0 = b2 = 0;
+		}
+		else // no zeros, 2-order pole
+		{
+			b0 = 1.0;
+			b1 = b2 = 0;
+		}
 
 		if (a0 == 0) // 1-order filter
 		{
