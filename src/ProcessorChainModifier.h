@@ -22,7 +22,7 @@ public:
 			return;
 
 		const int polesSize = state.poles.size();
-		const auto zerosSize = state.zeros.size();
+		const int zerosSize = state.zeros.size();
 
 		int zerosBiquadSize = 0;
 		for (auto* item : state.zeros)
@@ -31,129 +31,124 @@ public:
 			zerosBiquadSize += item->order.get();
 		}
 
-		// 1. Sort poles
-		// (zero magnitude poles will be in the end of the vector)
-		std::vector<PolesIndexesWithKeys> polesIndexesWithKeys(polesSize);
+		// 1. Sort non-null poles by priority for pairing with zeros
+		// (they should be cascaded in reverse order);
+		// calculate delay count.
+		int delayCount = 0;
+		std::vector<PolesIndexesWithKeys> polesIndexesWithKeys;
+		polesIndexesWithKeys.reserve(polesSize);
 		for (int i = 0; i < polesSize; i++)
-			polesIndexesWithKeys[i] = { i, EvaluatePole(state.poles[i]) };
+		{
+			auto* pole = state.poles[i];
+			if (std::abs(pole->value.get()) == 0)
+				delayCount += std::abs(pole->order.get());
+			else
+				polesIndexesWithKeys.push_back({ i, EvaluatePole(pole) });
+		}
 		std::sort(polesIndexesWithKeys.begin(), polesIndexesWithKeys.end(),
 			[](const PolesIndexesWithKeys a, const PolesIndexesWithKeys b)
 			{
 				return a.key > b.key;
 			});
+		const auto nonNullPolesSize = polesIndexesWithKeys.size();
 
-		// 2. Find the best zero pair for each pole.
+		// 2. Find the best zero pair for each pole
+		// and calculate IIR coefficients
 		std::vector<int> usedZeros(zerosSize, false);
-		std::vector<int> zerosIndexes;
-		zerosIndexes.reserve(zerosBiquadSize);
+		std::vector<juce::dsp::IIR::Coefficients<float>*> iirCoeffs;
 
-		int delayCount = 0;
-		int firstNullPoleIndex = 0;
 		int bestIndex = -1;
-		int polesBiquadSize = 0;
-		for (int i = 0; i < polesSize; i++)
+		for (int i = 0; i < nonNullPolesSize; i++)
 		{
 			auto* pole = state.poles[polesIndexesWithKeys[i].index];
 			const int poleOrder = std::abs(pole->order.get());
 
-			if (std::abs(pole->value.get()) == 0)
-			{
-				delayCount += poleOrder;
-				continue;
-			}
-
-			firstNullPoleIndex++;
-			polesBiquadSize += poleOrder;
 			for (int j = 0; j < poleOrder; j++)
 			{
-				bestIndex = FindBestZeroIndexPairForPole(pole, state.zeros, usedZeros);
-				if (bestIndex == -1)
-					break;
-				usedZeros[bestIndex]++;
-				zerosIndexes.push_back(bestIndex);
-			}
-			if (bestIndex == -1)
-				break;
-		}
+				int bestZeroIndex;
+				bool shouldPoleBePairedWithDelay, shouldEqualPoleBeTaken;
 
-		// 3. Put other zeros to the end of a cascade.
-		if (polesBiquadSize == 0 || bestIndex != -1)
-		{
-			for (auto i = 0; i < zerosSize; i++)
-			{
-				const int order = state.zeros[i]->order.get();
-				for (int j = usedZeros[i]; j < order; j++)
-					zerosIndexes.push_back(i);
-				usedZeros[i] = order;
-			}
-		}
+				FindBestZeroIndexPairForPole(
+					pole, 
+					state.zeros, 
+					usedZeros,
+					poleOrder - j > 1,
+					delayCount != 0,
+					bestZeroIndex,
+					shouldPoleBePairedWithDelay,
+					shouldEqualPoleBeTaken);
 
-		// 4. IIR coefficients cascade
-		std::vector<juce::dsp::IIR::Coefficients<float>*> iirCoeffs(polesBiquadSize);
-		float b0, b1, b2, a0, a1, a2;
-		int zerosIndexesIndex = 0;
-		for (int i = 0; i < firstNullPoleIndex; i++)
-		{
-			auto* pole = state.poles[polesIndexesWithKeys[i].index];
-			const int poleOrder = std::abs(pole->order.get());
-			calculateCoefficients(pole, a0, a1, a2);
-			for (int j = 0; j < poleOrder; j++)
-			{
-				if (zerosIndexesIndex == zerosBiquadSize)
-				{
-					b0 = 1.0;
-					b1 = b2 = 0;
-				}
-				else
-				{
-					auto* zero = state.zeros[zerosIndexes[zerosIndexesIndex++]];
-					calculateCoefficients(zero, b0, b1, b2);
-				}
-				if (a0 == 0 && b0 == 0) // 1-order filter
-					iirCoeffs[i] = new juce::dsp::IIR::Coefficients<float>{ b1, b2, a1, a2 };
-				else // 2-order filter
-					iirCoeffs[i] = new juce::dsp::IIR::Coefficients<float>{ b0, b1, b2, a0, a1, a2 };
+				iirCoeffs.push_back(CalculateIirCoefficients(
+					pole, 
+					state.zeros,
+					bestZeroIndex,
+					shouldPoleBePairedWithDelay, 
+					shouldEqualPoleBeTaken));
+
+				if (shouldPoleBePairedWithDelay)
+					delayCount--;
+				if (shouldEqualPoleBeTaken)
+					j++;
+				if (bestIndex != -1)
+					usedZeros[bestIndex]++;
 			}
 		}
-		std::reverse(iirCoeffs.begin(), iirCoeffs.end()); // TODO: check and optimize
+		const int iirFiltersSize = iirCoeffs.size();
 
-		// 5. Create FIR coefficients cascade
-		const int firCoeffSize = std::max(0, zerosBiquadSize - zerosIndexesIndex);
-		std::vector<juce::dsp::FIR::Coefficients<float>*> firCoeffs(firCoeffSize);
+		// 3. Calculate FIR coefficients for each non-paired zero.
+		std::vector<juce::dsp::FIR::Coefficients<float>*> firCoeffs;
 		std::array<float, 3> bCoeff{ 0 };
-		for (int i = 0; i < firCoeffSize; i++)
+		for (auto i = 0; i < zerosSize; i++)
 		{
-			auto* zero = state.zeros[zerosIndexes[zerosIndexesIndex++]];
-			calculateCoefficients(zero, bCoeff[0], bCoeff[1], bCoeff[2]);
-			firCoeffs[i] = new juce::dsp::FIR::Coefficients<float>{ bCoeff.data(), 3 };
+			auto* zero = state.zeros[i];
+			const int order = zero->order.get();
+			const bool isReal = zero->value.im.get() == 0;
+			for (int j = usedZeros[i]; j < order; j++)
+			{
+				const bool shouldBeTakenTwice = isReal && order - j > 1;
+				calculatePolynomialCoefficients(
+					zero, 
+					shouldBeTakenTwice,
+					bCoeff[0], bCoeff[1], bCoeff[2]);
+				firCoeffs.push_back(new juce::dsp::FIR::Coefficients<float>{ bCoeff.data(), 3 });
+				if (shouldBeTakenTwice)
+					j++;
+			}
 		}
+		const int firFiltersSize = firCoeffs.size();
 
-		// 6. Set processors parameters
+		// 4. Set processors parameters
 		for (int ch = 0; ch < channelSize; ch++)
 		{
 			auto* proc = (*processorState)[ch];
 
-			proc->delay.setDelay(delayCount);
-			proc->delay.reset();
-			proc->delay.prepare(spec);
+			// 4a. Delay
+			auto& delay = proc->delay;
+			if (delay.getMaximumDelayInSamples() < delayCount)
+				delay.setMaximumDelayInSamples(delayCount);
+			delay.setDelay(delayCount);
+			delay.reset();
+			delay.prepare(spec);
 
+			// 4b. IIR cascade
 			auto& iirCascade = proc->iirCascade;
-			for (int i = 0; i < polesBiquadSize; i++)
+			for (int i = 0 ; i < iirFiltersSize; i++)
 			{
-				//auto& coeffsArr = iirCoeffs[i];
+				const int iirCoeffsIndex = iirFiltersSize - 1 - i; // reverse order
 				if (i == iirCascade.size())
-					iirCascade.add(new juce::dsp::IIR::Filter<float>{ iirCoeffs[i] });
+					iirCascade.add(new juce::dsp::IIR::Filter<float>{ iirCoeffs[iirCoeffsIndex] });
 				else
 				{
-					iirCascade[i]->coefficients = iirCoeffs[i];
+					iirCascade[i]->coefficients = iirCoeffs[iirCoeffsIndex];
 					iirCascade[i]->reset();
 				}
 				iirCascade[i]->prepare(spec);
 			}
-			iirCascade.removeRange(polesBiquadSize, iirCascade.size() - polesBiquadSize); // TODO: don't delete objects for optimization?
+			iirCascade.removeRange(iirFiltersSize, iirCascade.size() - iirFiltersSize); // TODO: don't delete objects for optimization?
 
+			// 4c. FIR cascade
 			auto& firCascade = proc->firCascade;
-			for (int i = 0; i < firCoeffSize; i++)
+			for (int i = 0; i < firFiltersSize; i++)
 			{
 				if (i == firCascade.size())
 					firCascade.add(new juce::dsp::FIR::Filter<float>{ firCoeffs[i] });
@@ -164,7 +159,7 @@ public:
 				}
 				firCascade[i]->prepare(spec);
 			}
-			firCascade.removeRange(firCoeffSize, firCascade.size() - firCoeffSize); // TODO: don't delete objects for optimization?
+			firCascade.removeRange(firFiltersSize, firCascade.size() - firFiltersSize); // TODO: don't delete objects for optimization?
 		}
 	}
 
@@ -207,49 +202,135 @@ private:
 		return q * qCoeff + mag * magCoeff + angleAbs * angleCoeff;
 	}
 
-	static int FindBestZeroIndexPairForPole(
+	static void FindBestZeroIndexPairForPole(
 		const FilterRoot* pole,
 		juce::OwnedArray<FilterRoot>& zeros,
-		std::vector<int>& usedZeros)
+		std::vector<int>& usedZeros,
+		bool doesEqualPoleExist,
+		bool doesDelayExist,
+		int& bestZeroIndex,
+		bool& shouldPoleBePairedWithDelay,
+		bool& shouldEqualPoleBeTaken)
 	{
-		const auto size = usedZeros.size();
+		const auto usedZerosSize = usedZeros.size();
 		const double poleAngle = std::arg(pole->value.get());
+		const bool isPoleReal = pole->value.im.get() == 0;
+		const bool shouldDenominatorBeFirstOrder = 
+			isPoleReal && !doesDelayExist && !doesEqualPoleExist;
 
-		auto currentMinIndex = -1;
-		auto currentUnitCircleMinIndex = -1;
+		auto currentBestIndex = -1;
+		auto currentUnitCircleBestIndex = -1;
 		double currentMin = 100.0; // greater than maximum possible delta
 		double currentUnitCircleMin = 100.0; // greater than maximum possible delta
-		for (auto i = 0; i < size; i++)
+		for (auto i = 0; i < usedZerosSize; i++)
 		{
-			if (usedZeros[i] == zeros[i]->order.get())
+			auto* zero = zeros[i];
+			
+			// Zero is already used with its order
+			if (usedZeros[i] == zero->order.get())
+				continue;
+			
+			// Check that numerator's order <= denominator's order,
+			// otherwise don't get this zero.
+			const int isZeroReal = zero->value.im.get() == 0;
+			if (shouldDenominatorBeFirstOrder && !isZeroReal)
 				continue;
 
-			const double currentDelta = angleDiffAbs(poleAngle, std::arg(zeros[i]->value.get()));
-			const double currentMag = std::abs(zeros[i]->value.get());
+			const double currentDelta = angleDiffAbs(poleAngle, std::arg(zero->value.get()));
+			const double currentMag = std::abs(zero->value.get());
 
 			if (currentDelta < currentMin)
 			{
-				currentMinIndex = i;
+				currentBestIndex = i;
 				currentMin = currentDelta;
 			}
 
 			if (std::abs(currentMag - 1) <= magnitudeThreshold &&
 				currentDelta < currentUnitCircleMin)
 			{
-				currentUnitCircleMinIndex = i;
+				currentUnitCircleBestIndex = i;
 				currentUnitCircleMin = currentDelta;
 			}
 		}
 
-		if (currentUnitCircleMinIndex != -1 &&
+		if (currentUnitCircleBestIndex != -1 &&
 			angleDiffAbs(currentUnitCircleMin, poleAngle) <= angleSimilarityThreshold)
-			return currentUnitCircleMinIndex;
+			bestZeroIndex = currentUnitCircleBestIndex;
+		else
+			bestZeroIndex = currentBestIndex;
 
-		return currentMinIndex;
+		// No zero to pair
+		if (bestZeroIndex == -1) 
+		{
+			shouldEqualPoleBeTaken = isPoleReal && doesEqualPoleExist;
+			shouldPoleBePairedWithDelay = !shouldEqualPoleBeTaken && isPoleReal && doesDelayExist;
+			return;
+		}
+
+		const bool isBestZeroReal = zeros[bestZeroIndex]->value.im.get() == 0;
+
+		// Pair 2-order pole with any zero
+		// or 1-order pole with 1-order zero
+		if (!isPoleReal || isBestZeroReal)
+			shouldEqualPoleBeTaken = shouldPoleBePairedWithDelay = false;
+		// Pair 2 equal 1-order poles with 2-order zero
+		else if (doesEqualPoleExist)
+		{
+			shouldEqualPoleBeTaken = true;
+			shouldPoleBePairedWithDelay = false;
+		}
+		// Pair 1-order pole and delay with 2-order zero
+		else
+		{
+			jassert(doesDelayExist);
+			shouldEqualPoleBeTaken = false;
+			shouldPoleBePairedWithDelay = true;
+		}
 	}
 
-	static inline void calculateCoefficients(
+	static juce::dsp::IIR::Coefficients<float>* CalculateIirCoefficients(
+		FilterRoot* pole,
+		juce::OwnedArray<FilterRoot>& zeros,
+		int zeroIndex,
+		bool shouldPoleBePairedWithDelay,
+		bool shouldEqualPoleBeTaken)
+	{
+		const bool isPoleReal = pole->value.im.get() == 0;
+		const bool shouldPoleBePaired = shouldPoleBePairedWithDelay || shouldEqualPoleBeTaken;
+		jassert(isPoleReal || !shouldPoleBePaired);
+		float b0, b1, b2, a0, a1, a2;
+
+		if (zeroIndex == -1) // no zeros
+		{
+			b0 = 1.0;
+			b1 = b2 = 0;
+		}
+		else
+			calculatePolynomialCoefficients(zeros[zeroIndex], false, b0, b1, b2);
+
+		if (shouldPoleBePairedWithDelay) // 1-order pole + delay (pole in null)
+		{
+			a0 = 1.f;
+			a1 = -pole->value.re.get();
+			a2 = 0.f;
+		}
+		else 
+			calculatePolynomialCoefficients(pole, shouldEqualPoleBeTaken, a0, a1, a2);
+
+		if (a0 == 0) // 1-order filter
+		{
+			jassert(b0 == 0 && a1 != 0);
+			return new juce::dsp::IIR::Coefficients<float>{ b1, b2, a1, a2 };
+		}
+		else // 2-order filter
+		{
+			return new juce::dsp::IIR::Coefficients<float>{ b0, b1, b2, a0, a1, a2 };
+		}
+	}
+
+	static inline void calculatePolynomialCoefficients(
 		FilterRoot* root,
+		bool shouldBeTakenTwice,
 		float& c0, float& c1, float& c2)
 	{
 		if (root == nullptr)
@@ -260,7 +341,10 @@ private:
 		}
 		const double re = root->value.re.get();
 		const double im = root->value.im.get();
-		if (im == 0)
+
+		jassert(im == 0 || !shouldBeTakenTwice);
+
+		if (im == 0 && !shouldBeTakenTwice)
 		{
 			c2 = -re;
 			c1 = 1.0;
