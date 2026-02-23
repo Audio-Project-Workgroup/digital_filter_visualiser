@@ -160,6 +160,8 @@ ComplexPlaneEditor(AudioPluginAudioProcessor &p)
   addAndMakeVisible(delRoot);
   addAndMakeVisible(undo);
   addAndMakeVisible(redo);
+
+    addAndMakeVisible(cl1); // @TODO test coeffLabel , erase later 
 }
 
 ComplexPlaneEditor::
@@ -385,6 +387,11 @@ updateTransformsAndChildBounds(void)
       p->updateBounds(root->value);
     }
   }
+
+  // @TODO test coeffLabel , erase later
+  auto area = getLocalBounds();
+  cl1.setBounds(area.withSizeKeepingCentre(120, 40));
+  
 }
 
 void ComplexPlaneEditor::

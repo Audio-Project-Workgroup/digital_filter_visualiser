@@ -29,6 +29,7 @@ target_sources(
   PRIVATE
   PluginEditor.cpp
   PluginProcessor.cpp
+  CoeffLabels.cpp
 )
 
 target_compile_definitions(
@@ -46,6 +47,7 @@ target_link_libraries(
   PRIVATE
   juce::juce_audio_utils
   juce::juce_dsp
+  juce::juce_gui_basics
   PUBLIC
   juce::juce_recommended_config_flags
   juce::juce_recommended_lto_flags

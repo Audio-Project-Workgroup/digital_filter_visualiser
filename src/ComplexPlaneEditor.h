@@ -1,3 +1,5 @@
+#include "CoeffLabels.h"
+
 class ComplexPlaneEditor final
   : public juce::Component,
     private juce::Slider::Listener,
@@ -82,4 +84,7 @@ private:
   juce::TextButton delRoot;
   juce::TextButton undo;
   juce::TextButton redo;
+
+  CoefficientLabel cl1; // @TODO test coeffLabel , erase later
+
 };

@@ -1,0 +1,7 @@
+Task breakdown:
+
+Where should the coefficient labels be initialized?
+    --> CalculatePolynomialCoefficientsFrom , where is this function called?
+How should they be initialized?
+    --> CalculatePolynomialCoefficientsFrom returns vector of doubles, not fractions
+How should scaling and spacing of the text labels be treated?
