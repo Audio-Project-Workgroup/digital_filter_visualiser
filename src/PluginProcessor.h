@@ -48,9 +48,9 @@ public:
   void getStateInformation (juce::MemoryBlock& destData) override;
   void setStateInformation (const void* data, int sizeInBytes) override;
 
-  //juce::AudioProcessorValueTreeState state;
-  FilterState state;
   juce::UndoManager um;
+  juce::AudioProcessorValueTreeState apvts;
+  std::unique_ptr<FilterState> filterState;
 
 private:
 

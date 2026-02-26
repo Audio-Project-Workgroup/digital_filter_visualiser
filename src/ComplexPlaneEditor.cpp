@@ -24,7 +24,7 @@ void ComplexPlaneEditor::RootPoint::
 mouseDown(const juce::MouseEvent &e)
 {
   juce::ignoreUnused(e);
-  parent->processor.um.beginNewTransaction();
+  parent->filterState.um->beginNewTransaction();
   if(auto *rootPtr = root.get())
   {
     valueAtDragStart = rootPtr->value;
@@ -111,10 +111,10 @@ valueTreePropertyChanged(juce::ValueTree &node, const juce::Identifier &property
 // NOTE(ry): ComplexPlaneEditor implementations
 
 ComplexPlaneEditor::
-ComplexPlaneEditor(AudioPluginAudioProcessor &p)
-  : processor(p), addRoot("+"), delRoot("-"), undo("undo"), redo("redo")
+ComplexPlaneEditor(FilterState &s)
+  : filterState(s), addRoot("+"), delRoot("-"), undo("undo"), redo("redo")
 {
-  processor.state.addListener(this);
+  filterState.addListener(this);
 
   pixelsPerUnit = 100.0;
   unitsPerPixel = 1.0 / pixelsPerUnit;
@@ -127,7 +127,7 @@ ComplexPlaneEditor(AudioPluginAudioProcessor &p)
   gainSlider.setBounds(0, 0, 400, 100);
   gainSlider.setRange(-90.f, 6.f, 0.f);
   gainSlider.setTextValueSuffix(" dB");
-  gainSlider.setValue(processor.state.gain, juce::dontSendNotification);
+  gainSlider.setValue(filterState.gain, juce::dontSendNotification);
   gainSlider.addListener(this);
   addAndMakeVisible(gainSlider);
 
@@ -139,21 +139,21 @@ ComplexPlaneEditor(AudioPluginAudioProcessor &p)
 
   // TODO(ry): better add/remove interface & logic (add poles, remove particular roots)
   addRoot.onClick = [this]{
-    processor.state.add(1);
+    filterState.add(1);
   };
   delRoot.onClick = [this]{
     // NOTE(ry): guard against when points array is empty
     if(auto *point = points.getLast())  // TODO(ry): remove a paritcular root
     {
-      processor.state.remove(point->root);
+      filterState.remove(point->root);
     }
   };
 
   undo.onClick = [this]{
-    processor.um.undo();
+    filterState.um->undo();
   };
   redo.onClick = [this]{
-    processor.um.redo();
+    filterState.um->redo();
   };
 
   addAndMakeVisible(addRoot);
@@ -165,7 +165,7 @@ ComplexPlaneEditor(AudioPluginAudioProcessor &p)
 ComplexPlaneEditor::
 ~ComplexPlaneEditor()
 {
-  processor.state.removeListener(this);
+  filterState.removeListener(this);
 }
 
 void ComplexPlaneEditor::
@@ -394,7 +394,7 @@ sliderValueChanged(juce::Slider *slider)
   {
     auto const dB = slider->getValue();
     auto const amp = juce::Decibels::decibelsToGain(dB);
-    processor.state.gain = amp;
+    filterState.gain = amp;
   }
 }
 
@@ -403,7 +403,7 @@ valueTreeChildAdded(juce::ValueTree &parent, juce::ValueTree &child)
 {
   juce::ignoreUnused(parent);
 
-  auto root = processor.state.getRootFromTreeNode(child);
+  auto root = filterState.getRootFromTreeNode(child);
   auto *point = points.add(new RootPoint(this, false, root));
   auto *conjugate = points.add(new RootPoint(this, true, root));
   addAndMakeVisible(point);

@@ -12,9 +12,16 @@ AudioPluginAudioProcessor::AudioPluginAudioProcessor()
 #endif
                     .withOutput ("Output", juce::AudioChannelSet::stereo(), true)
 #endif
-                    ), state(*this, &um),
+                    ),
+    apvts(*this, &um),
     filter(juce::dsp::IIR::Coefficients<SampleType>::makeLowPass(44100.0, 1200.f, 0.1f))
-{}
+{
+  if(!apvts.state.isValid())
+  {
+    apvts.state = juce::ValueTree(IDs::FilterState);
+  }
+  filterState = std::make_unique<FilterState>(apvts.state, &um);
+}
 
 AudioPluginAudioProcessor::~AudioPluginAudioProcessor()
 {}

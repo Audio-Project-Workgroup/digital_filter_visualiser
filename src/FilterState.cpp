@@ -1,22 +1,20 @@
 FilterState::
-FilterState(juce::AudioProcessor &p, juce::UndoManager *um)
-  : apvts(p, um)
+FilterState(juce::ValueTree treeToUse, juce::UndoManager *umToUse)
+  : treeRoot(treeToUse),
+    um(umToUse)
 {
-  if(!apvts.state.isValid())
-  {
-    apvts.state = juce::ValueTree(IDs::FilterState);
-  }
+  jassert(treeRoot.isValid());
 
   totalOrder = 0;
   finiteZerosOrder = 0;
 
-  auto zerosNode = apvts.state.getOrCreateChildWithName(IDs::Zeros, nullptr);
-  auto polesNode = apvts.state.getOrCreateChildWithName(IDs::Poles, nullptr);
+  auto zerosNode = treeRoot.getOrCreateChildWithName(IDs::Zeros, nullptr);
+  auto polesNode = treeRoot.getOrCreateChildWithName(IDs::Poles, nullptr);
 
-  apvts.state.setProperty(IDs::Gain, 0.0, nullptr);
-  gain.referTo(apvts.state, IDs::Gain, um);
+  treeRoot.setProperty(IDs::Gain, 0.0, nullptr);
+  gain.referTo(treeRoot, IDs::Gain, um);
 
-  apvts.state.addListener(this);
+  treeRoot.addListener(this);
   zerosNode.addListener(this);
   polesNode.addListener(this);
 }
@@ -27,17 +25,18 @@ add(s32 newOrder)
   jassert(newOrder != 0);
 
   juce::ValueTree newNode(IDs::Root);
-  newNode.setProperty(IDs::Order, newOrder, apvts.undoManager);
-  newNode.setProperty(IDs::ValueRe, newOrder > 0 ? 1.0 : 0.0, apvts.undoManager);
-  newNode.setProperty(IDs::ValueIm, 0.0, apvts.undoManager);
+  newNode.setProperty(IDs::Order, newOrder, nullptr);
+  newNode.setProperty(IDs::ValueRe, newOrder > 0 ? 1.0 : 0.0, nullptr);
+  newNode.setProperty(IDs::ValueIm, 0.0, nullptr);
 
+  auto *currentUm = um->isPerformingUndoRedo() ? nullptr : um;
   if(newOrder > 0)
   {
-    apvts.state.getChildWithName(IDs::Zeros).appendChild(newNode, apvts.undoManager);
+    treeRoot.getChildWithName(IDs::Zeros).appendChild(newNode, currentUm);
   }
   else if(newOrder < 0)
   {
-    apvts.state.getChildWithName(IDs::Poles).appendChild(newNode, apvts.undoManager);
+    treeRoot.getChildWithName(IDs::Poles).appendChild(newNode, currentUm);
   }
   else
   {
@@ -57,20 +56,20 @@ remove(FilterRoot::Ptr rootRef)
   {
     auto node = root->node;
     auto parent = node.getParent();
-    parent.removeChild(node, apvts.undoManager);
+    parent.removeChild(node, um);
   }
 }
 
 void FilterState::
 addListener(juce::ValueTree::Listener *listener)
 {
-  apvts.state.addListener(listener);
+  treeRoot.addListener(listener);
 }
 
 void FilterState::
 removeListener(juce::ValueTree::Listener *listener)
 {
-  apvts.state.removeListener(listener);
+  treeRoot.removeListener(listener);
 }
 
 // TODO(ry): I'd love to not have to do a linear scan to associate value tree
@@ -98,12 +97,12 @@ valueTreeChildAdded(juce::ValueTree &parent, juce::ValueTree &child)
   {
     if(parent.hasType(IDs::Zeros))
     {
-      zeros.add(new FilterRoot(child, apvts.undoManager));
+      zeros.add(new FilterRoot(child, um));
       incrementFilterOrder(std::abs(s32(child.getProperty(IDs::Order))), false);
     }
     else if(parent.hasType(IDs::Poles))
     {
-      poles.add(new FilterRoot(child, apvts.undoManager));
+      poles.add(new FilterRoot(child, um));
       incrementFilterOrder(std::abs(s32(child.getProperty(IDs::Order))), true);
     }
   }
