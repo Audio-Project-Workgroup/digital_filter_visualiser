@@ -225,7 +225,7 @@ void AudioPluginAudioProcessor::processBlock (juce::AudioBuffer<SampleType>& buf
         pendingState = old;
         isNewStateReady.store(false);
     }
-    //else
+    else
     {
         auto* proc = activeState.load();
         juce::dsp::AudioBlock<SampleType> block(buffer);
@@ -235,17 +235,6 @@ void AudioPluginAudioProcessor::processBlock (juce::AudioBuffer<SampleType>& buf
             auto channelBlock = block.getSingleChannelBlock(ch);
             juce::dsp::ProcessContextReplacing<SampleType> context(channelBlock);
             proc->getUnchecked(ch)->process(context);
-        }
-    }
-
-    for (int ch = 0; ch < buffer.getNumChannels(); ++ch)
-    {
-        auto* data = buffer.getWritePointer(ch);
-
-        for (int i = 0; i < buffer.getNumSamples(); ++i)
-        {
-            if (!std::isfinite(data[i]))
-                data[i] = 0.0f;
         }
     }
 }

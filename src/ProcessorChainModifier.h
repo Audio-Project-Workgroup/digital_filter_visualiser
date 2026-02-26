@@ -57,7 +57,7 @@ public:
 		std::vector<int> usedZeros(zerosSize, false);
 		std::vector<juce::dsp::IIR::Coefficients<float>*> iirCoeffs;
 
-		int bestIndex = -1;
+		int bestZeroIndex = -1;
 		for (int i = 0; i < nonNullPolesSize; i++)
 		{
 			auto* pole = state.poles[polesIndexesWithKeys[i].index];
@@ -65,7 +65,6 @@ public:
 
 			for (int j = 0; j < poleOrder; j++)
 			{
-				int bestZeroIndex;
 				bool shouldPoleBePairedWithDelay, shouldEqualPoleBeTaken;
 
 				FindBestZeroIndexPairForPole(
@@ -89,8 +88,8 @@ public:
 					delayCount--;
 				if (shouldEqualPoleBeTaken)
 					j++;
-				if (bestIndex != -1)
-					usedZeros[bestIndex]++;
+				if (bestZeroIndex != -1)
+					usedZeros[bestZeroIndex]++;
 			}
 		}
 		const int iirFiltersSize = iirCoeffs.size();
@@ -199,8 +198,9 @@ public:
 private:
 	static inline double EvaluatePole(const FilterRoot* pole)
 	{
-		const double mag = std::abs(pole->value.get());
-		const double angleAbs = std::abs(std::arg(pole->value.get()));
+		const auto value = pole->value.get();
+		const double mag = std::abs(value);
+		const double angleAbs = std::abs(std::arg(value));
 		const double q = mag == 0 ? 0.5 : -0.5 * angleAbs / std::log(mag);
 		return q * qCoeff + mag * magCoeff + angleAbs * angleCoeff;
 	}

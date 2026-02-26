@@ -68,7 +68,7 @@ public:
   juce::dsp::ProcessSpec spec;
 
 private:
-	juce::AudioBuffer<float> crossFadeBuffer;
+	juce::AudioBuffer<SampleType> crossFadeBuffer;
   //==============================================================================
   JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (AudioPluginAudioProcessor)
 };

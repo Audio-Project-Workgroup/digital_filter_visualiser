@@ -53,3 +53,7 @@ target_link_libraries(
   juce::juce_recommended_lto_flags
   juce::juce_recommended_warning_flags
 )
+
+if(EXISTS "${CMAKE_SOURCE_DIR}/additional.cmake")
+    include("${CMAKE_SOURCE_DIR}/additional.cmake")
+endif()

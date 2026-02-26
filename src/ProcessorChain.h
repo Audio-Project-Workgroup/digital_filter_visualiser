@@ -11,7 +11,8 @@ struct ProcessorChain
     juce::dsp::Gain<SampleType> gain;
 
     void prepare(const juce::dsp::ProcessSpec& spec)
-    { // spec.numChannels is always 1 as it is a mono-processor
+    {
+        jassert(spec.numChannels == 1); // ProcessorChain is a mono-processor
         delay.prepare(spec);
         for (auto* f : iirCascade) f->prepare(spec);
         for (auto* f : firCascade) f->prepare(spec);
