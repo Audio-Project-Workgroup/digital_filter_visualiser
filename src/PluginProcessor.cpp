@@ -12,11 +12,16 @@ AudioPluginAudioProcessor::AudioPluginAudioProcessor()
                     .withOutput ("Output", juce::AudioChannelSet::stereo(), true)
 #endif
     ),
-    state(*this, &um),
+    apvts(*this, &um),
     activeState(new FullState<SampleType>),
     pendingState(new FullState<SampleType>)
     {
-        um.addChangeListener(this);
+    if (!apvts.state.isValid())
+    {
+        apvts.state = juce::ValueTree(IDs::FilterState);
+    }
+    filterState = std::make_unique<FilterState>(apvts.state, &um);
+    um.addChangeListener(this);
     }
 
 
@@ -141,7 +146,7 @@ void AudioPluginAudioProcessor::prepareToPlay (double sampleRate, int samplesPer
                 pendingState->add(pendingItem);
             }
 
-            ProcessorChainModifier::RootsToJuceCoeffs(state, activeState.load(), spec);
+            ProcessorChainModifier::RootsToJuceCoeffs(filterState.get(), activeState.load(), spec);
         }
     isPrepared = true;
     isPendingStateUsed.store(false);

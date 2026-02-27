@@ -7,7 +7,7 @@ class ProcessorChainModifier
 {
 public:
 	static void RootsToJuceCoeffs(
-		FilterState& state,
+		FilterState* state,
 		FullState<float>* processorState,
 		juce::dsp::ProcessSpec& spec)
 	{
@@ -21,11 +21,11 @@ public:
 		if (channelSize == 0)
 			return;
 
-		const int polesSize = state.poles.size();
-		const int zerosSize = state.zeros.size();
+		const int polesSize = state->poles.size();
+		const int zerosSize = state->zeros.size();
 
 		int zerosBiquadSize = 0;
-		for (auto* item : state.zeros)
+		for (auto* item : state->zeros)
 		{
 			jassert(std::abs(item->value.get()) != 0);
 			zerosBiquadSize += item->order.get();
@@ -39,7 +39,7 @@ public:
 		polesIndexesWithKeys.reserve(polesSize);
 		for (int i = 0; i < polesSize; i++)
 		{
-			auto* pole = state.poles[i];
+			auto* pole = state->poles[i];
 			if (std::abs(pole->value.get()) == 0)
 				delayCount += std::abs(pole->order.get());
 			else
@@ -60,7 +60,7 @@ public:
 		int bestZeroIndex = -1;
 		for (int i = 0; i < nonNullPolesSize; i++)
 		{
-			auto* pole = state.poles[polesIndexesWithKeys[i].index];
+			auto* pole = state->poles[polesIndexesWithKeys[i].index];
 			const int poleOrder = std::abs(pole->order.get());
 
 			for (int j = 0; j < poleOrder; j++)
@@ -69,7 +69,7 @@ public:
 
 				FindBestZeroIndexPairForPole(
 					pole, 
-					state.zeros, 
+					state->zeros,
 					usedZeros,
 					poleOrder - j > 1,
 					delayCount != 0,
@@ -79,7 +79,7 @@ public:
 
 				iirCoeffs.push_back(CalculateIirCoefficients(
 					pole, 
-					state.zeros,
+					state->zeros,
 					bestZeroIndex,
 					shouldPoleBePairedWithDelay, 
 					shouldEqualPoleBeTaken));
@@ -99,7 +99,7 @@ public:
 		std::array<float, 3> bCoeff{ 0 };
 		for (auto i = 0; i < zerosSize; i++)
 		{
-			auto* zero = state.zeros[i];
+			auto* zero = state->zeros[i];
 			const int order = zero->order.get();
 			const bool isReal = zero->value.im.get() == 0;
 			for (int j = usedZeros[i]; j < order; j++)
@@ -161,7 +161,7 @@ public:
 			firCascade.removeRange(firFiltersSize, firCascade.size() - firFiltersSize); // TODO: don't delete objects for optimization?
 		
 			//4d. Gain
-			proc->gain.setGainLinear(state.gain.get());
+			proc->gain.setGainLinear(state->gain.get());
 		}
 	}
 
@@ -177,7 +177,7 @@ public:
 		// even if a user changes processing parameters before pushing Play button.
 		if (!processor.isPrepared)
 		{
-			RootsToJuceCoeffs(processor.state, processor.activeState, processor.spec);
+			RootsToJuceCoeffs(processor.filterState.get(), processor.activeState, processor.spec);
 		}
 		// If the updated state is already loaded 
 		// but the sound was not fully processed using this state
@@ -185,7 +185,7 @@ public:
 		else if (!processor.isNewStateReady.load())
 		{
 			processor.isPendingStateUsed.store(true);
-			RootsToJuceCoeffs(processor.state, processor.pendingState, processor.spec);
+			RootsToJuceCoeffs(processor.filterState.get(), processor.pendingState, processor.spec);
 			processor.isPendingStateUsed.store(false);
 			processor.isNewStateReady.store(true);
 		}

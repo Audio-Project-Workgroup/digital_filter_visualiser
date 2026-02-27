@@ -108,15 +108,35 @@ private:
 
 struct FilterState : private juce::ValueTree::Listener
 {
-  FilterState(juce::AudioProcessor &p, juce::UndoManager *um);
+  FilterState(juce::ValueTree treeToUse, juce::UndoManager *umToUse);
 
+  /** Add a new root with given order.
+   * Positive order adds a zero, negative order adds a pole.
+   * Creates value tree node and adds it as a child to the appropriate node.
+   * Filter order is updated automatically.
+   */
   FilterRoot::Ptr add(s32 newOrder);
+
+  /** Remove given root.
+   * This is the only function that should destroy `FilterRoot`s.
+   * Filter order is updated automatically.
+   */
   void remove(FilterRoot::Ptr rootRef);
 
+  /** Let listeners add or remove themselves to the underlying value tree
+   */
   void addListener(juce::ValueTree::Listener *listener);
   void removeListener(juce::ValueTree::Listener *listener);
 
+  // TODO(ry): make this constant-time using acceleration structure
+  /** Helper function for mapping value tree nodes to filter root pointers
+   */
   FilterRoot::Ptr getRootFromTreeNode(const juce::ValueTree &nodeToFind);
+
+  /** Helper function for incrementing filter order.
+   * Adds poles to satisfy causality invariant.
+   */
+  void incrementFilterOrder(int delta, bool isPole);
 
   juce::OwnedArray<FilterRoot> zeros;
   juce::OwnedArray<FilterRoot> poles;
@@ -124,16 +144,13 @@ struct FilterState : private juce::ValueTree::Listener
   u32 finiteZerosOrder; // NOTE(ry): the sum of the orders of all zeros in the finite plane. Causality requires this be at most the total order.
   u32 totalOrder; // NOTE(ry): the total order of the filter. Causality requires this to equal the sum of the negative orders of all poles.
 
+  // TODO(ry): separate trees for filter roots and parameters/automation
+  juce::ValueTree treeRoot;
+  juce::UndoManager *um;
+
 private:
 
   void valueTreeChildAdded(juce::ValueTree &parent, juce::ValueTree &child) override;
   void valueTreeChildRemoved(juce::ValueTree &parent, juce::ValueTree &child, int index) override;
   void valueTreePropertyChanged(juce::ValueTree &node, const juce::Identifier &property) override;
-
-  void incrementFilterOrder(int delta, bool isPole);
-
-  // TODO(ry): separate trees for filter roots and parameters/automation
-  juce::AudioProcessorValueTreeState apvts;
-  // juce::ValueTree root;
-  // juce::UndoManager um;
 };

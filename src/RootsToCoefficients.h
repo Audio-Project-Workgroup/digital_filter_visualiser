@@ -13,7 +13,11 @@ public:
 
 		int order = 0;
 		for (const auto* root : roots)
-			order += std::abs(root->order.get());
+		{
+			int rootOrder = std::abs(root->order.get());
+			bool isReal = root->value.im.get() == 0;
+			order += isReal ? rootOrder : 2 * rootOrder;
+		}
 
 		// Sort roots by magnitude for reducing numerical mistakes
 

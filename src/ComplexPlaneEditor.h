@@ -21,7 +21,7 @@ class ComplexPlaneEditor final :
    */
 
 public:
-  ComplexPlaneEditor(AudioPluginAudioProcessor &p);
+  ComplexPlaneEditor(FilterState &s);
   ~ComplexPlaneEditor();
 
   class RootPoint final : public juce::Component, private juce::ValueTree::Listener
@@ -75,8 +75,8 @@ private:
   double unitsPerPixel;
   double unitsPerLine;
 
-  //FilterState &state;
-  AudioPluginAudioProcessor &processor;
+  FilterState &filterState;
+  // AudioPluginAudioProcessor &processor;
 
   juce::Point<double> worldCenter; // NOTE(ry): the center of the drawable region in world coordinates
   juce::Point<double> worldCenterAtDragStart;

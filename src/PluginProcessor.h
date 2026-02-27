@@ -53,7 +53,6 @@ public:
   void 	changeListenerCallback(juce::ChangeBroadcaster* source) override;
 
   //juce::AudioProcessorValueTreeState state;
-  FilterState state;
   juce::UndoManager um;
   std::atomic<FullState<SampleType>*> activeState;
   FullState<SampleType>* pendingState;
@@ -66,6 +65,8 @@ public:
   std::mutex stateMutex;
   bool isPrepared = false;
   juce::dsp::ProcessSpec spec;
+  juce::AudioProcessorValueTreeState apvts;
+  std::unique_ptr<FilterState> filterState;
 
 private:
 	juce::AudioBuffer<SampleType> crossFadeBuffer;
