@@ -56,13 +56,13 @@ public:
 			{
 				const double a0 = -re;
 				const double a1 = 1.0;
-				for (int i = 0; i < rootOrder; i++)
+				for (int j = 0; j < rootOrder; j++)
 				{
-					for (int j = nonZeroCoeffCount - 1; j >= 0; j--)
+					for (int k = nonZeroCoeffCount - 1; k >= 0; k--)
 					{
-						double v = res[j];
-						res[j + 1] += v * a1;
-						res[j] = v * a0;
+						double v = res[k];
+						res[k + 1] += v * a1;
+						res[k] = v * a0;
 					}
 					nonZeroCoeffCount += 1;
 				}
@@ -72,14 +72,14 @@ public:
 				const double a0 = re * re + im * im;
 				const double a1 = -2.0 * re;
 				const double a2 = 1.0;
-				for (int i = 0; i < rootOrder; i++)
+				for (int j = 0; j < rootOrder; j++)
 				{
-					for (int j = nonZeroCoeffCount - 1; j >= 0; j--)
+					for (int k = nonZeroCoeffCount - 1; k >= 0; k--)
 					{
-						double v = res[j];
-						res[j + 2] += v * a2;
-						res[j + 1] += v * a1;
-						res[j] = v * a0;
+						double v = res[k];
+						res[k + 2] += v * a2;
+						res[k + 1] += v * a1;
+						res[k] = v * a0;
 					}
 					nonZeroCoeffCount += 2;
 				}
