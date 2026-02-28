@@ -7,17 +7,29 @@
 class RootsToCoefficients
 {
 public:
-	static std::vector<double> CalculatePolynomialCoefficientsFrom(juce::OwnedArray<FilterRoot>& roots)
+	static std::vector<double> CalculatePolynomialCoefficientsFrom(
+		juce::OwnedArray<FilterRoot>& roots,
+		std::vector<int>* usedRootsPtr = nullptr)
 	{
+		std::vector<int> usedRoots;
+		if (usedRootsPtr == nullptr)
+			usedRoots.resize(roots.size());
+		else
+			usedRoots = *usedRootsPtr;
+		jassert(usedRoots.size() == roots.size());
+
 		// Determine polinomial order
 
 		int order = 0;
-		for (const auto* root : roots)
+		for (int i = 0; i <roots.size(); i++)
 		{
+			auto* root = roots[i];
 			int rootOrder = std::abs(root->order.get());
 			bool isReal = root->value.im.get() == 0;
-			order += isReal ? rootOrder : 2 * rootOrder;
+			order += (isReal ? rootOrder : 2 * rootOrder) - usedRoots[i];
 		}
+		if (order == 0)
+			return { 1 };
 
 		// Sort roots by magnitude for reducing numerical mistakes
 
@@ -48,21 +60,24 @@ public:
 
 		for (int i = 0; i < roots.size(); i++)
 		{
-			auto* root = roots[rootIndexes[i].index];
+			int index = rootIndexes[i].index;
+			auto* root = roots[index];
 			const double re = root->value.re.get();
 			const double im = root->value.im.get();
-			const int rootOrder = std::abs(root->order.get());
+			const int rootOrder = std::abs(root->order.get()) - usedRoots[index];
+			if (rootOrder == 0)
+				continue;
 			if (im == 0) // One real root
 			{
 				const double a0 = -re;
 				const double a1 = 1.0;
-				for (int i = 0; i < rootOrder; i++)
+				for (int j = 0; j < rootOrder; j++)
 				{
-					for (int j = nonZeroCoeffCount - 1; j >= 0; j--)
+					for (int k = nonZeroCoeffCount - 1; k >= 0; k--)
 					{
-						double v = res[j];
-						res[j + 1] += v * a1;
-						res[j] = v * a0;
+						double v = res[k];
+						res[k + 1] += v * a1;
+						res[k] = v * a0;
 					}
 					nonZeroCoeffCount += 1;
 				}
@@ -72,14 +87,14 @@ public:
 				const double a0 = re * re + im * im;
 				const double a1 = -2.0 * re;
 				const double a2 = 1.0;
-				for (int i = 0; i < rootOrder; i++)
+				for (int j = 0; j < rootOrder; j++)
 				{
-					for (int j = nonZeroCoeffCount - 1; j >= 0; j--)
+					for (int k = nonZeroCoeffCount - 1; k >= 0; k--)
 					{
-						double v = res[j];
-						res[j + 2] += v * a2;
-						res[j + 1] += v * a1;
-						res[j] = v * a0;
+						double v = res[k];
+						res[k + 2] += v * a2;
+						res[k + 1] += v * a1;
+						res[k] = v * a0;
 					}
 					nonZeroCoeffCount += 2;
 				}

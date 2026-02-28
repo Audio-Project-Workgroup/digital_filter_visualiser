@@ -7,7 +7,7 @@ struct ProcessorChain
 {
     juce::dsp::DelayLine<SampleType> delay;
     juce::OwnedArray<juce::dsp::IIR::Filter<SampleType>> iirCascade;
-    juce::OwnedArray<juce::dsp::FIR::Filter<SampleType>> firCascade;
+    juce::dsp::FIR::Filter<SampleType> firFilter;
     juce::dsp::Gain<SampleType> gain;
 
     void prepare(const juce::dsp::ProcessSpec& spec)
@@ -15,7 +15,7 @@ struct ProcessorChain
         jassert(spec.numChannels == 1); // ProcessorChain is a mono-processor
         delay.prepare(spec);
         for (auto* f : iirCascade) f->prepare(spec);
-        for (auto* f : firCascade) f->prepare(spec);
+        firFilter.prepare(spec);
         gain.prepare(spec);
     }
 
@@ -23,7 +23,7 @@ struct ProcessorChain
     {
         delay.process(context);
         for (auto* f : iirCascade) f->process(context);
-        for (auto* f : firCascade) f->process(context);
+        firFilter.process(context);
         gain.process(context);
     }
 };

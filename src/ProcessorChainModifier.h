@@ -2,6 +2,7 @@
 #include "FilterState.h"
 #include "ProcessorChain.h"
 #include "PluginProcessor.h"
+#include "RootsToCoefficients.h"
 
 class ProcessorChainModifier
 {
@@ -94,28 +95,13 @@ public:
 		}
 		const int iirFiltersSize = iirCoeffs.size();
 
-		// 3. Calculate FIR coefficients for each non-paired zero.
-		std::vector<juce::dsp::FIR::Coefficients<float>*> firCoeffs;
-		std::array<float, 3> bCoeff{ 0 };
-		for (auto i = 0; i < zerosSize; i++)
-		{
-			auto* zero = state->zeros[i];
-			const int order = zero->order.get();
-			const bool isReal = zero->value.im.get() == 0;
-			for (int j = usedZeros[i]; j < order; j++)
-			{
-				const bool shouldBeTakenTwice = isReal && order - j > 1;
-				calculatePolynomialCoefficients(
-					zero, 
-					shouldBeTakenTwice,
-					bCoeff[0], bCoeff[1], bCoeff[2]);
-				firCoeffs.push_back(new juce::dsp::FIR::Coefficients<float>{ bCoeff.data(), 3 });
-				if (shouldBeTakenTwice)
-					j++;
-			}
-		}
-		const int firFiltersSize = firCoeffs.size();
-
+		// 3. Calculate FIR coefficients for non-paired zeros.
+		std::vector<double> firCoeffsDblArray = 
+			RootsToCoefficients::CalculatePolynomialCoefficientsFrom(state->zeros, &usedZeros);
+		std::vector<float> firCoeffsArray(firCoeffsDblArray.size());
+		for (int i = 0; i < firCoeffsDblArray.size(); i++)
+			firCoeffsArray[i] = static_cast<float>(firCoeffsDblArray[i]);
+		
 		// 4. Set processors parameters
 		for (int ch = 0; ch < channelSize; ch++)
 		{
@@ -126,7 +112,6 @@ public:
 			if (delay.getMaximumDelayInSamples() < delayCount)
 				delay.setMaximumDelayInSamples(delayCount);
 			delay.setDelay(delayCount);
-			delay.reset();
 			delay.prepare(spec);
 
 			// 4b. IIR cascade
@@ -137,31 +122,18 @@ public:
 				if (i == iirCascade.size())
 					iirCascade.add(new juce::dsp::IIR::Filter<float>{ iirCoeffs[iirCoeffsIndex] });
 				else
-				{
 					iirCascade[i]->coefficients = iirCoeffs[iirCoeffsIndex];
-					iirCascade[i]->reset();
-				}
 				iirCascade[i]->prepare(spec);
 			}
 			iirCascade.removeRange(iirFiltersSize, iirCascade.size() - iirFiltersSize); // TODO: don't delete objects for optimization?
 
-			// 4c. FIR cascade
-			auto& firCascade = proc->firCascade;
-			for (int i = 0; i < firFiltersSize; i++)
-			{
-				if (i == firCascade.size())
-					firCascade.add(new juce::dsp::FIR::Filter<float>{ firCoeffs[i] });
-				else
-				{
-					firCascade[i]->coefficients = firCoeffs[i];
-					firCascade[i]->reset();
-				}
-				firCascade[i]->prepare(spec);
-			}
-			firCascade.removeRange(firFiltersSize, firCascade.size() - firFiltersSize); // TODO: don't delete objects for optimization?
+			// 4c. FIR filter
+			proc->firFilter.coefficients = new juce::dsp::FIR::Coefficients<float>{ firCoeffsArray.data(), firCoeffsArray.size() };
+			proc->firFilter.prepare(spec);
 		
 			//4d. Gain
 			proc->gain.setGainLinear(state->gain.get());
+			proc->gain.prepare(spec);
 		}
 	}
 
