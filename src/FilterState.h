@@ -95,6 +95,28 @@ struct FilterRoot
     order.referTo(node, IDs::Order, um);
   }
 
+  /** returns true if the root is on the real axis */
+  bool isReal(void)
+  {
+    return(juce::exactlyEqual(value.im.get(), 0.0));
+  }
+  /** returns true if the root is on the real axis */
+  bool isReal(void) const
+  {
+    return(juce::exactlyEqual(value.im.get(), 0.0));
+  }
+
+  /** returns true if the root is at the origin */
+  bool isAtZero(void)
+  {
+    return(juce::exactlyEqual(std::abs(value.get()), 0.0));
+  }
+  /** returns true if the root is at the origin */
+  bool isAtZero(void) const
+  {
+    return(juce::exactlyEqual(std::abs(value.get()), 0.0));
+  }
+
   juce::ValueTree node; // each root manages its own node in the state tree
 
   CachedComplex value;

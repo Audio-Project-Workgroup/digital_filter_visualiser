@@ -25,7 +25,6 @@ ComplexPlaneEditor::RootPoint::
 void ComplexPlaneEditor::RootPoint::
 mouseEnter(const juce::MouseEvent &e)
 {
-  DBG("root point mouse enter");
   juce::ignoreUnused(e);
 
   parent->activeRoot = root;
@@ -122,7 +121,8 @@ mouseDrag(const juce::MouseEvent &e)
       // NOTE(ry): stability clamp
       if(std::abs(newRootValue) >= 1)
       {
-        newRootValue /= std::abs(newRootValue);
+	auto const epsClamp = 1e-3; // TODO(ry): tune
+        newRootValue /= std::abs(newRootValue) + epsClamp;
       }
     }
 
