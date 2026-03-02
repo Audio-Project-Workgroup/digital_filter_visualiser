@@ -2,6 +2,9 @@
 #include "PluginEditor.h"
 #include "ProcessorChainModifier.h"
 
+// NOTE(ry): don't delete this. I know what I'm doing
+#include "FilterState.cpp"
+
 //==============================================================================
 AudioPluginAudioProcessor::AudioPluginAudioProcessor()
   : AudioProcessor (BusesProperties()
@@ -15,14 +18,14 @@ AudioPluginAudioProcessor::AudioPluginAudioProcessor()
     apvts(*this, &um),
     activeState(new FullState<SampleType>),
     pendingState(new FullState<SampleType>)
-    {
+{
     if (!apvts.state.isValid())
     {
         apvts.state = juce::ValueTree(IDs::FilterState);
     }
     filterState = std::make_unique<FilterState>(apvts.state, &um);
     um.addChangeListener(this);
-    }
+}
 
 
 AudioPluginAudioProcessor::~AudioPluginAudioProcessor()
@@ -120,12 +123,12 @@ void AudioPluginAudioProcessor::prepareToPlay (double sampleRate, int samplesPer
 
     juce::dsp::ProcessSpec newSpec
     {
-        sampleRate, 
-        juce::uint32(samplesPerBlock), 
+        sampleRate,
+        juce::uint32(samplesPerBlock),
         juce::uint32(1) // one channel per filter!
     };
     spec = newSpec;
-    auto numChannels = juce::uint32(getTotalNumOutputChannels());
+    auto numChannels = getTotalNumOutputChannels();
 
     isActiveStateUsed.store(true);
     isPendingStateUsed.store(true);
@@ -189,8 +192,8 @@ void AudioPluginAudioProcessor::processBlock (juce::AudioBuffer<SampleType>& buf
     juce::ignoreUnused(midiMessages);
     juce::ScopedNoDenormals noDenormals;
 
-    const int totalNumInputChannels = getTotalNumInputChannels();
-    const int totalNumOutputChannels = getTotalNumOutputChannels();
+    const auto totalNumInputChannels = static_cast<size_t>(getTotalNumInputChannels());
+    const auto totalNumOutputChannels = static_cast<size_t>(getTotalNumOutputChannels());
     const int numSamples = buffer.getNumSamples();
     if (numSamples <= 0)
         return;
@@ -210,7 +213,7 @@ void AudioPluginAudioProcessor::processBlock (juce::AudioBuffer<SampleType>& buf
         juce::dsp::AudioBlock<SampleType> block(buffer);
         juce::dsp::AudioBlock<SampleType> crossFadeBlock(crossFadeBuffer);
 
-        for (auto ch = 0; ch < totalNumInputChannels; ch++)
+        for (size_t ch = 0; ch < totalNumInputChannels; ch++)
         {
             crossFadeBuffer.copyFrom(ch, 0, buffer.getReadPointer(ch), numSamples);
 
@@ -235,7 +238,7 @@ void AudioPluginAudioProcessor::processBlock (juce::AudioBuffer<SampleType>& buf
         auto* proc = activeState.load();
         juce::dsp::AudioBlock<SampleType> block(buffer);
 
-        for (auto ch = 0; ch < totalNumInputChannels; ch++)
+        for (size_t ch = 0; ch < totalNumInputChannels; ch++)
         {
             auto channelBlock = block.getSingleChannelBlock(ch);
             juce::dsp::ProcessContextReplacing<SampleType> context(channelBlock);
@@ -283,5 +286,13 @@ void AudioPluginAudioProcessor::changeListenerCallback(juce::ChangeBroadcaster* 
 // This creates new instances of the plugin..
 juce::AudioProcessor* JUCE_CALLTYPE createPluginFilter()
 {
-  return new AudioPluginAudioProcessor();
+	return new AudioPluginAudioProcessor();
 }
+
+// NOTE(ry): I need to put this here so my editor doesn't screw with the style of this file
+/* Local Variables: */
+/* mode: c++ */
+/* tab-width: 4 */
+/* c-basic-offset: 4 */
+/* buffer-file-coding-system: undecided-unix */
+/* End: */

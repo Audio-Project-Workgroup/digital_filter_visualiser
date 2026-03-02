@@ -48,25 +48,26 @@ public:
   //==============================================================================
   void getStateInformation (juce::MemoryBlock& destData) override;
   void setStateInformation (const void* data, int sizeInBytes) override;
-  
+
   //==============================================================================
   void 	changeListenerCallback(juce::ChangeBroadcaster* source) override;
 
-  //juce::AudioProcessorValueTreeState state;
   juce::UndoManager um;
+  juce::AudioProcessorValueTreeState apvts;
+  std::unique_ptr<FilterState> filterState;
+
+  // TODO(ry): We should be able to simplify the active/pending state swap
   std::atomic<FullState<SampleType>*> activeState;
   FullState<SampleType>* pendingState;
   std::atomic<bool> isActiveStateUsed{ false };
   std::atomic<bool> isPendingStateUsed{ false };
   std::atomic<bool> isNewStateReady{ false };
 
-  // This mutex avoids races when reading spec in ProcessorChainModifier class 
+  // This mutex avoids races when reading spec in ProcessorChainModifier class
   // while writing it in prepareToPlay.
   std::mutex stateMutex;
   bool isPrepared = false;
   juce::dsp::ProcessSpec spec;
-  juce::AudioProcessorValueTreeState apvts;
-  std::unique_ptr<FilterState> filterState;
 
 private:
 	juce::AudioBuffer<SampleType> crossFadeBuffer;

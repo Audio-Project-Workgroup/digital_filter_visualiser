@@ -24,13 +24,12 @@ juce_add_plugin(
 
 # juce_generate_juce_header(AudioPluginExample)
 
+# NOTE(ry): To everybody else: Don't add files I write as sources. I know what I'm doing
 target_sources(
   ${PROJECT_NAME}
   PRIVATE
   PluginEditor.cpp
   PluginProcessor.cpp
-  FilterState.cpp
-  ComplexPlaneEditor.cpp
 )
 
 target_compile_definitions(

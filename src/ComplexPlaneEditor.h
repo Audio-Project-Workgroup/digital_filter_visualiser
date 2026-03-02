@@ -24,14 +24,19 @@ public:
   ComplexPlaneEditor(FilterState &s);
   ~ComplexPlaneEditor();
 
-  class RootPoint final : public juce::Component, private juce::ValueTree::Listener
+  class RootPoint final
+    : public juce::Component,
+      private juce::ValueTree::Listener
   {
   public:
 
     RootPoint(ComplexPlaneEditor *e, bool c, FilterRoot::Ptr r);
     ~RootPoint();
 
+    void mouseEnter(const juce::MouseEvent &e) override;
+    void mouseExit(const juce::MouseEvent &e) override;
     void mouseDown(const juce::MouseEvent &e) override;
+    void mouseUp(const juce::MouseEvent &e) override;
     void mouseDrag(const juce::MouseEvent &e) override;
 
     void paint(juce::Graphics &g) override;
@@ -40,6 +45,7 @@ public:
 
     bool isConjugate;
     FilterRoot::Ptr root;
+    RootPoint *conjugate;
 
   private:
 
@@ -76,12 +82,13 @@ private:
   double unitsPerLine;
 
   FilterState &filterState;
-  // AudioPluginAudioProcessor &processor;
 
   juce::Point<double> worldCenter; // NOTE(ry): the center of the drawable region in world coordinates
   juce::Point<double> worldCenterAtDragStart;
 
   juce::OwnedArray<RootPoint> points;
+  FilterRoot::Ptr activeRoot; // NOTE(ry): the root the mouse is hovering over or being dragged
+  FilterRoot::Ptr targetRoot; // NOTE(ry): the root the active root is hovering over
 
   juce::Slider gainSlider;
 

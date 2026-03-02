@@ -23,17 +23,89 @@ ComplexPlaneEditor::RootPoint::
 }
 
 void ComplexPlaneEditor::RootPoint::
-mouseDown(const juce::MouseEvent &e)
+mouseEnter(const juce::MouseEvent &e)
 {
   juce::ignoreUnused(e);
-  parent->filterState.um->beginNewTransaction();
-  if(auto *rootPtr = root.get())
+
+  parent->activeRoot = root;
+}
+
+void ComplexPlaneEditor::RootPoint::
+mouseExit(const juce::MouseEvent &e)
+{
+  juce::ignoreUnused(e);
+
+  parent->activeRoot = nullptr;
+}
+
+void ComplexPlaneEditor::RootPoint::
+mouseDown(const juce::MouseEvent &e)
+{
+  if(e.mods.isLeftButtonDown())
   {
-    valueAtDragStart = rootPtr->value;
-    if(isConjugate)
+    jassert(root.get() == parent->activeRoot.get());
+    setInterceptsMouseClicks(false, false);
+    conjugate->setInterceptsMouseClicks(false, false);
+
+    parent->filterState.um->beginNewTransaction();
+    if(auto *rootPtr = root.get())
     {
-      valueAtDragStart = std::conj(valueAtDragStart);
+      valueAtDragStart = rootPtr->value;
+      if(isConjugate)
+      {
+        valueAtDragStart = std::conj(valueAtDragStart);
+      }
     }
+  }
+}
+
+void ComplexPlaneEditor::RootPoint::
+mouseUp(const juce::MouseEvent &e)
+{
+  if(e.mods.isLeftButtonDown())
+  {
+    if(auto *targetRoot = parent->targetRoot.get())
+    {
+      // NOTE(ry): merge the active root into the target root
+      auto *activeRoot = parent->activeRoot.get();
+      jassert(activeRoot != nullptr);
+
+      int orderInc = activeRoot->order;
+      int newOrder = targetRoot->order + orderInc;
+      if(newOrder == 0)
+      {
+        // NOTE(ry): we merged a zero and a pole with the same order. we remove both of them
+        auto zero = activeRoot->order > 0 ? parent->activeRoot : parent->targetRoot;
+        auto pole = activeRoot->order > 0 ? parent->targetRoot : parent->activeRoot;
+
+	// NOTE(ry): it is very important we remove the zero before the
+	// pole. Otherwise a slack pole could be added
+        parent->filterState.remove(zero);
+        parent->filterState.remove(pole);
+      }
+      else
+      {
+        // NOTE(ry): we remove the active root and update the target root order
+	// NOTE(ry): we have to be careful that we perform operations in an
+	// order that does not result in an unnecessary slack pole creation
+	if(targetRoot->isPole())
+	{
+	  targetRoot->order += orderInc;
+	  parent->filterState.remove(parent->activeRoot);
+	}
+	else
+	{
+	  parent->filterState.remove(parent->activeRoot);
+	  targetRoot->order += orderInc;
+	}
+      }
+
+      parent->targetRoot = nullptr;
+      parent->activeRoot = nullptr;
+    }
+
+    setInterceptsMouseClicks(true, true);
+    conjugate->setInterceptsMouseClicks(true, true);
   }
 }
 
@@ -62,13 +134,28 @@ mouseDrag(const juce::MouseEvent &e)
       // NOTE(ry): stability clamp
       if(std::abs(newRootValue) >= 1)
       {
-        newRootValue /= std::abs(newRootValue);
+	auto const epsClamp = 1e-3; // TODO(ry): tune
+        newRootValue /= std::abs(newRootValue) + epsClamp;
+      }
+    }
+
+    // NOTE(ry): this is maybe the shittiest way I can imagine finding where another component is
+    // TODO(ry): use world pos because mouse can be off axis while point is on (or change tolerance)
+    auto parentEvent = e.getEventRelativeTo(parent);
+    if(auto *targetComponent = parent->getComponentAt(parentEvent.x, parentEvent.y))
+    {
+      if(targetComponent != parent)
+      {
+        parent->targetRoot = dynamic_cast<RootPoint*>(targetComponent)->root;
+      }
+      else
+      {
+        parent->targetRoot = nullptr;
       }
     }
 
     // NOTE(ry): update all properties related to this root
-    rootPtr->value = newRootValue; // TODO(ry): snap to real axis (ui confirmation)
-    // TODO(ry): merging logic (need to know where other roots are)
+    rootPtr->value = newRootValue;
     // TODO(ry): splitting logic (create new root, subtract new root order from current root order)
   }
 }
@@ -141,6 +228,7 @@ ComplexPlaneEditor(FilterState &s)
 
   // TODO(ry): better add/remove interface & logic (add poles, remove particular roots)
   addRoot.onClick = [this]{
+    filterState.um->beginNewTransaction();
     filterState.add(1);
   };
   delRoot.onClick = [this]{
@@ -408,6 +496,9 @@ valueTreeChildAdded(juce::ValueTree &parent, juce::ValueTree &child)
   auto root = filterState.getRootFromTreeNode(child);
   auto *point = points.add(new RootPoint(this, false, root));
   auto *conjugate = points.add(new RootPoint(this, true, root));
+  point->conjugate = conjugate;
+  conjugate->conjugate = point;
+
   addAndMakeVisible(point);
   addAndMakeVisible(conjugate);
 

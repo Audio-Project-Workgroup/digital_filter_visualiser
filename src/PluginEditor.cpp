@@ -1,5 +1,8 @@
 #include "PluginEditor.h"
 
+// NOTE(ry): Don't delete this. I know what I'm doing
+#include "ComplexPlaneEditor.cpp"
+
 //==============================================================================
 CoefficientsComponent::CoefficientsComponent()
 {}

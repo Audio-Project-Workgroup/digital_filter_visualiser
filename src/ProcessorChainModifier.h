@@ -14,7 +14,7 @@ public:
 	{
 		struct PolesIndexesWithKeys
 		{
-			int index;
+			std::size_t index;
 			double key;
 		};
 
@@ -22,13 +22,16 @@ public:
 		if (channelSize == 0)
 			return;
 
-		const int polesSize = state->poles.size();
-		const int zerosSize = state->zeros.size();
+		const auto polesSize = static_cast<std::size_t>(state->poles.size());
+		const auto zerosSize = static_cast<std::size_t>(state->zeros.size());
 
 		int zerosBiquadSize = 0;
 		for (auto* item : state->zeros)
 		{
-			jassert(std::abs(item->value.get()) != 0);
+			// TODO(ry): I don't think this assert should be
+			// here. It's possible to have a zero root at z=0 when
+			// there are poles elsewhere
+			jassert(!item->isAtZero());
 			zerosBiquadSize += item->order.get();
 		}
 
@@ -38,10 +41,10 @@ public:
 		int delayCount = 0;
 		std::vector<PolesIndexesWithKeys> polesIndexesWithKeys;
 		polesIndexesWithKeys.reserve(polesSize);
-		for (int i = 0; i < polesSize; i++)
+		for (std::size_t i = 0; i < polesSize; i++)
 		{
 			auto* pole = state->poles[i];
-			if (std::abs(pole->value.get()) == 0)
+			if(pole->isAtZero())
 				delayCount += std::abs(pole->order.get());
 			else
 				polesIndexesWithKeys.push_back({ i, EvaluatePole(pole) });
@@ -59,7 +62,7 @@ public:
 		std::vector<juce::dsp::IIR::Coefficients<float>*> iirCoeffs;
 
 		int bestZeroIndex = -1;
-		for (int i = 0; i < nonNullPolesSize; i++)
+		for (std::size_t i = 0; i < nonNullPolesSize; i++)
 		{
 			auto* pole = state->poles[polesIndexesWithKeys[i].index];
 			const int poleOrder = std::abs(pole->order.get());
@@ -69,7 +72,7 @@ public:
 				bool shouldPoleBePairedWithDelay, shouldEqualPoleBeTaken;
 
 				FindBestZeroIndexPairForPole(
-					pole, 
+					pole,
 					state->zeros,
 					usedZeros,
 					poleOrder - j > 1,
@@ -79,10 +82,10 @@ public:
 					shouldEqualPoleBeTaken);
 
 				iirCoeffs.push_back(CalculateIirCoefficients(
-					pole, 
+					pole,
 					state->zeros,
 					bestZeroIndex,
-					shouldPoleBePairedWithDelay, 
+					shouldPoleBePairedWithDelay,
 					shouldEqualPoleBeTaken));
 
 				if (shouldPoleBePairedWithDelay)
@@ -90,16 +93,16 @@ public:
 				if (shouldEqualPoleBeTaken)
 					j++;
 				if (bestZeroIndex != -1)
-					usedZeros[bestZeroIndex]++;
+					usedZeros[static_cast<std::size_t>(bestZeroIndex)]++;
 			}
 		}
-		const int iirFiltersSize = iirCoeffs.size();
+		const auto iirFiltersSize = iirCoeffs.size();
 
 		// 3. Calculate FIR coefficients for non-paired zeros.
 		std::vector<double> firCoeffsDblArray = 
 			RootsToCoefficients::CalculatePolynomialCoefficientsFrom(state->zeros, &usedZeros);
 		std::vector<float> firCoeffsArray(firCoeffsDblArray.size());
-		for (int i = 0; i < firCoeffsDblArray.size(); i++)
+		for (std::size_t i = 0; i < firCoeffsDblArray.size(); i++)
 			firCoeffsArray[i] = static_cast<float>(firCoeffsDblArray[i]);
 		
 		// 4. Set processors parameters
@@ -116,16 +119,20 @@ public:
 
 			// 4b. IIR cascade
 			auto& iirCascade = proc->iirCascade;
-			for (int i = 0 ; i < iirFiltersSize; i++)
+			auto iirCascadeSize = static_cast<std::size_t>(iirCascade.size());
+			for (std::size_t i = 0 ; i < iirFiltersSize; i++)
 			{
-				const int iirCoeffsIndex = iirFiltersSize - 1 - i; // reverse order
-				if (i == iirCascade.size())
+				const std::size_t iirCoeffsIndex = iirFiltersSize - 1 - i; // reverse order
+				if (i == iirCascadeSize)
+				{
 					iirCascade.add(new juce::dsp::IIR::Filter<float>{ iirCoeffs[iirCoeffsIndex] });
+					iirCascadeSize = static_cast<std::size_t>(iirCascade.size());
+				}
 				else
 					iirCascade[i]->coefficients = iirCoeffs[iirCoeffsIndex];
 				iirCascade[i]->prepare(spec);
 			}
-			iirCascade.removeRange(iirFiltersSize, iirCascade.size() - iirFiltersSize); // TODO: don't delete objects for optimization?
+			iirCascade.removeRange(iirFiltersSize, iirCascadeSize - iirFiltersSize); // TODO: don't delete objects for optimization?
 
 			// 4c. FIR filter
 			proc->firFilter.coefficients = new juce::dsp::FIR::Coefficients<float>{ firCoeffsArray.data(), firCoeffsArray.size() };
@@ -141,8 +148,8 @@ public:
 	{
 		// This prevents simultaneous Process and prepareToPlay working.
 		std::unique_lock<std::mutex> lock(processor.stateMutex);
-		
-		// If playing is not started yet  
+
+		// If playing is not started yet
 		// then the changed state goes directly to the activeState.
 		// This is to ensure that pendingState will never be used in processBlock
 		// without spec preparation,
@@ -151,7 +158,7 @@ public:
 		{
 			RootsToJuceCoeffs(processor.filterState.get(), processor.activeState, processor.spec);
 		}
-		// If the updated state is already loaded 
+		// If the updated state is already loaded
 		// but the sound was not fully processed using this state
 		// then another update should be cancelled.
 		else if (!processor.isNewStateReady.load())
@@ -161,7 +168,7 @@ public:
 			processor.isPendingStateUsed.store(false);
 			processor.isNewStateReady.store(true);
 		}
-		
+
 		//// Calculate in double for displaying
 		//auto z = Roots2CoeffsVector(processor.state.zeros);
 		//auto p = Roots2CoeffsVector(processor.state.poles);
@@ -173,7 +180,7 @@ private:
 		const auto value = pole->value.get();
 		const double mag = std::abs(value);
 		const double angleAbs = std::abs(std::arg(value));
-		const double q = mag == 0 ? 0.5 : -0.5 * angleAbs / std::log(mag);
+		const double q = juce::exactlyEqual(mag, 0.0) ? 0.5 : -0.5 * angleAbs / std::log(mag);
 		return q * qCoeff + mag * magCoeff + angleAbs * angleCoeff;
 	}
 
@@ -189,25 +196,25 @@ private:
 	{
 		const auto usedZerosSize = usedZeros.size();
 		const double poleAngle = std::arg(pole->value.get());
-		const bool isPoleReal = pole->value.im.get() == 0;
-		const bool shouldDenominatorBeFirstOrder = 
+		const bool isPoleReal = pole->isReal();
+		const bool shouldDenominatorBeFirstOrder =
 			isPoleReal && !doesDelayExist && !doesEqualPoleExist;
 
 		auto currentBestIndex = -1;
 		auto currentUnitCircleBestIndex = -1;
 		double currentMin = 100.0; // greater than maximum possible delta
 		double currentUnitCircleMin = 100.0; // greater than maximum possible delta
-		for (auto i = 0; i < usedZerosSize; i++)
+		for (std::size_t i = 0; i < usedZerosSize; i++)
 		{
 			auto* zero = zeros[i];
-			
+
 			// Zero is already used with its order
 			if (usedZeros[i] == zero->order.get())
 				continue;
-			
+
 			// Check that numerator's order <= denominator's order,
 			// otherwise don't get this zero.
-			const int isZeroReal = zero->value.im.get() == 0;
+			const bool isZeroReal = zero->isReal();
 			if (shouldDenominatorBeFirstOrder && !isZeroReal)
 				continue;
 
@@ -235,14 +242,15 @@ private:
 			bestZeroIndex = currentBestIndex;
 
 		// No zero to pair
-		if (bestZeroIndex == -1) 
+		if (bestZeroIndex == -1)
 		{
 			shouldEqualPoleBeTaken = isPoleReal && doesEqualPoleExist;
 			shouldPoleBePairedWithDelay = !shouldEqualPoleBeTaken && isPoleReal && doesDelayExist;
 			return;
 		}
 
-		const bool isBestZeroReal = zeros[bestZeroIndex]->value.im.get() == 0;
+		//const bool isBestZeroReal = zeros[bestZeroIndex]->value.im.get() == 0;
+		const bool isBestZeroReal = zeros[bestZeroIndex]->isReal();
 
 		// Pair 2-order pole with any zero
 		// or 1-order pole with 1-order zero
@@ -270,7 +278,7 @@ private:
 		bool shouldPoleBePairedWithDelay,
 		bool shouldEqualPoleBeTaken)
 	{
-		const bool isPoleReal = pole->value.im.get() == 0;
+		const bool isPoleReal = pole->isReal();
 		const bool shouldPoleBePaired = shouldPoleBePairedWithDelay || shouldEqualPoleBeTaken;
 		jassert(isPoleReal || !shouldPoleBePaired);
 		float b0, b1, b2, a0, a1, a2;
@@ -281,12 +289,12 @@ private:
 			a1 = -pole->value.re.get();
 			a2 = 0.f;
 		}
-		else 
+		else
 			calculatePolynomialCoefficients(pole, shouldEqualPoleBeTaken, a0, a1, a2);
 
-		if (zeroIndex != -1) 
+		if (zeroIndex != -1)
 			calculatePolynomialCoefficients(zeros[zeroIndex], false, b0, b1, b2);
-		else if (a0 == 0) // no zeros, 1-order pole
+		else if (juce::exactlyEqual(a0, 0.f)) // no zeros, 1-order pole
 		{
 			b1 = 1.0;
 			b0 = b2 = 0;
@@ -297,9 +305,9 @@ private:
 			b1 = b2 = 0;
 		}
 
-		if (a0 == 0) // 1-order filter
+		if (juce::exactlyEqual(a0, 0.f)) // 1-order filter
 		{
-			jassert(b0 == 0 && a1 != 0);
+			jassert(juce::exactlyEqual(b0, 0.f) && !juce::exactlyEqual(a1, 0.f));
 			return new juce::dsp::IIR::Coefficients<float>{ b1, b2, a1, a2 };
 		}
 		else // 2-order filter
@@ -322,9 +330,10 @@ private:
 		const double re = root->value.re.get();
 		const double im = root->value.im.get();
 
-		jassert(im == 0 || !shouldBeTakenTwice);
+		const bool rootIsReal = juce::exactlyEqual(im, 0.0);
+		jassert(rootIsReal || !shouldBeTakenTwice);
 
-		if (im == 0 && !shouldBeTakenTwice)
+		if (rootIsReal && !shouldBeTakenTwice)
 		{
 			c2 = -re;
 			c1 = 1.0;
@@ -353,3 +362,12 @@ private:
 	static constexpr double magCoeff = 0.3;
 	static constexpr double angleCoeff = 0.1;
 };
+
+// NOTE(ry): I need to put this here so my editor doesn't screw with the style of this file
+/* Local Variables: */
+/* mode: c++ */
+/* tab-width: 8 */
+/* c-basic-offset: 8 */
+/* indent-tabs-mode: t */
+/* buffer-file-coding-system: undecided-unix */
+/* End: */
