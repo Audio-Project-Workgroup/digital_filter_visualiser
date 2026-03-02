@@ -1,5 +1,18 @@
 #include "FilterState.h"
 
+// NOTE(ry): FilterRoot implementations
+
+FilterRoot::CachedOrder& FilterRoot::CachedOrder::
+operator+=(const int &delta)
+{
+  int current = this->get();
+  *this = current + delta;
+
+  return(*this);
+}
+
+// NOTE(ry): FilterState implementations
+
 FilterState::
 FilterState(juce::ValueTree treeToUse, juce::UndoManager *umToUse)
   : treeRoot(treeToUse),
@@ -26,16 +39,51 @@ add(s32 newOrder)
 {
   jassert(newOrder != 0); // order must be nonzero
 
+  auto const isZero = newOrder > 0;
+  auto const defRe = isZero ? 1.0 : 0.0;
+  auto const defIm = 0.0;
+  auto const defValue = c128(defRe, defIm);
+
+  // TODO(ry): I hate having to do a linear scan here, especially since we scan
+  // through *again* to get the root pointer from the value tree node (we
+  // shouldn't have to do that either). We should really make a data structure
+  // for storing roots that supports spatial queries
+
+  // NOTE(ry): if there is already a root at the default location, we don't add
+  // a new one, and instead increment the existing root's order
+  if(isZero)
+  {
+    for(auto *z : zeros)
+    {
+      if(z->value == defValue)
+      {
+	z->order += newOrder;
+	return(z);
+      }
+    }
+  }
+  else
+  {
+    for(auto *p : poles)
+    {
+      if(p->value == defValue)
+      {
+	p->order += newOrder;
+	return(p);
+      }
+    }
+  }
+
   juce::ValueTree newNode(IDs::Root);
   newNode.setProperty(IDs::Order, newOrder, nullptr);
-  newNode.setProperty(IDs::ValueRe, newOrder > 0 ? 1.0 : 0.0, nullptr);
-  newNode.setProperty(IDs::ValueIm, 0.0, nullptr);
+  newNode.setProperty(IDs::ValueRe, defRe, nullptr);
+  newNode.setProperty(IDs::ValueIm, defIm, nullptr);
 
   // NOTE(ry): This function can get called during an undo/redo operation. New
   // undoable actions can't be created while the undo manager is performing
   // undo/redo, so we can't pass a non-null undo manager in that case.
   auto *currentUm = um->isPerformingUndoRedo() ? nullptr : um;
-  if(newOrder > 0)
+  if(isZero)
   {
     treeRoot.getChildWithName(IDs::Zeros).appendChild(newNode, currentUm);
   }
@@ -45,7 +93,6 @@ add(s32 newOrder)
   }
 
   FilterRoot::Ptr result = getRootFromTreeNode(newNode);
-  //result.get()->wasOnAxis = true;
   return(result);
 }
 
@@ -98,20 +145,22 @@ valueTreeChildAdded(juce::ValueTree &parent, juce::ValueTree &child)
   {
     r64 valueIm = child.getProperty(IDs::ValueIm);
     bool wasOnAxis = juce::exactlyEqual(valueIm, 0.0);
-    s32 order = std::abs(s32(child.getProperty(IDs::Order)));
+    s32 order = child.getProperty(IDs::Order);
     s32 orderIncrement = wasOnAxis ? order : 2*order;
 
     if(parent.hasType(IDs::Zeros))
     {
       auto *zero = zeros.add(new FilterRoot(child, um));
       zero->wasOnAxis = wasOnAxis;
-      incrementFilterOrder(orderIncrement, false);
+      zero->lastKnownOrder = order;
+      incrementFilterOrder(std::abs(orderIncrement), false);
     }
     else if(parent.hasType(IDs::Poles))
     {
       auto *pole = poles.add(new FilterRoot(child, um));
       pole->wasOnAxis = wasOnAxis;
-      incrementFilterOrder(orderIncrement, true);
+      pole->lastKnownOrder = order;
+      incrementFilterOrder(std::abs(orderIncrement), true);
     }
   }
 
@@ -178,14 +227,26 @@ valueTreePropertyChanged(juce::ValueTree &node, const juce::Identifier &property
         {
           incrementFilterOrder(std::abs(rootOrder), isPole);
         }
-        DBG("filter order: " << int(totalOrder));
-        DBG("filter zeros order: " << int(finiteZerosOrder));
+
+	DBG("filter order: " << int(totalOrder));
+	DBG("filter zeros order: " << int(finiteZerosOrder));
       }
       root->wasOnAxis = isOnAxis;
     }
-    else if(property == IDs::Order)
+  }
+  else if(property == IDs::Order)
+  {
+    if(auto *root = getRootFromTreeNode(node).get())
     {
-      // TODO(ry): maintain causality through update to origin pole
+      int const newOrder = node.getProperty(IDs::Order);
+      auto const delta = newOrder - root->lastKnownOrder;
+      auto const increment = root->isReal() ? delta : 2*delta;
+      auto const isPole = newOrder < 0;
+      incrementFilterOrder(isPole ? -increment : increment, isPole);
+      root->lastKnownOrder = newOrder;
+
+      DBG("filter order: " << int(totalOrder));
+      DBG("filter zeros order: " << int(finiteZerosOrder));
     }
   }
 }

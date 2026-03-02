@@ -2,12 +2,12 @@
 #include <juce_audio_processors/juce_audio_processors.h>
 #include <juce_dsp/juce_dsp.h>
 
-using u8 = uint8_t;
+using u8  = uint8_t;
 using u16 = uint16_t;
 using u32 = uint32_t;
 using u64 = uint64_t;
 
-using s8 = int8_t;
+using s8  = int8_t;
 using s16 = int16_t;
 using s32 = int32_t;
 using s64 = int64_t;
@@ -17,7 +17,7 @@ using b32 = s32;
 using r32 = float;
 using r64 = double;
 
-using c64 = juce::dsp::Complex<float>;
+using c64  = juce::dsp::Complex<float>;
 using c128 = juce::dsp::Complex<double>;
 
 namespace IDs
@@ -68,13 +68,23 @@ struct FilterRoot
 
   struct CachedComplex
   {
-    juce::CachedValue<double> re;
-    juce::CachedValue<double> im;
     CachedComplex& operator=(const c128 &other)
     {
       re = other.real();
       im = other.imag();
       return *this;
+    }
+
+    bool operator==(const c128 &other)
+    {
+      // NOTE(ry): it really sucks that juce code doesn't comply with their own
+      // warnings on gcc. Otherwise this would be a one-liner.
+      r64 const real = re;
+      r64 const imag = im;
+      auto const result =
+	juce::approximatelyEqual(real, other.real()) &&
+	juce::approximatelyEqual(imag, other.imag());
+      return(result);
     }
 
     c128 get(void)
@@ -86,6 +96,20 @@ struct FilterRoot
       return(c128(re.get(), im.get()));
     }
     operator c128() const noexcept { return(get()); }
+
+    juce::CachedValue<double> re;
+    juce::CachedValue<double> im;
+  };
+
+  struct CachedOrder : juce::CachedValue<int>
+  {
+    CachedOrder& operator=(const int &order)
+    {
+      juce::CachedValue<int>::operator=(order);
+      return(*this);
+    }
+
+    CachedOrder& operator+=(const int &delta);
   };
 
   FilterRoot(juce::ValueTree v, juce::UndoManager *um) : node(v)
@@ -117,11 +141,48 @@ struct FilterRoot
     return(juce::exactlyEqual(std::abs(value.get()), 0.0));
   }
 
-  juce::ValueTree node; // each root manages its own node in the state tree
+  /** check if a root is a zero */
+  bool isZero(void)
+  {
+    return(order.get() > 0);
+  }
+  /** check if a root is a zero */
+  bool isZero(void) const
+  {
+    return(order.get() > 0);
+  }
 
+  /** check if a root is a pole */
+  bool isPole(void)
+  {
+    return(order.get() < 0);
+  }
+  /** check if a root is a pole */
+  bool isPole(void) const
+  {
+    return(order.get() < 0);
+  }
+
+  /** each root manages its own node in the state tree
+   */
+  juce::ValueTree node;
+
+  /** the root's position in the complex plane
+   */
   CachedComplex value;
-  juce::CachedValue<int> order;
 
+  /** the root's order. contributes x2 when the value is not real. positive for
+   * zeros, negative for poles.
+   */
+  CachedOrder order;
+
+  /** for getting the order increment in a property change callback
+   */
+  int lastKnownOrder;
+
+  /** for detecting when a root needs to be split into a complex conjugate pair
+   * or a pair needs to be merged back onto the real axis.
+   */
   bool wasOnAxis;
 
 private:
@@ -163,8 +224,16 @@ struct FilterState : private juce::ValueTree::Listener
   juce::OwnedArray<FilterRoot> zeros;
   juce::OwnedArray<FilterRoot> poles;
   juce::CachedValue<double> gain;
-  u32 finiteZerosOrder; // NOTE(ry): the sum of the orders of all zeros in the finite plane. Causality requires this be at most the total order.
-  u32 totalOrder; // NOTE(ry): the total order of the filter. Causality requires this to equal the sum of the negative orders of all poles.
+
+  /** the sum of the orders of all zeros in the finite plane. Causality
+   *requires this be at most the total order.
+   */
+  u32 finiteZerosOrder;
+
+  /** the total order of the filter. Causality requires this to equal
+   * the sum of the negative orders of all poles.
+   */
+  u32 totalOrder;
 
   // TODO(ry): separate trees for filter roots and parameters/automation
   juce::ValueTree treeRoot;

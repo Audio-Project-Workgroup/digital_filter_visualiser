@@ -134,12 +134,15 @@ public:
 
 			// 4b. IIR cascade
 			auto& iirCascade = proc->iirCascade;
-			const auto iirCascadeSize = static_cast<std::size_t>(iirCascade.size());
+			auto iirCascadeSize = static_cast<std::size_t>(iirCascade.size());
 			for (std::size_t i = 0 ; i < iirFiltersSize; i++)
 			{
 				const std::size_t iirCoeffsIndex = iirFiltersSize - 1 - i; // reverse order
 				if (i == iirCascadeSize)
+				{
 					iirCascade.add(new juce::dsp::IIR::Filter<float>{ iirCoeffs[iirCoeffsIndex] });
+					iirCascadeSize = static_cast<std::size_t>(iirCascade.size());
+				}
 				else
 				{
 					iirCascade[i]->coefficients = iirCoeffs[iirCoeffsIndex];
@@ -151,11 +154,14 @@ public:
 
 			// 4c. FIR cascade
 			auto& firCascade = proc->firCascade;
-			const auto firCascadeSize = static_cast<std::size_t>(firCascade.size());
+			auto firCascadeSize = static_cast<std::size_t>(firCascade.size());
 			for (std::size_t i = 0; i < firFiltersSize; i++)
 			{
 				if (i == firCascadeSize)
+				{
 					firCascade.add(new juce::dsp::FIR::Filter<float>{ firCoeffs[i] });
+					firCascadeSize = static_cast<std::size_t>(firCascade.size());
+				}
 				else
 				{
 					firCascade[i]->coefficients = firCoeffs[i];

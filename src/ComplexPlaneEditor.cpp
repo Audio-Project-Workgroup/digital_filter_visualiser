@@ -70,21 +70,34 @@ mouseUp(const juce::MouseEvent &e)
       auto *activeRoot = parent->activeRoot.get();
       jassert(activeRoot != nullptr);
 
-      int newOrder = targetRoot->order + activeRoot->order;
+      int orderInc = activeRoot->order;
+      int newOrder = targetRoot->order + orderInc;
       if(newOrder == 0)
       {
         // NOTE(ry): we merged a zero and a pole with the same order. we remove both of them
         auto zero = activeRoot->order > 0 ? parent->activeRoot : parent->targetRoot;
         auto pole = activeRoot->order > 0 ? parent->targetRoot : parent->activeRoot;
 
+	// NOTE(ry): it is very important we remove the zero before the
+	// pole. Otherwise a slack pole could be added
         parent->filterState.remove(zero);
         parent->filterState.remove(pole);
       }
       else
       {
         // NOTE(ry): we remove the active root and update the target root order
-        targetRoot->order = newOrder;
-        parent->filterState.remove(parent->activeRoot);
+	// NOTE(ry): we have to be careful that we perform operations in an
+	// order that does not result in an unnecessary slack pole creation
+	if(targetRoot->isPole())
+	{
+	  targetRoot->order += orderInc;
+	  parent->filterState.remove(parent->activeRoot);
+	}
+	else
+	{
+	  parent->filterState.remove(parent->activeRoot);
+	  targetRoot->order += orderInc;
+	}
       }
 
       parent->targetRoot = nullptr;
@@ -215,6 +228,7 @@ ComplexPlaneEditor(FilterState &s)
 
   // TODO(ry): better add/remove interface & logic (add poles, remove particular roots)
   addRoot.onClick = [this]{
+    filterState.um->beginNewTransaction();
     filterState.add(1);
   };
   delRoot.onClick = [this]{
