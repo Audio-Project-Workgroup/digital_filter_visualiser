@@ -26,7 +26,7 @@ FilterState(juce::ValueTree treeToUse, juce::UndoManager *umToUse)
   auto zerosNode = treeRoot.getOrCreateChildWithName(IDs::Zeros, nullptr);
   auto polesNode = treeRoot.getOrCreateChildWithName(IDs::Poles, nullptr);
 
-  treeRoot.setProperty(IDs::Gain, 0.0, nullptr);
+  treeRoot.setProperty(IDs::Gain, 1.0, nullptr);
   gain.referTo(treeRoot, IDs::Gain, um);
 
   treeRoot.addListener(this);

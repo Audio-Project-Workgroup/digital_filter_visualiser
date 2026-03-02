@@ -67,6 +67,7 @@ mouseUp(const juce::MouseEvent &e)
     if(auto *targetRoot = parent->targetRoot.get())
     {
       // NOTE(ry): merge the active root into the target root
+      // TODO(ry): case when merging turns zero into pole or vice versa
       auto *activeRoot = parent->activeRoot.get();
       jassert(activeRoot != nullptr);
 
@@ -144,7 +145,12 @@ mouseDrag(const juce::MouseEvent &e)
     auto parentEvent = e.getEventRelativeTo(parent);
     if(auto *targetComponent = parent->getComponentAt(parentEvent.x, parentEvent.y))
     {
-      if(targetComponent != parent)
+      if(targetComponent != parent &&
+	 targetComponent != &parent->gainSlider &&
+	 targetComponent != &parent->addRoot &&
+	 targetComponent != &parent->delRoot &&
+	 targetComponent != &parent->undo &&
+	 targetComponent != &parent->redo)
       {
         parent->targetRoot = dynamic_cast<RootPoint*>(targetComponent)->root;
       }
@@ -213,19 +219,13 @@ ComplexPlaneEditor(FilterState &s)
   gainSlider.setSliderStyle(juce::Slider::LinearHorizontal);
   gainSlider.setColour(juce::Slider::thumbColourId, juce::Colours::orange);
   gainSlider.setColour(juce::Slider::trackColourId, juce::Colours::white);
-  gainSlider.setBounds(0, 0, 400, 100);
-  gainSlider.setRange(-90.f, 6.f, 0.f);
+  gainSlider.setRange(-90.f, 6.f);
   gainSlider.setTextValueSuffix(" dB");
-  gainSlider.setValue(filterState.gain, juce::dontSendNotification);
+  gainSlider.setValue(juce::Decibels::gainToDecibels(r64(filterState.gain)), juce::dontSendNotification);
   gainSlider.addListener(this);
   addAndMakeVisible(gainSlider);
 
   // NOTE(ry): debug ui setup
-  addRoot.setBounds(100, 100, 100, 50);
-  delRoot.setBounds(100, 150, 100, 50);
-  undo.setBounds(200, 100, 100, 50);
-  redo.setBounds(200, 150, 100, 50);
-
   // TODO(ry): better add/remove interface & logic (add poles, remove particular roots)
   addRoot.onClick = [this]{
     filterState.um->beginNewTransaction();
@@ -321,6 +321,24 @@ mouseDrag(const juce::MouseEvent &e)
 void ComplexPlaneEditor::
 resized()
 {
+  auto area = getLocalBounds();
+
+  auto const gainSliderHeight = 100;
+  gainSlider.setBounds(area.removeFromTop(gainSliderHeight));
+
+  auto const buttonHeight = 50;
+  auto const buttonWidth = 100;
+  auto const buttonHMargin = 20;
+  area.removeFromLeft(buttonHMargin);
+
+  auto addDelCol = area.removeFromLeft(buttonWidth);
+  addRoot.setBounds(addDelCol.removeFromTop(buttonHeight));
+  delRoot.setBounds(addDelCol.removeFromTop(buttonHeight));
+
+  auto undoRedoCol = area.removeFromLeft(buttonWidth);
+  undo.setBounds(undoRedoCol.removeFromTop(buttonHeight));
+  redo.setBounds(undoRedoCol.removeFromTop(buttonHeight));
+
   updateTransformsAndChildBounds();
 }
 
