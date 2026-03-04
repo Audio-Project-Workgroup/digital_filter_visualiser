@@ -1,5 +1,7 @@
 #include "FilterState.h"
 
+#include "profile.cpp"
+
 // NOTE(ry): FilterRoot implementations
 
 FilterRoot::CachedOrder& FilterRoot::CachedOrder::
