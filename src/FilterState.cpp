@@ -241,14 +241,33 @@ valueTreePropertyChanged(juce::ValueTree &node, const juce::Identifier &property
     if(auto *root = getRootFromTreeNode(node).get())
     {
       int const newOrder = node.getProperty(IDs::Order);
-      auto const delta = newOrder - root->lastKnownOrder;
-      auto const increment = root->isReal() ? delta : 2*delta;
-      auto const isPole = newOrder < 0;
-      incrementFilterOrder(isPole ? -increment : increment, isPole);
-      root->lastKnownOrder = newOrder;
+      if(newOrder == 0)
+      {
+	// NOTE(ry): we remove the root if it has zero order. we also have to
+	// decrement the filter order here since removing the root will not do
+	// that (the order is now zero!)
+	auto const delta = -root->lastKnownOrder;
+	auto const decrement = root->isReal() ? delta : 2*delta;
+	auto const wasPole = root->lastKnownOrder < 0;
+	incrementFilterOrder(wasPole ? -decrement : decrement, wasPole);
 
-      DBG("filter order: " << int(totalOrder));
-      DBG("filter zeros order: " << int(finiteZerosOrder));
+	auto parent = node.getParent();
+	parent.removeChild(node, nullptr);
+      }
+      else
+      {
+	jassert((newOrder < 0) == (root->lastKnownOrder < 0)); // we can't have the root order change sign
+
+	auto const isPole = newOrder < 0;
+	auto const delta = newOrder - root->lastKnownOrder;
+	auto const increment = root->isReal() ? delta : 2*delta;
+	incrementFilterOrder(isPole ? -increment : increment, isPole);
+
+	root->lastKnownOrder = newOrder;
+
+	DBG("filter order: " << int(totalOrder));
+	DBG("filter zeros order: " << int(finiteZerosOrder));
+      }
     }
   }
 }

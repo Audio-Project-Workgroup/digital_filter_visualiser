@@ -156,13 +156,14 @@ Profiler(void) : currentParent(PROFILE_SITE_NIL)
 ProfiledScope::
 ProfiledScope(ProfileSite *_site) : site(_site)
 {
+  // TODO(ry): we shouldn't have any branches in the profiler
   if(site->usedThreadProfiler == nullptr)
   {
     site->usedThreadProfiler = &threadProfiler;
   }
   else
   {
-    // NOTE(ry); we don't support profiled sites being called by mutiple thread
+    // NOTE(ry); we don't support profiled sites being called by mutiple threads
     jassert(site->usedThreadProfiler == &threadProfiler);
   }
 

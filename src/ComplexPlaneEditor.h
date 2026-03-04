@@ -6,14 +6,14 @@
 #include "FilterState.h"
 #include "PluginProcessor.h"
 
-class ComplexPlaneEditor final : 
-    public juce::Component, 
+class ComplexPlaneEditor final :
+    public juce::Component,
     private juce::Slider::Listener,
     private juce::ValueTree::Listener
 {
   /** TODO(ry):
    * better root creation interface (ability to create poles, increase/decrease root order)
-   * merge and split roots
+   * split roots
    * visually indicate snaping roots to real axis
    * visually indicate when a root is being hovered over (highlight, show tooltip)
    * restore a root to its previous position when undoing its deletion

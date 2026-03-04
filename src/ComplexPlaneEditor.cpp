@@ -67,37 +67,49 @@ mouseUp(const juce::MouseEvent &e)
     if(auto *targetRoot = parent->targetRoot.get())
     {
       // NOTE(ry): merge the active root into the target root
-      // TODO(ry): case when merging turns zero into pole or vice versa
       auto *activeRoot = parent->activeRoot.get();
       jassert(activeRoot != nullptr);
 
-      int orderInc = activeRoot->order;
-      int newOrder = targetRoot->order + orderInc;
-      if(newOrder == 0)
+      int newOrder = targetRoot->order + activeRoot->order;
+      if((targetRoot->order < 0) != (activeRoot->order < 0))
       {
-        // NOTE(ry): we merged a zero and a pole with the same order. we remove both of them
-        auto zero = activeRoot->order > 0 ? parent->activeRoot : parent->targetRoot;
-        auto pole = activeRoot->order > 0 ? parent->targetRoot : parent->activeRoot;
+	// NOTE(ry): we are merging a zero with a pole. we keep one and remove
+	// the other, depending on the sign of the result. the order of the root
+	// we keep will decrease
+	auto const resultIsPole = newOrder < 0;
+	auto zero = targetRoot->order < 0 ? parent->activeRoot : parent->targetRoot;
+	auto pole = targetRoot->order < 0 ? parent->targetRoot : parent->activeRoot;
 
-	// NOTE(ry): it is very important we remove the zero before the
-	// pole. Otherwise a slack pole could be added
-        parent->filterState.remove(zero);
-        parent->filterState.remove(pole);
+	// NOTE(ry): we must decrement the zero order before we decrement the
+	// pole order so we don't add a slack pole
+	if(resultIsPole)
+	{
+	  parent->filterState.remove(zero);
+	  pole->order = newOrder;
+	}
+	else
+	{
+	  zero->order = newOrder;
+	  parent->filterState.remove(pole);
+	}
       }
       else
       {
-        // NOTE(ry): we remove the active root and update the target root order
-	// NOTE(ry): we have to be careful that we perform operations in an
-	// order that does not result in an unnecessary slack pole creation
+	// NOTE(ry): we are merging two roots of the same kind (zero & zero or
+	// pole & pole). the order of the root we keep will increase
+
+	// NOTE(ry): we must increase the order of the pole we keep before
+	// removing the other one, or remove a zero before we increase the order
+	// of the other one.
 	if(targetRoot->isPole())
 	{
-	  targetRoot->order += orderInc;
+	  targetRoot->order = newOrder;
 	  parent->filterState.remove(parent->activeRoot);
 	}
 	else
 	{
 	  parent->filterState.remove(parent->activeRoot);
-	  targetRoot->order += orderInc;
+	  targetRoot->order = newOrder;
 	}
       }
 
