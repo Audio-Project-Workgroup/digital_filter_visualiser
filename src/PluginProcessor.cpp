@@ -1,3 +1,4 @@
+#define IMPLEMENTOR_UNIT
 #include "PluginProcessor.h"
 #include "PluginEditor.h"
 #include "ProcessorChainModifier.h"
@@ -189,6 +190,7 @@ bool AudioPluginAudioProcessor::isBusesLayoutSupported (const BusesLayout& layou
 void AudioPluginAudioProcessor::processBlock (juce::AudioBuffer<SampleType>& buffer,
                                               juce::MidiBuffer& midiMessages)
 {
+	PROFILE_FUNCTION();
     juce::ignoreUnused(midiMessages);
     juce::ScopedNoDenormals noDenormals;
 
@@ -209,6 +211,8 @@ void AudioPluginAudioProcessor::processBlock (juce::AudioBuffer<SampleType>& buf
 
     if (isNewStateReady.load())
     {
+		PROFILE_SCOPE("new state is ready");
+
         auto* activeProc = activeState.load();
         juce::dsp::AudioBlock<SampleType> block(buffer);
         juce::dsp::AudioBlock<SampleType> crossFadeBlock(crossFadeBuffer);
@@ -235,6 +239,8 @@ void AudioPluginAudioProcessor::processBlock (juce::AudioBuffer<SampleType>& buf
     }
     else
     {
+		PROFILE_SCOPE("new state is not ready");
+
         auto* proc = activeState.load();
         juce::dsp::AudioBlock<SampleType> block(buffer);
 

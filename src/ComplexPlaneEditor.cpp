@@ -70,33 +70,46 @@ mouseUp(const juce::MouseEvent &e)
       auto *activeRoot = parent->activeRoot.get();
       jassert(activeRoot != nullptr);
 
-      int orderInc = activeRoot->order;
-      int newOrder = targetRoot->order + orderInc;
-      if(newOrder == 0)
+      int newOrder = targetRoot->order + activeRoot->order;
+      if((targetRoot->order < 0) != (activeRoot->order < 0))
       {
-        // NOTE(ry): we merged a zero and a pole with the same order. we remove both of them
-        auto zero = activeRoot->order > 0 ? parent->activeRoot : parent->targetRoot;
-        auto pole = activeRoot->order > 0 ? parent->targetRoot : parent->activeRoot;
+	// NOTE(ry): we are merging a zero with a pole. we keep one and remove
+	// the other, depending on the sign of the result. the order of the root
+	// we keep will decrease
+	auto const resultIsPole = newOrder < 0;
+	auto zero = targetRoot->order < 0 ? parent->activeRoot : parent->targetRoot;
+	auto pole = targetRoot->order < 0 ? parent->targetRoot : parent->activeRoot;
 
-	// NOTE(ry): it is very important we remove the zero before the
-	// pole. Otherwise a slack pole could be added
-        parent->filterState.remove(zero);
-        parent->filterState.remove(pole);
+	// NOTE(ry): we must decrement the zero order before we decrement the
+	// pole order so we don't add a slack pole
+	if(resultIsPole)
+	{
+	  parent->filterState.remove(zero);
+	  pole->order = newOrder;
+	}
+	else
+	{
+	  zero->order = newOrder;
+	  parent->filterState.remove(pole);
+	}
       }
       else
       {
-        // NOTE(ry): we remove the active root and update the target root order
-	// NOTE(ry): we have to be careful that we perform operations in an
-	// order that does not result in an unnecessary slack pole creation
+	// NOTE(ry): we are merging two roots of the same kind (zero & zero or
+	// pole & pole). the order of the root we keep will increase
+
+	// NOTE(ry): we must increase the order of the pole we keep before
+	// removing the other one, or remove a zero before we increase the order
+	// of the other one.
 	if(targetRoot->isPole())
 	{
-	  targetRoot->order += orderInc;
+	  targetRoot->order = newOrder;
 	  parent->filterState.remove(parent->activeRoot);
 	}
 	else
 	{
 	  parent->filterState.remove(parent->activeRoot);
-	  targetRoot->order += orderInc;
+	  targetRoot->order = newOrder;
 	}
       }
 
@@ -144,7 +157,12 @@ mouseDrag(const juce::MouseEvent &e)
     auto parentEvent = e.getEventRelativeTo(parent);
     if(auto *targetComponent = parent->getComponentAt(parentEvent.x, parentEvent.y))
     {
-      if(targetComponent != parent)
+      if(targetComponent != parent &&
+	 targetComponent != &parent->gainSlider &&
+	 targetComponent != &parent->addRoot &&
+	 targetComponent != &parent->delRoot &&
+	 targetComponent != &parent->undo &&
+	 targetComponent != &parent->redo)
       {
         parent->targetRoot = dynamic_cast<RootPoint*>(targetComponent)->root;
       }
@@ -213,19 +231,13 @@ ComplexPlaneEditor(FilterState &s)
   gainSlider.setSliderStyle(juce::Slider::LinearHorizontal);
   gainSlider.setColour(juce::Slider::thumbColourId, juce::Colours::orange);
   gainSlider.setColour(juce::Slider::trackColourId, juce::Colours::white);
-  gainSlider.setBounds(0, 0, 400, 100);
-  gainSlider.setRange(-90.f, 6.f, 0.f);
+  gainSlider.setRange(-90.f, 6.f);
   gainSlider.setTextValueSuffix(" dB");
-  gainSlider.setValue(filterState.gain, juce::dontSendNotification);
+  gainSlider.setValue(juce::Decibels::gainToDecibels(r64(filterState.gain)), juce::dontSendNotification);
   gainSlider.addListener(this);
   addAndMakeVisible(gainSlider);
 
   // NOTE(ry): debug ui setup
-  addRoot.setBounds(100, 100, 100, 50);
-  delRoot.setBounds(100, 150, 100, 50);
-  undo.setBounds(200, 100, 100, 50);
-  redo.setBounds(200, 150, 100, 50);
-
   // TODO(ry): better add/remove interface & logic (add poles, remove particular roots)
   addRoot.onClick = [this]{
     filterState.um->beginNewTransaction();
@@ -321,6 +333,24 @@ mouseDrag(const juce::MouseEvent &e)
 void ComplexPlaneEditor::
 resized()
 {
+  auto area = getLocalBounds();
+
+  auto const gainSliderHeight = 100;
+  gainSlider.setBounds(area.removeFromTop(gainSliderHeight));
+
+  auto const buttonHeight = 50;
+  auto const buttonWidth = 100;
+  auto const buttonHMargin = 20;
+  area.removeFromLeft(buttonHMargin);
+
+  auto addDelCol = area.removeFromLeft(buttonWidth);
+  addRoot.setBounds(addDelCol.removeFromTop(buttonHeight));
+  delRoot.setBounds(addDelCol.removeFromTop(buttonHeight));
+
+  auto undoRedoCol = area.removeFromLeft(buttonWidth);
+  undo.setBounds(undoRedoCol.removeFromTop(buttonHeight));
+  redo.setBounds(undoRedoCol.removeFromTop(buttonHeight));
+
   updateTransformsAndChildBounds();
 }
 
