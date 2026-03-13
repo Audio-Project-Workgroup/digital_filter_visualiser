@@ -62,6 +62,7 @@ public:
   std::atomic<bool> isActiveStateUsed{ false };
   std::atomic<bool> isPendingStateUsed{ false };
   std::atomic<bool> isNewStateReady{ false };
+  std::atomic<juce::uint32> lastProcessTime;
 
   // This mutex avoids races when reading spec in ProcessorChainModifier class
   // while writing it in prepareToPlay.

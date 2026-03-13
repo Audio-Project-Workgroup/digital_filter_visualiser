@@ -18,7 +18,8 @@ AudioPluginAudioProcessor::AudioPluginAudioProcessor()
     ),
     apvts(*this, &um),
     activeState(new FullState<SampleType>),
-    pendingState(new FullState<SampleType>)
+    pendingState(new FullState<SampleType>),
+    lastProcessTime(0)
 {
     if (!apvts.state.isValid())
     {
@@ -251,6 +252,8 @@ void AudioPluginAudioProcessor::processBlock (juce::AudioBuffer<SampleType>& buf
             proc->getUnchecked(ch)->process(context);
         }
     }
+
+    lastProcessTime.store(juce::Time::getApproximateMillisecondCounter());
 }
 
 //==============================================================================

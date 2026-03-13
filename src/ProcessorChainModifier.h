@@ -165,9 +165,19 @@ public:
 		// This is to ensure that pendingState will never be used in processBlock
 		// without spec preparation,
 		// even if a user changes processing parameters before pushing Play button.
-		if (!processor.isPrepared)
+		// The second condition is for the case 
+		// when sound was muted by DAW due to "bad" processor parameters 
+		// and therefore processBlock method is not called.
+		// Before "unmuting" a user can change the parameters and they should be updated.
+		if (!processor.isPrepared ||
+			juce::Time::getApproximateMillisecondCounter() - processor.lastProcessTime.load() > processBlockMaxPause)
 		{
-			RootsToJuceCoeffs(processor.filterState.get(), processor.activeState, processor.spec);
+			processor.isNewStateReady.store(false);
+			processor.isPendingStateUsed.store(true);
+			RootsToJuceCoeffs(processor.filterState.get(), processor.pendingState, processor.spec);
+			auto* old = processor.activeState.exchange(processor.pendingState);
+			processor.pendingState = old;
+			processor.isPendingStateUsed.store(false);
 		}
 		// If the updated state is already loaded
 		// but the sound was not fully processed using this state
@@ -179,10 +189,6 @@ public:
 			processor.isPendingStateUsed.store(false);
 			processor.isNewStateReady.store(true);
 		}
-
-		//// Calculate in double for displaying
-		//auto z = Roots2CoeffsVector(processor.state.zeros);
-		//auto p = Roots2CoeffsVector(processor.state.poles);
 	}
 
 private:
@@ -319,6 +325,7 @@ private:
 	static constexpr double qCoeff = 0.6;
 	static constexpr double magCoeff = 0.3;
 	static constexpr double angleCoeff = 0.1;
+	static constexpr juce::uint32 processBlockMaxPause = 100;
 };
 
 // NOTE(ry): I need to put this here so my editor doesn't screw with the style of this file
