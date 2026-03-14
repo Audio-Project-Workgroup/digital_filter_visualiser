@@ -34,18 +34,13 @@ AudioPluginAudioProcessor::~AudioPluginAudioProcessor()
 {
     um.removeChangeListener(this);
 
-    auto* activePtr = activeState.exchange(nullptr);
-    if (activePtr != nullptr)
+    if (auto* activePtr = activeState.exchange(nullptr))
     {
-        while (isActiveStateUsed.load())
-            juce::Thread::sleep(1);
         delete activePtr;
     }
 
-    if (pendingState != nullptr)
+    if (pendingState)
     {
-        while (isPendingStateUsed.load())
-            juce::Thread::sleep(1);
         delete pendingState;
         pendingState = nullptr;
     }
@@ -119,8 +114,6 @@ void AudioPluginAudioProcessor::changeProgramName (int index, const juce::String
 //==============================================================================
 void AudioPluginAudioProcessor::prepareToPlay (double sampleRate, int samplesPerBlock)
 {
-    std::lock_guard<std::mutex> lock(stateMutex);
-
     crossFadeBuffer.setSize(getTotalNumInputChannels(), samplesPerBlock);
 
     juce::dsp::ProcessSpec newSpec
@@ -131,9 +124,6 @@ void AudioPluginAudioProcessor::prepareToPlay (double sampleRate, int samplesPer
     };
     spec = newSpec;
     auto numChannels = getTotalNumOutputChannels();
-
-    isActiveStateUsed.store(true);
-    isPendingStateUsed.store(true);
 
     if (auto activeProc = activeState.load())
         if (pendingState != nullptr)
@@ -151,11 +141,9 @@ void AudioPluginAudioProcessor::prepareToPlay (double sampleRate, int samplesPer
                 pendingState->add(pendingItem);
             }
 
-            ProcessorChainModifier::RootsToJuceCoeffs(filterState.get(), activeState.load(), spec);
+            ProcessorChainModifier::rootsToJuceCoeffs(filterState.get(), activeState.load(), spec);
         }
     isPrepared = true;
-    isPendingStateUsed.store(false);
-    isActiveStateUsed.store(false);
 }
 
 void AudioPluginAudioProcessor::releaseResources()
@@ -210,7 +198,7 @@ void AudioPluginAudioProcessor::processBlock (juce::AudioBuffer<SampleType>& buf
     for (auto i = totalNumInputChannels; i < totalNumOutputChannels; ++i)
         buffer.clear(i, 0, numSamples);
 
-    if (isNewStateReady.load())
+    if (isPendingStateReady.load())
     {
 		PROFILE_SCOPE("new state is ready");
 
@@ -236,7 +224,7 @@ void AudioPluginAudioProcessor::processBlock (juce::AudioBuffer<SampleType>& buf
 
         auto* old = activeState.exchange(pendingState);
         pendingState = old;
-        isNewStateReady.store(false);
+        isPendingStateReady.store(false);
     }
     else
     {
@@ -287,7 +275,7 @@ void AudioPluginAudioProcessor::changeListenerCallback(juce::ChangeBroadcaster* 
 {
     if (source == &um)
     {
-        ProcessorChainModifier::Process(*this);
+        ProcessorChainModifier::process(*this);
     }
 }
 

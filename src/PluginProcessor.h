@@ -59,14 +59,9 @@ public:
   // TODO(ry): We should be able to simplify the active/pending state swap
   std::atomic<FullState<SampleType>*> activeState;
   FullState<SampleType>* pendingState;
-  std::atomic<bool> isActiveStateUsed{ false };
-  std::atomic<bool> isPendingStateUsed{ false };
-  std::atomic<bool> isNewStateReady{ false };
+  std::atomic<bool> isPendingStateReady{ false };
   std::atomic<juce::uint32> lastProcessTime;
 
-  // This mutex avoids races when reading spec in ProcessorChainModifier class
-  // while writing it in prepareToPlay.
-  std::mutex stateMutex;
   bool isPrepared = false;
   juce::dsp::ProcessSpec spec;
 

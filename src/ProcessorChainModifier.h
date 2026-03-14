@@ -7,7 +7,7 @@
 class ProcessorChainModifier
 {
 public:
-	static void RootsToJuceCoeffs(
+	static void rootsToJuceCoeffs(
 		FilterState* state,
 		FullState<float>* processorState,
 		juce::dsp::ProcessSpec& spec)
@@ -47,7 +47,7 @@ public:
 			if (pole->isAtZero())
 				delayCount += std::abs(pole->order.get());
 			else
-				polesIndexesWithKeys.push_back({ i, EvaluatePole(pole) });
+				polesIndexesWithKeys.push_back({ i, evaluatePole(pole) });
 		}
 		std::sort(polesIndexesWithKeys.begin(), polesIndexesWithKeys.end(),
 			[](const PolesIndexesWithKeys a, const PolesIndexesWithKeys b)
@@ -69,7 +69,7 @@ public:
 
 			for (int j = 0; j < poleOrder; j++)
 			{
-				bestZeroIndex = FindBestZeroIndexPairForPole(
+				bestZeroIndex = findBestZeroIndexPairForPole(
 					pole,
 					state->zeros,
 					usedZeros,
@@ -93,7 +93,7 @@ public:
 					poleOrder - j > 1 &&
 					unusedZeroOrder > 1;
 
-				iirCoeffs.push_back(CalculateIirCoefficients(
+				iirCoeffs.push_back(calculateIirCoefficients(
 					pole,
 					state->zeros,
 					bestZeroIndex,
@@ -155,10 +155,11 @@ public:
 		}
 	}
 
-	static void Process(AudioPluginAudioProcessor& processor)
+	static void process(AudioPluginAudioProcessor& processor)
 	{
-		// This prevents simultaneous Process and prepareToPlay working.
-		std::unique_lock<std::mutex> lock(processor.stateMutex);
+		// NB: It is proposed that this method will be called only from the Message Thread;
+		// otherwise, races should be avoided between this method, 
+		// AudioPluginAudioProcessor::prepareToPlay and AudioPluginAudioProcessor::~AudioPluginAudioProcessor.
 
 		// If playing is not started yet
 		// then the changed state goes directly to the activeState.
@@ -172,27 +173,23 @@ public:
 		if (!processor.isPrepared ||
 			juce::Time::getApproximateMillisecondCounter() - processor.lastProcessTime.load() > processBlockMaxPause)
 		{
-			processor.isNewStateReady.store(false);
-			processor.isPendingStateUsed.store(true);
-			RootsToJuceCoeffs(processor.filterState.get(), processor.pendingState, processor.spec);
+			processor.isPendingStateReady.store(false);
+			rootsToJuceCoeffs(processor.filterState.get(), processor.pendingState, processor.spec);
 			auto* old = processor.activeState.exchange(processor.pendingState);
 			processor.pendingState = old;
-			processor.isPendingStateUsed.store(false);
 		}
 		// If the updated state is already loaded
 		// but the sound was not fully processed using this state
 		// then another update should be cancelled.
-		else if (!processor.isNewStateReady.load())
+		else if (!processor.isPendingStateReady.load())
 		{
-			processor.isPendingStateUsed.store(true);
-			RootsToJuceCoeffs(processor.filterState.get(), processor.pendingState, processor.spec);
-			processor.isPendingStateUsed.store(false);
-			processor.isNewStateReady.store(true);
+			rootsToJuceCoeffs(processor.filterState.get(), processor.pendingState, processor.spec);
+			processor.isPendingStateReady.store(true);
 		}
 	}
 
 private:
-	static inline double EvaluatePole(const FilterRoot* pole)
+	static inline double evaluatePole(const FilterRoot* pole)
 	{
 		const auto value = pole->value.get();
 		const double mag = std::abs(value);
@@ -201,7 +198,7 @@ private:
 		return q * qCoeff + mag * magCoeff + angleAbs * angleCoeff;
 	}
 
-	static int FindBestZeroIndexPairForPole(
+	static int findBestZeroIndexPairForPole(
 		const FilterRoot* pole,
 		juce::OwnedArray<FilterRoot>& zeros,
 		std::vector<int>& usedZeros,
@@ -239,7 +236,7 @@ private:
 		return currentBestIndex;
 	}
 
-	static juce::dsp::IIR::Coefficients<float>* CalculateIirCoefficients(
+	static juce::dsp::IIR::Coefficients<float>* calculateIirCoefficients(
 		FilterRoot* pole,
 		juce::OwnedArray<FilterRoot>& zeros,
 		int zeroIndex,
