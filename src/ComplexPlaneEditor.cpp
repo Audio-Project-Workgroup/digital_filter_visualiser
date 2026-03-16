@@ -155,21 +155,14 @@ mouseDrag(const juce::MouseEvent &e)
     // NOTE(ry): this is maybe the shittiest way I can imagine finding where another component is
     // TODO(ry): use world pos because mouse can be off axis while point is on (or change tolerance)
     auto parentEvent = e.getEventRelativeTo(parent);
-    if(auto *targetComponent = parent->getComponentAt(parentEvent.x, parentEvent.y))
+    auto *targetComponent = parent->getComponentAt(parentEvent.x, parentEvent.y);
+    if(auto *targetRoot = dynamic_cast<RootPoint*>(targetComponent))
     {
-      if(targetComponent != parent &&
-	 targetComponent != &parent->gainSlider &&
-	 targetComponent != &parent->addRoot &&
-	 targetComponent != &parent->delRoot &&
-	 targetComponent != &parent->undo &&
-	 targetComponent != &parent->redo)
-      {
-        parent->targetRoot = dynamic_cast<RootPoint*>(targetComponent)->root;
-      }
-      else
-      {
-        parent->targetRoot = nullptr;
-      }
+      parent->targetRoot = targetRoot->root;
+    }
+    else
+    {
+      parent->targetRoot = nullptr;
     }
 
     // NOTE(ry): update all properties related to this root
