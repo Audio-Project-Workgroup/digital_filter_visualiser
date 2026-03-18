@@ -81,16 +81,14 @@ public:
         std::vector<double> angles(static_cast<std::size_t>(width));
         std::vector<double> amplitudes, phases;
 
-        const float pi = 3.1415926536; // TODO
+        const double angleStep = juce::MathConstants<double>::pi / width;
         for (int i = 0; i < width; i++)
-            angles[i] = pi / width * i;
+            angles[i] = angleStep * i;
 
         calculate(angles, amplitudes, phases);
 
         for (int i = 0; i < width; i++)
-        {
             amplitudes[i] = juce::Decibels::gainToDecibels(amplitudes[i]);
-        }
 
         juce::Rectangle<int> rect(plotPaddingLeft, plotPaddingTop, width, height);
         g.fillAll(backgroundColor);
@@ -131,7 +129,7 @@ public:
                 juce::Justification::centred);
             g.drawText(
                 juce::String(static_cast<int>(sampleRate / 2)), 
-                static_cast<int>(xRight)- textWidth / 2,
+                static_cast<int>(xRight) - textWidth / 2,
                 static_cast<int>(yBottom) + padding,
                 textWidth,
                 textHeight,
@@ -157,14 +155,15 @@ public:
             
             g.setGradientFill(gradient);
             
+            const float piFloat = juce::MathConstants<float>::pi;
             juce::Path path;
-            auto x = juce::jmap(static_cast<float>(angles[0]), 0.f, pi, xLeft, xRight);
+            auto x = juce::jmap(static_cast<float>(angles[0]), 0.f, piFloat, xLeft, xRight);
             auto y = juce::jmap(static_cast<float>(amplitudes[0]), -ampDb, ampDb, yBottom, yTop);
             g.drawLine(x, rect.getCentreY(), x, y);
             path.startNewSubPath(x, y);
             for (int i = 1; i < width; i++)
             {
-                x = juce::jmap(static_cast<float>(angles[i]), 0.f, pi, xLeft, xRight);
+                x = juce::jmap(static_cast<float>(angles[i]), 0.f, piFloat, xLeft, xRight);
                 y = juce::jmap(static_cast<float>(amplitudes[i]), -ampDb, ampDb, yBottom, yTop);
                 g.drawLine(x, rect.getCentreY(), x, y);
                 path.lineTo(x, y);
@@ -177,43 +176,48 @@ public:
     }
 
 private:
-
     void calculate(
         std::vector<double>& angles,
         std::vector<double>& amplitudes,
         std::vector<double>& phases)
     {
-        amplitudes.resize(angles.size());
-        phases.resize(angles.size());
+        auto size = angles.size();
+        amplitudes.resize(size);
+        phases.resize(size);
 
-        for (auto i = 0; i < angles.size(); i++)
+        for (auto i = 0; i < size; i++)
         {
-            amplitudes[i] = 1;
-            phases[i] = 0;
+            amplitudes[i] = 1.0;
+            phases[i] = 0.0;
         }
 
         double ampCoeff, phaseCoeff;
+        for (auto pole : filterState->poles)
+        {
+            for (auto i = 0; i < size; i++)
+            {
+                calculateCoefficients(angles[i], pole, ampCoeff, phaseCoeff);
+                for (auto j = 0; j < std::abs(pole->order); j++)
+                {
+                    amplitudes[i] *= ampCoeff; // later it turns to 1 / amplitudes[i]
+                    phases[i] -= phaseCoeff;
+                }
+            }
+        }
+
+        const double eps = std::numeric_limits<double>::epsilon();
+        for (auto i = 0; i < size; i++)
+            amplitudes[i] = 1.0 / std::max(amplitudes[i], eps);
+
         for (auto zero : filterState->zeros)
         {
-            for (auto i = 0; i < angles.size(); i++)
+            for (auto i = 0; i < size; i++)
             {
                 calculateCoefficients(angles[i], zero, ampCoeff, phaseCoeff);
                 for (auto j = 0; j < zero->order; j++)
                 {
                     amplitudes[i] *= ampCoeff;
                     phases[i] += phaseCoeff;
-                }
-            }
-        }
-        for (auto pole : filterState->poles)
-        {
-            for (auto i = 0; i < angles.size(); i++)
-            {
-                calculateCoefficients(angles[i], pole, ampCoeff, phaseCoeff);
-                for (auto j = 0; j < std::abs(pole->order); j++)
-                {
-                    amplitudes[i] /= ampCoeff; // TODO: divide by zero check
-                    phases[i] -= phaseCoeff;
                 }
             }
         }
@@ -252,12 +256,6 @@ private:
     const float
         minAmpDb = 6.f,
         maxAmpDb = 96.f;
-    const float
-        minFreq = 20.f,
-        maxFreq = 20000.f;
-    const float
-        logMinFreq = std::log10(minFreq),
-        logMaxFreq = std::log10(maxFreq);
 
     float ampDb;
     double sampleRate;
