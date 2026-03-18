@@ -3,6 +3,7 @@
 #include "PluginProcessor.h"
 
 #include "ComplexPlaneEditor.h"
+#include "PhaseFrequencyResponceViewer.h"
 
 class CoefficientsComponent final : public juce::Component
 {
@@ -34,6 +35,7 @@ private:
   AudioPluginAudioProcessor& processorRef;
 
   ComplexPlaneEditor complexPlaneEditor;
+  PhaseFrequencyResponseViewer phaseFrequencyResponseViewer;
   CoefficientsComponent coefficients;
 
   JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (AudioPluginAudioProcessorEditor)
