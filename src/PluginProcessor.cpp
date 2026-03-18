@@ -144,6 +144,7 @@ void AudioPluginAudioProcessor::prepareToPlay (double sampleRate, int samplesPer
             ProcessorChainModifier::rootsToJuceCoeffs(filterState.get(), activeState.load(), spec);
         }
     isPrepared = true;
+    sendChangeMessage();
 }
 
 void AudioPluginAudioProcessor::releaseResources()

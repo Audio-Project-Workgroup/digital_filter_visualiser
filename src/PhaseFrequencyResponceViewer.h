@@ -3,21 +3,23 @@
 #include <juce_audio_processors/juce_audio_processors.h>
 #include <juce_dsp/juce_dsp.h>
 
-#include "FilterState.h"
+#include "PluginProcessor.h"
 
 class PhaseFrequencyResponseViewer final :
     public juce::Component,
     juce::ChangeListener
 {
 public:
-    PhaseFrequencyResponseViewer(FilterState& filterState) :
-        filterState(filterState),
+    PhaseFrequencyResponseViewer(AudioPluginAudioProcessor* processor) :
+        processor(processor),
+        filterState(processor->filterState.get()),
         zoomInButton("+"),
         zoomOutButton("-"),
         ampDb(minAmpDb),
-        sampleRate(0)
+        sampleRate(processor->getSampleRate())
     {
-        filterState.um->addChangeListener(this);
+        processor->addChangeListener(this);
+        filterState->um->addChangeListener(this);
         zoomInButton.onClick = [this] 
             {
                 if (ampDb > minAmpDb)
@@ -41,13 +43,19 @@ public:
 
     ~PhaseFrequencyResponseViewer()
     {
-        filterState.um->removeChangeListener(this);
+        filterState->um->removeChangeListener(this);
+        processor->removeChangeListener(this);
     }
 
     void changeListenerCallback(juce::ChangeBroadcaster* source) override
     {
-        if (source == filterState.um)
+        if (source == filterState->um)
             repaint();
+        else if (source == processor)
+        {
+            sampleRate = processor->getSampleRate();
+            repaint();
+        }
     }
 
     void resized() override
@@ -168,11 +176,6 @@ public:
         }
     }
 
-    void setSampleRate(double sampleRate)
-    {
-        this->sampleRate = static_cast<float>(sampleRate);
-    }
-
 private:
 
     void calculate(
@@ -190,7 +193,7 @@ private:
         }
 
         double ampCoeff, phaseCoeff;
-        for (auto zero : filterState.zeros)
+        for (auto zero : filterState->zeros)
         {
             for (auto i = 0; i < angles.size(); i++)
             {
@@ -202,7 +205,7 @@ private:
                 }
             }
         }
-        for (auto pole : filterState.poles)
+        for (auto pole : filterState->poles)
         {
             for (auto i = 0; i < angles.size(); i++)
             {
@@ -257,9 +260,10 @@ private:
         logMaxFreq = std::log10(maxFreq);
 
     float ampDb;
-    float sampleRate;
+    double sampleRate;
 
-    FilterState& filterState;
+    AudioPluginAudioProcessor* processor;
+    FilterState* filterState;
 
     juce::TextButton zoomInButton, zoomOutButton;
 };

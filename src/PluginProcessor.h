@@ -7,7 +7,10 @@
 #include "ProcessorChain.h"
 
 //==============================================================================
-class AudioPluginAudioProcessor final : public juce::AudioProcessor, juce::ChangeListener
+class AudioPluginAudioProcessor final : 
+	public juce::AudioProcessor, 
+	public juce::ChangeBroadcaster,
+	juce::ChangeListener
 {
 public:
 
