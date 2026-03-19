@@ -1,5 +1,7 @@
 #pragma once
 
+#include <cmath>
+
 #include <juce_audio_processors/juce_audio_processors.h>
 #include <juce_dsp/juce_dsp.h>
 
@@ -15,11 +17,13 @@ public:
         filterState(processor->filterState.get()),
         zoomInButton("+"),
         zoomOutButton("-"),
+        logScaleButton("Hz log scale"),
         ampDb(minAmpDb),
         sampleRate(processor->getSampleRate())
     {
         processor->addChangeListener(this);
         filterState->um->addChangeListener(this);
+
         zoomInButton.onClick = [this] 
             {
                 if (ampDb > minAmpDb)
@@ -36,9 +40,16 @@ public:
                     repaint();
                 }
             };
+        logScaleButton.onClick = [this]
+            {
+                repaint();
+            };
+        logScaleButton.setClickingTogglesState(true);
+        logScaleButton.setEnabled(sampleRate > 0);
 
         addAndMakeVisible(zoomInButton);
         addAndMakeVisible(zoomOutButton);
+        addAndMakeVisible(logScaleButton);
     }
 
     ~PhaseFrequencyResponseViewer()
@@ -54,6 +65,7 @@ public:
         else if (source == processor)
         {
             sampleRate = processor->getSampleRate();
+            logScaleButton.setEnabled(sampleRate > 0);
             repaint();
         }
     }
@@ -62,39 +74,55 @@ public:
     {
         zoomOutButton.setBounds(padding, padding, zoomButtonsSize, zoomButtonsSize);
         zoomInButton.setBounds(2 * padding + zoomButtonsSize, padding, zoomButtonsSize, zoomButtonsSize);
+        logScaleButton.setBounds(getWidth() - plotPaddingRight - logScaleButtonWidth, padding, logScaleButtonWidth, zoomButtonsSize);
         repaint();
     }
 
     void paint(juce::Graphics& g) override
     {
-        auto bounds = getBounds();
-        auto width = bounds.getWidth() - plotPaddingLeft - plotPaddingRight;
-        auto height = bounds.getHeight() - plotPaddingTop - plotPaddingBottom;
-        float xLeft = static_cast<float>(plotPaddingLeft);
-        float xRight = static_cast<float>(xLeft + width);
-        float yTop = static_cast<float>(plotPaddingTop);
-        float yBottom = static_cast<float>(yTop + height);
+        const auto bounds = getBounds();
+        const auto width = bounds.getWidth() - plotPaddingLeft - plotPaddingRight;
+        const auto height = bounds.getHeight() - plotPaddingTop - plotPaddingBottom;
+        const float xLeft = static_cast<float>(plotPaddingLeft);
+        const float xRight = static_cast<float>(xLeft + width);
+        const float yTop = static_cast<float>(plotPaddingTop);
+        const float yBottom = static_cast<float>(yTop + height);
 
         if (width < 2 || height < 2)
             return;
-
-        std::vector<double> angles(static_cast<std::size_t>(width));
-        std::vector<double> amplitudes, phases;
-
-        const double angleStep = juce::MathConstants<double>::pi / width;
-        for (int i = 0; i < width; i++)
-            angles[i] = angleStep * i;
-
-        calculate(angles, amplitudes, phases);
-
-        for (int i = 0; i < width; i++)
-            amplitudes[i] = juce::Decibels::gainToDecibels(amplitudes[i]);
 
         juce::Rectangle<int> rect(plotPaddingLeft, plotPaddingTop, width, height);
         g.fillAll(backgroundColor);
         g.setColour(gridColour);
         g.drawRect(rect, 1);
-        
+
+        // Angle values for each plot x point
+        std::vector<double> angles(static_cast<std::size_t>(width));
+        const bool isLogScale = logScaleButton.getToggleState();
+        if (isLogScale)
+        {
+            const float maxAngle = juce::MathConstants<float>::pi;
+            const float minAngle = maxAngle * minFreq / (sampleRate / 2);
+            const float logMaxAngle = std::log10(maxAngle);
+            const float logMinAngle = std::log10(minAngle);
+            const float angleCoeff = (logMaxAngle - logMinAngle) / width;
+            for (int i = 0; i < width; i++)
+                angles[i] = std::pow(10.f, angleCoeff * i + logMinAngle);
+        }
+        else
+        {
+            const double angleStep = juce::MathConstants<double>::pi / width;
+            for (int i = 0; i < width; i++)
+                angles[i] = angleStep * i;
+        }
+
+        // amplitudes & phases
+        std::vector<double> amplitudes, phases;
+        calculate(angles, amplitudes, phases);
+        for (int i = 0; i < width; i++)
+            amplitudes[i] = juce::Decibels::gainToDecibels(amplitudes[i]);
+
+        // Y grid
         g.setColour(lineColour);
         g.drawText(
             juce::String(static_cast<int>(ampDb)) + " dB",
@@ -118,52 +146,117 @@ public:
             textHeight,
             juce::Justification::centredRight);
 
-        if (sampleRate > 0)
+        // X grid
+        const int hzTextY = static_cast<int>(yBottom) + padding;
+        if (isLogScale)
         {
+            g.setColour(lineColour);
             g.drawText(
-                "0",
+                juce::String(static_cast<int>(minFreq)),
                 plotPaddingLeft - textWidth / 2,
-                static_cast<int>(yBottom) + padding,
+                hzTextY,
                 textWidth,
                 textHeight,
                 juce::Justification::centred);
             g.drawText(
-                juce::String(static_cast<int>(sampleRate / 2)), 
+                juce::String(static_cast<int>(sampleRate / 2)),
                 static_cast<int>(xRight) - textWidth / 2,
-                static_cast<int>(yBottom) + padding,
+                hzTextY,
                 textWidth,
                 textHeight,
                 juce::Justification::centred);
             g.drawText(
                 " Hz",
                 static_cast<int>(xRight) + textWidth / 2,
-                static_cast<int>(yBottom) + padding,
+                hzTextY,
                 textWidth,
                 textHeight,
                 juce::Justification::centredLeft);
+
+            const float maxFreq = sampleRate / 2;
+            const float logMaxFreq = std::log10(maxFreq);
+            const float logMinFreq = std::log10(minFreq);
+            const float freqCoeff = width / (logMaxFreq - logMinFreq);
+
+            int freq = static_cast<int>(minFreq * 10);
+            while (freq < maxFreq)
+            {
+                int x = freqCoeff * (std::log10(freq) - logMinFreq) + plotPaddingLeft;
+                g.setColour(gridColour);
+                g.drawLine(x, yTop, x, yBottom);
+                if (xRight - x > textWidth)
+                {
+                    g.setColour(lineColour);
+                    g.drawText(
+                        juce::String(freq),
+                        x - textWidth / 2,
+                        hzTextY,
+                        textWidth,
+                        textHeight,
+                        juce::Justification::centred);
+                }
+                freq *= 10;
+            }
+        }
+        else
+        {
+            g.setColour(lineColour);
+            g.drawText(
+                "0",
+                plotPaddingLeft - textWidth / 2,
+                hzTextY,
+                textWidth,
+                textHeight,
+                juce::Justification::centred);
+            g.drawText(
+                sampleRate == 0 ? "pi/2" : juce::String(static_cast<int>(sampleRate / 4)),
+                plotPaddingLeft + (width - textWidth) / 2,
+                hzTextY,
+                textWidth,
+                textHeight,
+                juce::Justification::centred);
+            g.drawText(
+                sampleRate == 0 ? "pi" : juce::String(static_cast<int>(sampleRate / 2)),
+                static_cast<int>(xRight) - textWidth / 2,
+                hzTextY,
+                textWidth,
+                textHeight,
+                juce::Justification::centred);
+            if (sampleRate != 0)
+                g.drawText(
+                    " Hz",
+                    static_cast<int>(xRight) + textWidth / 2,
+                    hzTextY,
+                    textWidth,
+                    textHeight,
+                    juce::Justification::centredLeft);
+
+            g.setColour(gridColour);
+            int x = plotPaddingLeft + width / 2;
+            g.drawLine(x, yTop, x, yBottom);
         }
 
-        juce::ColourGradient gradient(
-            juce::Colours::red.withAlpha(0.75f), 0.0f, rect.getY(),
-            juce::Colours::green.withAlpha(0.75f), 0.0f, rect.getBottom(),
-            false);
-        gradient.addColour(0.5, juce::Colours::yellow.withAlpha(0.75f));
-
+        // drawing values
         {
+            // clipping inside curly brackets
             const juce::Graphics::ScopedSaveState state(g);
             g.reduceClipRegion(rect);
             
+            juce::ColourGradient gradient(
+                juce::Colours::red.withAlpha(0.75f), 0.0f, rect.getY(),
+                juce::Colours::green.withAlpha(0.75f), 0.0f, rect.getBottom(),
+                false);
+            gradient.addColour(0.5, juce::Colours::yellow.withAlpha(0.75f));
             g.setGradientFill(gradient);
             
-            const float piFloat = juce::MathConstants<float>::pi;
             juce::Path path;
-            auto x = juce::jmap(static_cast<float>(angles[0]), 0.f, piFloat, xLeft, xRight);
+            auto x = xLeft;
             auto y = juce::jmap(static_cast<float>(amplitudes[0]), -ampDb, ampDb, yBottom, yTop);
             g.drawLine(x, rect.getCentreY(), x, y);
             path.startNewSubPath(x, y);
             for (int i = 1; i < width; i++)
             {
-                x = juce::jmap(static_cast<float>(angles[i]), 0.f, piFloat, xLeft, xRight);
+                x++;
                 y = juce::jmap(static_cast<float>(amplitudes[i]), -ampDb, ampDb, yBottom, yTop);
                 g.drawLine(x, rect.getCentreY(), x, y);
                 path.lineTo(x, y);
@@ -249,13 +342,15 @@ private:
         plotPaddingRight = 45,
         plotPaddingTop = 40,
         plotPaddingBottom = 20;
-    const int 
+    const int
         zoomButtonsSize = 20,
+        logScaleButtonWidth = 60,
         textWidth = 40,
         textHeight = 10;
     const float
         minAmpDb = 6.f,
-        maxAmpDb = 96.f;
+        maxAmpDb = 96.f,
+        minFreq = 20.f;
 
     float ampDb;
     double sampleRate;
@@ -263,5 +358,5 @@ private:
     AudioPluginAudioProcessor* processor;
     FilterState* filterState;
 
-    juce::TextButton zoomInButton, zoomOutButton;
+    juce::TextButton zoomInButton, zoomOutButton, logScaleButton;
 };
