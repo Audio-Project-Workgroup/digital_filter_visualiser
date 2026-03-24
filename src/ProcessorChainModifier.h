@@ -104,7 +104,7 @@ public:
 					j++;
 				if (zero != nullptr)
 				{
-					const bool poleOrder = pole->isReal() && !shouldEqualPoleBeTaken ? 1 : 2;
+					//const int effectivePoleOrder = pole->isReal() && !shouldEqualPoleBeTaken ? 1 : 2;
 					const int zeroOrder = shouldEqualZeroBeTaken ? 2 : 1;
 					usedZeros[static_cast<std::size_t>(bestZeroIndex)] += zeroOrder;
 				}
@@ -158,7 +158,7 @@ public:
 	static void process(AudioPluginAudioProcessor& processor)
 	{
 		// NB: It is proposed that this method will be called only from the Message Thread;
-		// otherwise, races should be avoided between this method, 
+		// otherwise, races should be avoided between this method,
 		// AudioPluginAudioProcessor::prepareToPlay and AudioPluginAudioProcessor::~AudioPluginAudioProcessor.
 
 		// If playing is not started yet
@@ -166,8 +166,8 @@ public:
 		// This is to ensure that pendingState will never be used in processBlock
 		// without spec preparation,
 		// even if a user changes processing parameters before pushing Play button.
-		// The second condition is for the case 
-		// when sound was muted by DAW due to "bad" processor parameters 
+		// The second condition is for the case
+		// when sound was muted by DAW due to "bad" processor parameters
 		// and therefore processBlock method is not called.
 		// Before "unmuting" a user can change the parameters and they should be updated.
 		if (!processor.isPrepared ||
@@ -205,7 +205,7 @@ private:
 		bool doesEqualPoleExist)
 	{
 		const auto usedZerosSize = usedZeros.size();
-		const double poleAngle = std::arg(pole->value.get());
+		//const double poleAngle = std::arg(pole->value.get());
 		const bool isPoleReal = pole->isReal();
 		const bool shouldDenominatorBeFirstOrder =
 			isPoleReal && !doesEqualPoleExist;
@@ -251,8 +251,8 @@ private:
 
 		if (zeroIndex != -1)
 		{
-			auto* zero = zeros[zeroIndex];
-			const int poleOrder = pole->isReal() && !shouldEqualPoleBeTaken ? 1 : 2;
+			//auto* zero = zeros[zeroIndex];
+			//const int poleOrder = pole->isReal() && !shouldEqualPoleBeTaken ? 1 : 2;
 			calculatePolynomialCoefficients(zeros[zeroIndex], shouldEqualZeroBeTaken, b0, b1, b2);
 		}
 		else if (juce::exactlyEqual(a0, 0.f)) // no zeros, 1-order pole

@@ -16,13 +16,13 @@ public:
 		auto* subElement = root->createNewChildElement("numerator_coefficients");
 		juce::StringArray bCoeffStrArray;
 		for (int i = zeroCoeffs.size() - 1; i >= 0; i--)
-			bCoeffStrArray.add(juce::String(zeroCoeffs[i]));
+			bCoeffStrArray.add(juce::String(zeroCoeffs[static_cast<size_t>(i)]));
 		subElement->addTextElement(bCoeffStrArray.joinIntoString(", "));
 
 		subElement = root->createNewChildElement("denominator_coefficients");
 		juce::StringArray aCoeffStrArray;
 		for (int i = poleCoeffs.size() - 1; i >= 0; i--)
-			aCoeffStrArray.add(juce::String(poleCoeffs[i]));
+			aCoeffStrArray.add(juce::String(poleCoeffs[static_cast<size_t>(i)]));
 		subElement->addTextElement(aCoeffStrArray.joinIntoString(", "));
 
 		return root;
@@ -33,10 +33,10 @@ public:
 	{
 		auto* chain = state->getFirst();
 		auto root = std::make_shared<juce::XmlElement>("processor_chain_parameters");
-		
+
 		auto* subElement = root->createNewChildElement("delay_samples");
 		subElement->addTextElement(juce::String(chain->delay.getDelay()));
-		
+
 		auto* iirCascadeElement = root->createNewChildElement("iir_cascade");
 		for (auto* iirFilter : chain->iirCascade)
 		{
@@ -45,7 +45,7 @@ public:
 
 			auto* bCoeffsElement = filterElement->createNewChildElement("numerator_coefficients");
 			juce::StringArray bCoeffStrArray;
-			for (int i = 0; i <= iirCoeffs.size() / 2; i++) 
+			for (int i = 0; i <= iirCoeffs.size() / 2; i++)
 				bCoeffStrArray.add(juce::String(iirCoeffs[i]));
 			bCoeffsElement->addTextElement(bCoeffStrArray.joinIntoString(", "));
 
@@ -63,10 +63,19 @@ public:
 		for (auto val: firCoeffs)
 			firCoeffStrArray.add(juce::String(val));
 		subElement->addTextElement(firCoeffStrArray.joinIntoString(", "));
-		
+
 		subElement = root->createNewChildElement("gain");
 		subElement->addTextElement(juce::String(chain->gain.getGainLinear()));
 
 		return root;
 	}
 };
+
+// NOTE(ry): I need to put this here so my editor doesn't screw with the style of this file
+/* Local Variables: */
+/* mode: c++ */
+/* tab-width: 8 */
+/* c-basic-offset: 8 */
+/* indent-tabs-mode: t */
+/* buffer-file-coding-system: undecided-unix */
+/* End: */

@@ -270,12 +270,13 @@ void AudioPluginAudioProcessor::setStateInformation(const void* data, int sizeIn
 {
     // You should use this method to restore your parameters from this memory block,
     // whose contents will have been created by the getStateInformation() call.
-    auto tree = juce::ValueTree::readFromData(data, sizeInBytes);
+    auto tree = juce::ValueTree::readFromData(data, static_cast<size_t>(sizeInBytes));
     if (tree.isValid())
     {
         apvts.replaceState(tree);
         filterState = std::make_unique<FilterState>(apvts.state, &um);
         auto a = filterState.get();
+		juce::ignoreUnused(a);
         ProcessorChainModifier::process(*this);
     }
 }

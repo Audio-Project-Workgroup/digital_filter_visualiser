@@ -42,6 +42,7 @@ AudioPluginAudioProcessorEditor::~AudioPluginAudioProcessorEditor()
 //==============================================================================
 void AudioPluginAudioProcessorEditor::paint (juce::Graphics& g)
 {
+  juce::ignoreUnused(g);
   // (Our component is opaque, so we must completely fill the background with a solid colour)
   //g.fillAll (getLookAndFeel().findColour (juce::ResizableWindow::backgroundColourId));
 
@@ -62,7 +63,7 @@ void AudioPluginAudioProcessorEditor::chooseFileAndSave(std::shared_ptr<juce::Xm
 {
     chooser = std::make_unique<juce::FileChooser>(
         "Save to file...", juce::File{}, "*.xml");
-    const auto chooserFlags = 
+    const auto chooserFlags =
         juce::FileBrowserComponent::FileChooserFlags::saveMode |
         juce::FileBrowserComponent::FileChooserFlags::warnAboutOverwriting;
     std::function<void(const juce::FileChooser& fc)> function =

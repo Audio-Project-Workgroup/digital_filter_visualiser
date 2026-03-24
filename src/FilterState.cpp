@@ -27,6 +27,8 @@ FilterState(juce::ValueTree treeToUse, juce::UndoManager *umToUse)
 
   auto zerosNode = treeRoot.getOrCreateChildWithName(IDs::Zeros, nullptr);
   auto polesNode = treeRoot.getOrCreateChildWithName(IDs::Poles, nullptr);
+  // TODO(ry): loop over children in case we are passed a non-empty tree (as in
+  // the case of loading serialized state)
 
   treeRoot.setProperty(IDs::Gain, 1.0, nullptr);
   gain.referTo(treeRoot, IDs::Gain, um);

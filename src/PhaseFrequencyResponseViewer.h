@@ -12,19 +12,19 @@ class PhaseFrequencyResponseViewer final :
     juce::ChangeListener
 {
 public:
-    PhaseFrequencyResponseViewer(AudioPluginAudioProcessor* processor) :
-        processor(processor),
-        filterState(processor->filterState.get()),
+    PhaseFrequencyResponseViewer(AudioPluginAudioProcessor* _processor) :
+		ampDb(minAmpDb),
+		sampleRate(_processor->getSampleRate()),
+        processor(_processor),
+        filterState(_processor->filterState.get()),
         zoomInButton("+"),
         zoomOutButton("-"),
-        logScaleButton("Hz log scale"),
-        ampDb(minAmpDb),
-        sampleRate(processor->getSampleRate())
+        logScaleButton("Hz log scale")
     {
         processor->addChangeListener(this);
         filterState->um->addChangeListener(this);
 
-        zoomInButton.onClick = [this] 
+        zoomInButton.onClick = [this]
             {
                 if (ampDb > minAmpDb)
                 {
@@ -107,20 +107,20 @@ public:
             const float logMinAngle = std::log10(minAngle);
             const float angleCoeff = (logMaxAngle - logMinAngle) / width;
             for (int i = 0; i < width; i++)
-                angles[i] = std::pow(10.f, angleCoeff * i + logMinAngle);
+                angles[static_cast<size_t>(i)] = std::pow(10.f, angleCoeff * i + logMinAngle);
         }
         else
         {
             const double angleStep = juce::MathConstants<double>::pi / width;
             for (int i = 0; i < width; i++)
-                angles[i] = angleStep * i;
+                angles[static_cast<size_t>(i)] = angleStep * i;
         }
 
         // amplitudes & phases
         std::vector<double> amplitudes, phases;
         calculate(angles, amplitudes, phases);
         for (int i = 0; i < width; i++)
-            amplitudes[i] = juce::Decibels::gainToDecibels(amplitudes[i]);
+            amplitudes[static_cast<size_t>(i)] = juce::Decibels::gainToDecibels(amplitudes[static_cast<size_t>(i)]);
 
         // Y grid
         g.setColour(lineColour);
@@ -132,11 +132,11 @@ public:
             textHeight,
             juce::Justification::centredRight);
         g.drawText(
-            "0", 
-            padding, 
-            plotPaddingTop + (height - textHeight) / 2, 
+            "0",
+            padding,
+            plotPaddingTop + (height - textHeight) / 2,
             plotPaddingLeft - 3 * padding,
-            textHeight, 
+            textHeight,
             juce::Justification::centredRight);
         g.drawText(
             juce::String(static_cast<int>(-ampDb)) + " dB",
@@ -209,20 +209,20 @@ public:
                 textHeight,
                 juce::Justification::centred);
             g.drawText(
-                sampleRate == 0 ? "pi/2" : juce::String(static_cast<int>(sampleRate / 4)),
+                juce::exactlyEqual(sampleRate, 0.0) ? "pi/2" : juce::String(static_cast<int>(sampleRate / 4)),
                 plotPaddingLeft + (width - textWidth) / 2,
                 hzTextY,
                 textWidth,
                 textHeight,
                 juce::Justification::centred);
             g.drawText(
-                sampleRate == 0 ? "pi" : juce::String(static_cast<int>(sampleRate / 2)),
+                juce::exactlyEqual(sampleRate, 0.0) ? "pi" : juce::String(static_cast<int>(sampleRate / 2)),
                 static_cast<int>(xRight) - textWidth / 2,
                 hzTextY,
                 textWidth,
                 textHeight,
                 juce::Justification::centred);
-            if (sampleRate != 0)
+            if (!juce::exactlyEqual(sampleRate, 0.0))
                 g.drawText(
                     " Hz",
                     static_cast<int>(xRight) + textWidth / 2,
@@ -241,14 +241,14 @@ public:
             // clipping inside curly brackets
             const juce::Graphics::ScopedSaveState state(g);
             g.reduceClipRegion(rect);
-            
+
             juce::ColourGradient gradient(
                 juce::Colours::red.withAlpha(0.75f), 0.0f, rect.getY(),
                 juce::Colours::green.withAlpha(0.75f), 0.0f, rect.getBottom(),
                 false);
             gradient.addColour(0.5, juce::Colours::yellow.withAlpha(0.75f));
             g.setGradientFill(gradient);
-            
+
             juce::Path path;
             auto x = xLeft;
             auto y = juce::jmap(static_cast<float>(amplitudes[0]), -ampDb, ampDb, yBottom, yTop);
@@ -257,7 +257,7 @@ public:
             for (int i = 1; i < width; i++)
             {
                 x++;
-                y = juce::jmap(static_cast<float>(amplitudes[i]), -ampDb, ampDb, yBottom, yTop);
+                y = juce::jmap(static_cast<float>(amplitudes[static_cast<size_t>(i)]), -ampDb, ampDb, yBottom, yTop);
                 g.drawLine(x, rect.getCentreY(), x, y);
                 path.lineTo(x, y);
             }
@@ -278,7 +278,7 @@ private:
         amplitudes.resize(size);
         phases.resize(size);
 
-        for (auto i = 0; i < size; i++)
+        for (size_t i = 0; i < size; i++)
         {
             amplitudes[i] = 1.0;
             phases[i] = 0.0;
@@ -287,7 +287,7 @@ private:
         double ampCoeff, phaseCoeff;
         for (auto pole : filterState->poles)
         {
-            for (auto i = 0; i < size; i++)
+            for (size_t i = 0; i < size; i++)
             {
                 calculateCoefficients(angles[i], pole, ampCoeff, phaseCoeff);
                 for (auto j = 0; j < std::abs(pole->order); j++)
@@ -299,12 +299,12 @@ private:
         }
 
         const double eps = std::numeric_limits<double>::epsilon();
-        for (auto i = 0; i < size; i++)
+        for (size_t i = 0; i < size; i++)
             amplitudes[i] = 1.0 / std::max(amplitudes[i], eps);
 
         for (auto zero : filterState->zeros)
         {
-            for (auto i = 0; i < size; i++)
+            for (size_t i = 0; i < size; i++)
             {
                 calculateCoefficients(angles[i], zero, ampCoeff, phaseCoeff);
                 for (auto j = 0; j < zero->order; j++)
@@ -360,3 +360,12 @@ private:
 
     juce::TextButton zoomInButton, zoomOutButton, logScaleButton;
 };
+
+// NOTE(ry): I need to put this here so my editor doesn't screw with the style of this file
+/* Local Variables: */
+/* mode: c++ */
+/* tab-width: 4 */
+/* c-basic-offset: 4 */
+/* indent-tabs-mode: t */
+/* buffer-file-coding-system: undecided-unix */
+/* End: */

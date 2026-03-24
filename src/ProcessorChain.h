@@ -29,7 +29,6 @@ struct ProcessorChain
     {
         delay.process(context);
         for (auto* f : iirCascade) f->process(context);
-        auto o = firFilter->coefficients->getFilterOrder();
         firFilter->process(context);
         gain.process(context);
     }
