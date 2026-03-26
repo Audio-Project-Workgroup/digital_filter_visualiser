@@ -37,6 +37,10 @@ private:
   ComplexPlaneEditor complexPlaneEditor;
   PhaseFrequencyResponseViewer phaseFrequencyResponseViewer;
   CoefficientsComponent coefficients;
+  juce::TextButton exportButton;
+  juce::PopupMenu exportPopupMenu;
+  std::unique_ptr<juce::FileChooser> chooser;
+  void chooseFileAndSave(std::shared_ptr<juce::XmlElement>);
 
   JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (AudioPluginAudioProcessorEditor)
 };
