@@ -26,7 +26,7 @@ public:
 			auto* root = roots[i];
 			int rootOrder = std::abs(root->order.get());
 			bool isReal = root->value.im.get() == 0;
-			order += (isReal ? rootOrder : 2 * rootOrder) - usedRoots[i];
+			order += (isReal ? 1 : 2) * (rootOrder - usedRoots[i]);
 		}
 		if (order == 0)
 			return { 1 };
