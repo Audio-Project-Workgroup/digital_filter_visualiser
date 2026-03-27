@@ -3,7 +3,7 @@
 #include "PluginProcessor.h"
 
 #include "ComplexPlaneEditor.h"
-#include "PhaseFrequencyResponceViewer.h"
+#include "PhaseFrequencyResponseViewer.h"
 
 class CoefficientsComponent final : public juce::Component
 {
