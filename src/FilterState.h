@@ -232,4 +232,12 @@ private:
   void valueTreeChildAdded(juce::ValueTree &parent, juce::ValueTree &child) override;
   void valueTreeChildRemoved(juce::ValueTree &parent, juce::ValueTree &child, int index) override;
   void valueTreePropertyChanged(juce::ValueTree &node, const juce::Identifier &property) override;
+
+  /** this function should be called to safely handle the case when we need to
+   * modify the state in response to other state modification. It is necessary
+   * to pass the undo manager when we want the modification to be undoable,
+   * unless we are reacting to a modification triggered by an udno/redo, in
+   * which we do not want the action to be undoable and this returns nullptr.
+   */
+  juce::UndoManager* getCurrentUndoManager(void);
 };

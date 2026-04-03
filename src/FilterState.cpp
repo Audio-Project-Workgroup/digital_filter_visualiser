@@ -78,22 +78,19 @@ add(s32 newOrder)
     }
   }
 
+  // NOTE(ry): setting initial values is not undoable
   juce::ValueTree newNode(IDs::Root);
   newNode.setProperty(IDs::Order, newOrder, nullptr);
   newNode.setProperty(IDs::ValueRe, defRe, nullptr);
   newNode.setProperty(IDs::ValueIm, defIm, nullptr);
 
-  // NOTE(ry): This function can get called during an undo/redo operation. New
-  // undoable actions can't be created while the undo manager is performing
-  // undo/redo, so we can't pass a non-null undo manager in that case.
-  auto *currentUm = um->isPerformingUndoRedo() ? nullptr : um;
   if(isZero)
   {
-    treeRoot.getChildWithName(IDs::Zeros).appendChild(newNode, currentUm);
+    treeRoot.getChildWithName(IDs::Zeros).appendChild(newNode, getCurrentUndoManager());
   }
   else
   {
-    treeRoot.getChildWithName(IDs::Poles).appendChild(newNode, currentUm);
+    treeRoot.getChildWithName(IDs::Poles).appendChild(newNode, getCurrentUndoManager());
   }
 
   FilterRoot::Ptr result = getRootFromTreeNode(newNode);
@@ -254,7 +251,7 @@ valueTreePropertyChanged(juce::ValueTree &node, const juce::Identifier &property
 	incrementFilterOrder(wasPole ? -decrement : decrement, wasPole);
 
 	auto parent = node.getParent();
-	parent.removeChild(node, nullptr);
+	parent.removeChild(node, getCurrentUndoManager());
       }
       else
       {
@@ -305,4 +302,11 @@ incrementFilterOrder(int delta, bool isPole)
     // call (the invariant will have been satisfied)
   }
   jassert(totalOrder >= finiteZerosOrder);
+}
+
+juce::UndoManager* FilterState::
+getCurrentUndoManager(void)
+{
+  auto *result = um->isPerformingUndoRedo() ? nullptr : um;
+  return(result);
 }
