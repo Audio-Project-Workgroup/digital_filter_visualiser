@@ -2,9 +2,11 @@
 
 #include "ComplexPlaneEditor.h"
 
+ComplexPlaneEditor *ComplexPlaneEditor::RootPoint::editor = nullptr;
+
 ComplexPlaneEditor::RootPoint::
-RootPoint(ComplexPlaneEditor *e, bool c, FilterRoot::Ptr r)
-  : isConjugate(c), root(r), parent(e)
+RootPoint(bool c, FilterRoot::Ptr r)
+  : isConjugate(c), root(r)
 {
   if(auto *rootPtr = root.get())
   {
@@ -27,7 +29,7 @@ mouseEnter(const juce::MouseEvent &e)
 {
   juce::ignoreUnused(e);
 
-  parent->activeRoot = root;
+  editor->activeRoot = root;
 }
 
 void ComplexPlaneEditor::RootPoint::
@@ -35,7 +37,7 @@ mouseExit(const juce::MouseEvent &e)
 {
   juce::ignoreUnused(e);
 
-  parent->activeRoot = nullptr;
+  editor->activeRoot = nullptr;
 }
 
 void ComplexPlaneEditor::RootPoint::
@@ -43,11 +45,11 @@ mouseDown(const juce::MouseEvent &e)
 {
   if(e.mods.isLeftButtonDown())
   {
-    jassert(root.get() == parent->activeRoot.get());
+    jassert(root.get() == editor->activeRoot.get());
     setInterceptsMouseClicks(false, false);
     conjugate->setInterceptsMouseClicks(false, false);
 
-    parent->filterState.um->beginNewTransaction();
+    editor->filterState.um->beginNewTransaction();
     if(auto *rootPtr = root.get())
     {
       valueAtDragStart = rootPtr->value;
@@ -64,12 +66,13 @@ mouseUp(const juce::MouseEvent &e)
 {
   if(e.mods.isLeftButtonDown())
   {
-    if(auto *targetRoot = parent->targetRoot.get())
+    if(auto *targetRoot = editor->targetRoot.get())
     {
       // NOTE(ry): merge the active root into the target root
-      auto *activeRoot = parent->activeRoot.get();
+      auto *activeRoot = editor->activeRoot.get();
       jassert(activeRoot != nullptr);
 
+      //auto *root_parent = parent;
       int newOrder = targetRoot->order + activeRoot->order;
       if((targetRoot->order < 0) != (activeRoot->order < 0))
       {
@@ -77,20 +80,20 @@ mouseUp(const juce::MouseEvent &e)
 	// the other, depending on the sign of the result. the order of the root
 	// we keep will decrease
 	auto const resultIsPole = newOrder < 0;
-	auto zero = targetRoot->order < 0 ? parent->activeRoot : parent->targetRoot;
-	auto pole = targetRoot->order < 0 ? parent->targetRoot : parent->activeRoot;
+	auto zero = targetRoot->order < 0 ? editor->activeRoot : editor->targetRoot;
+	auto pole = targetRoot->order < 0 ? editor->targetRoot : editor->activeRoot;
 
 	// NOTE(ry): we must decrement the zero order before we decrement the
 	// pole order so we don't add a slack pole
 	if(resultIsPole)
 	{
-	  parent->filterState.remove(zero);
+	  editor->filterState.remove(zero);
 	  pole->order = newOrder;
 	}
 	else
 	{
 	  zero->order = newOrder;
-	  parent->filterState.remove(pole);
+	  editor->filterState.remove(pole);
 	}
       }
       else
@@ -104,17 +107,17 @@ mouseUp(const juce::MouseEvent &e)
 	if(targetRoot->isPole())
 	{
 	  targetRoot->order = newOrder;
-	  parent->filterState.remove(parent->activeRoot);
+	  editor->filterState.remove(editor->activeRoot);
 	}
 	else
 	{
-	  parent->filterState.remove(parent->activeRoot);
+	  editor->filterState.remove(editor->activeRoot);
 	  targetRoot->order = newOrder;
 	}
       }
 
-      parent->targetRoot = nullptr;
-      parent->activeRoot = nullptr;
+      editor->targetRoot = nullptr;
+      editor->activeRoot = nullptr;
     }
 
     setInterceptsMouseClicks(true, true);
@@ -127,13 +130,13 @@ mouseDrag(const juce::MouseEvent &e)
 {
   if(auto *rootPtr = root.get())
   {
-    auto worldUnitsFromPixels = juce::Point<double>(parent->unitsPerPixel, -parent->unitsPerPixel);
+    auto worldUnitsFromPixels = juce::Point<double>(editor->unitsPerPixel, -editor->unitsPerPixel);
     auto dragOffsetPixels = e.getOffsetFromDragStart().toDouble();
     auto dragOffsetWorld = worldUnitsFromPixels * dragOffsetPixels;
     auto newRootValue = valueAtDragStart + c128(dragOffsetWorld.getX(), dragOffsetWorld.getY());
 
     auto const snapThresholdPixels = 18.0; // TODO(ry): tune
-    auto snapThresholdWorld = parent->unitsPerPixel * snapThresholdPixels;
+    auto snapThresholdWorld = editor->unitsPerPixel * snapThresholdPixels;
 
     // NOTE(ry): snap to axis
     if(std::abs(newRootValue.imag()) < snapThresholdWorld)
@@ -154,15 +157,15 @@ mouseDrag(const juce::MouseEvent &e)
 
     // NOTE(ry): this is maybe the shittiest way I can imagine finding where another component is
     // TODO(ry): use world pos because mouse can be off axis while point is on (or change tolerance)
-    auto parentEvent = e.getEventRelativeTo(parent);
-    auto *targetComponent = parent->getComponentAt(parentEvent.x, parentEvent.y);
+    auto parentEvent = e.getEventRelativeTo(editor);
+    auto *targetComponent = editor->getComponentAt(parentEvent.x, parentEvent.y);
     if(auto *targetRoot = dynamic_cast<RootPoint*>(targetComponent))
     {
-      parent->targetRoot = targetRoot->root;
+      editor->targetRoot = targetRoot->root;
     }
     else
     {
-      parent->targetRoot = nullptr;
+      editor->targetRoot = nullptr;
     }
 
     // NOTE(ry): update all properties related to this root
@@ -193,7 +196,7 @@ updateBounds(c128 value)
   // the call site (instead of this sour comment).
   auto pixelX = value.real();
   auto pixelY = isConjugate ? -value.imag() : value.imag();
-  parent->pixelsFromWorldUnits.transformPoint(pixelX, pixelY);
+  editor->pixelsFromWorldUnits.transformPoint(pixelX, pixelY);
   setCentrePosition(pixelX, pixelY);
 }
 
@@ -215,6 +218,8 @@ ComplexPlaneEditor(FilterState &s)
   : filterState(s), addRoot("+"), delRoot("-"), undo("undo"), redo("redo")
 {
   filterState.addListener(this);
+
+  RootPoint::editor = this;
 
   pixelsPerUnit = 100.0;
   unitsPerPixel = 1.0 / pixelsPerUnit;
@@ -517,8 +522,8 @@ valueTreeChildAdded(juce::ValueTree &parent, juce::ValueTree &child)
   juce::ignoreUnused(parent);
 
   auto root = filterState.getRootFromTreeNode(child);
-  auto *point = points.add(new RootPoint(this, false, root));
-  auto *conjugate = points.add(new RootPoint(this, true, root));
+  auto *point = points.add(new RootPoint(false, root));
+  auto *conjugate = points.add(new RootPoint(true, root));
   point->conjugate = conjugate;
   conjugate->conjugate = point;
 

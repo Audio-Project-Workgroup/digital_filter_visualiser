@@ -30,7 +30,7 @@ public:
   {
   public:
 
-    RootPoint(ComplexPlaneEditor *e, bool c, FilterRoot::Ptr r);
+    RootPoint(bool c, FilterRoot::Ptr r);
     ~RootPoint();
 
     void mouseEnter(const juce::MouseEvent &e) override;
@@ -51,7 +51,8 @@ public:
 
     void valueTreePropertyChanged(juce::ValueTree &node, const juce::Identifier &property) override;
 
-    ComplexPlaneEditor *parent;
+    friend ComplexPlaneEditor;
+    static ComplexPlaneEditor *editor;
     c128 valueAtDragStart;
   };
 
