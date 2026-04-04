@@ -49,7 +49,7 @@ mouseDown(const juce::MouseEvent &e)
     setInterceptsMouseClicks(false, false);
     conjugate->setInterceptsMouseClicks(false, false);
 
-    editor->filterState.um->beginNewTransaction();
+    editor->processor->filterState->um->beginNewTransaction();
     if(auto *rootPtr = root.get())
     {
       valueAtDragStart = rootPtr->value;
@@ -87,13 +87,13 @@ mouseUp(const juce::MouseEvent &e)
 	// pole order so we don't add a slack pole
 	if(resultIsPole)
 	{
-	  editor->filterState.remove(zero);
+	  editor->processor->filterState->remove(zero);
 	  pole->order = newOrder;
 	}
 	else
 	{
 	  zero->order = newOrder;
-	  editor->filterState.remove(pole);
+	  editor->processor->filterState->remove(pole);
 	}
       }
       else
@@ -107,11 +107,11 @@ mouseUp(const juce::MouseEvent &e)
 	if(targetRoot->isPole())
 	{
 	  targetRoot->order = newOrder;
-	  editor->filterState.remove(editor->activeRoot);
+	  editor->processor->filterState->remove(editor->activeRoot);
 	}
 	else
 	{
-	  editor->filterState.remove(editor->activeRoot);
+	  editor->processor->filterState->remove(editor->activeRoot);
 	  targetRoot->order = newOrder;
 	}
       }
@@ -214,10 +214,10 @@ valueTreePropertyChanged(juce::ValueTree &node, const juce::Identifier &property
 // NOTE(ry): ComplexPlaneEditor implementations
 
 ComplexPlaneEditor::
-ComplexPlaneEditor(FilterState &s)
-  : filterState(s), addRoot("+"), delRoot("-"), undo("undo"), redo("redo")
+ComplexPlaneEditor(AudioPluginAudioProcessor *p)
+  : processor(p), addRoot("+"), delRoot("-"), undo("undo"), redo("redo")
 {
-  filterState.addListener(this);
+  processor->filterState->addListener(this);
 
   RootPoint::editor = this;
 
@@ -231,41 +231,43 @@ ComplexPlaneEditor(FilterState &s)
   gainSlider.setColour(juce::Slider::trackColourId, juce::Colours::white);
   gainSlider.setRange(-90.f, 6.f);
   gainSlider.setTextValueSuffix(" dB");
-  gainSlider.setValue(juce::Decibels::gainToDecibels(r64(filterState.gain)), juce::dontSendNotification);
+  gainSlider.setValue(juce::Decibels::gainToDecibels(r64(processor->filterState->gain)), juce::dontSendNotification);
   gainSlider.addListener(this);
   addAndMakeVisible(gainSlider);
 
   // NOTE(ry): debug ui setup
   // TODO(ry): better add/remove interface & logic (add poles, remove particular roots)
   addRoot.onClick = [this]{
-    filterState.um->beginNewTransaction();
-    filterState.add(1);
+    processor->filterState->um->beginNewTransaction();
+    processor->filterState->add(1);
   };
   delRoot.onClick = [this]{
     // NOTE(ry): guard against when points array is empty
     if(auto *point = points.getLast())  // TODO(ry): remove a paritcular root
     {
-      filterState.remove(point->root);
+      processor->filterState->remove(point->root);
     }
   };
 
   undo.onClick = [this]{
-    filterState.um->undo();
+    processor->filterState->um->undo();
   };
   redo.onClick = [this]{
-    filterState.um->redo();
+    processor->filterState->um->redo();
   };
 
   addAndMakeVisible(addRoot);
   addAndMakeVisible(delRoot);
   addAndMakeVisible(undo);
   addAndMakeVisible(redo);
+
+  processor->filterState->syncListener(this);
 }
 
 ComplexPlaneEditor::
 ~ComplexPlaneEditor()
 {
-  filterState.removeListener(this);
+  processor->filterState->removeListener(this);
 }
 
 void ComplexPlaneEditor::
@@ -512,7 +514,7 @@ sliderValueChanged(juce::Slider *slider)
   {
     auto const dB = slider->getValue();
     auto const amp = juce::Decibels::decibelsToGain(dB);
-    filterState.gain = amp;
+    processor->filterState->gain = amp;
   }
 }
 
@@ -521,7 +523,7 @@ valueTreeChildAdded(juce::ValueTree &parent, juce::ValueTree &child)
 {
   juce::ignoreUnused(parent);
 
-  auto root = filterState.getRootFromTreeNode(child);
+  auto root = processor->filterState->getRootFromTreeNode(child);
   auto *point = points.add(new RootPoint(false, root));
   auto *conjugate = points.add(new RootPoint(true, root));
   point->conjugate = conjugate;

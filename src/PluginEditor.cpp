@@ -13,7 +13,7 @@ CoefficientsComponent::~CoefficientsComponent()
 
 //==============================================================================
 AudioPluginAudioProcessorEditor::AudioPluginAudioProcessorEditor (AudioPluginAudioProcessor& p)
-  : AudioProcessorEditor (&p), processorRef (p), complexPlaneEditor(*p.filterState), phaseFrequencyResponseViewer(&p), exportButton("Export...")
+  : AudioProcessorEditor (&p), processorRef (p), complexPlaneEditor(&p), phaseFrequencyResponseViewer(&p), exportButton("Export...")
 {
   juce::ignoreUnused (processorRef);
 

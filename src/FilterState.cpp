@@ -15,6 +15,8 @@ operator+=(const int &delta)
 
 // NOTE(ry): FilterState implementations
 
+juce::ListenerList<juce::ValueTree::Listener> FilterState::listeners;
+
 FilterState::
 FilterState(juce::ValueTree treeToUse, juce::UndoManager *umToUse)
   : treeRoot(treeToUse),
@@ -22,16 +24,19 @@ FilterState(juce::ValueTree treeToUse, juce::UndoManager *umToUse)
 {
   jassert(treeRoot.isValid()); // the passed value tree root node must be valid
 
+  auto zerosNode = treeRoot.getOrCreateChildWithName(IDs::Zeros, nullptr);
+  auto polesNode = treeRoot.getOrCreateChildWithName(IDs::Poles, nullptr);
+
   totalOrder = 0;
   finiteZerosOrder = 0;
 
-  auto zerosNode = treeRoot.getOrCreateChildWithName(IDs::Zeros, nullptr);
-  auto polesNode = treeRoot.getOrCreateChildWithName(IDs::Poles, nullptr);
-  // TODO(ry): loop over children in case we are passed a non-empty tree (as in
-  // the case of loading serialized state)
+  syncListener(this);
 
-  treeRoot.setProperty(IDs::Gain, 1.0, nullptr);
   gain.referTo(treeRoot, IDs::Gain, um);
+  if(!treeRoot.hasProperty(IDs::Gain))
+  {
+    treeRoot.setProperty(IDs::Gain, 1.0, nullptr);
+  }
 
   treeRoot.addListener(this);
   zerosNode.addListener(this);
@@ -113,12 +118,14 @@ void FilterState::
 addListener(juce::ValueTree::Listener *listener)
 {
   treeRoot.addListener(listener);
+  listeners.add(listener);
 }
 
 void FilterState::
 removeListener(juce::ValueTree::Listener *listener)
 {
   treeRoot.removeListener(listener);
+  listeners.remove(listener);
 }
 
 // TODO(ry): I'd love to not have to do a linear scan to associate value tree
@@ -302,6 +309,24 @@ incrementFilterOrder(int delta, bool isPole)
     // call (the invariant will have been satisfied)
   }
   jassert(totalOrder >= finiteZerosOrder);
+}
+
+void FilterState::
+syncListener(juce::ValueTree::Listener *listener)
+{
+  auto polesNode = treeRoot.getChildWithName(IDs::Poles);
+  for(auto pole : polesNode)
+  {
+    listener->valueTreeChildAdded(polesNode, pole);
+  }
+
+  auto zerosNode = treeRoot.getChildWithName(IDs::Zeros);
+  for(auto zero : zerosNode)
+  {
+    listener->valueTreeChildAdded(zerosNode, zero);
+  }
+
+  listener->valueTreePropertyChanged(treeRoot, IDs::Gain);
 }
 
 juce::UndoManager* FilterState::

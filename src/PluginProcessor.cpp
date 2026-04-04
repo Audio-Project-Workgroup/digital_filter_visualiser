@@ -274,9 +274,13 @@ void AudioPluginAudioProcessor::setStateInformation(const void* data, int sizeIn
     if (tree.isValid())
     {
         apvts.replaceState(tree);
+
         filterState = std::make_unique<FilterState>(apvts.state, &um);
-        auto a = filterState.get();
-		juce::ignoreUnused(a);
+		FilterState::listeners.call([&](juce::ValueTree::Listener &l){
+			filterState->treeRoot.addListener(&l);
+			filterState->syncListener(&l);
+		});
+
         ProcessorChainModifier::process(*this);
     }
 }

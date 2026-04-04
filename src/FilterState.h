@@ -199,6 +199,12 @@ struct FilterState : private juce::ValueTree::Listener
   void addListener(juce::ValueTree::Listener *listener);
   void removeListener(juce::ValueTree::Listener *listener);
 
+  /** Call this at the end of a listener's constructor (passing its `this`
+   * pointer) so it reacts to the "addition" of all the zeros & poles already in
+   * the tree.
+   */
+  void syncListener(juce::ValueTree::Listener *listener);
+
   // TODO(ry): make this constant-time using acceleration structure
   /** Helper function for mapping value tree nodes to filter root pointers
    */
@@ -240,4 +246,7 @@ private:
    * which we do not want the action to be undoable and this returns nullptr.
    */
   juce::UndoManager* getCurrentUndoManager(void);
+
+  static juce::ListenerList<juce::ValueTree::Listener> listeners; // NOTE(ry): death to encapsulation
+  friend class AudioPluginAudioProcessor;
 };

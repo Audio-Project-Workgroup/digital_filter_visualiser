@@ -16,13 +16,12 @@ public:
 		ampDb(minAmpDb),
 		sampleRate(_processor->getSampleRate()),
         processor(_processor),
-        filterState(_processor->filterState.get()),
         zoomInButton("+"),
         zoomOutButton("-"),
         logScaleButton("Hz log scale")
     {
         processor->addChangeListener(this);
-        filterState->um->addChangeListener(this);
+        processor->filterState->um->addChangeListener(this);
 
         zoomInButton.onClick = [this]
             {
@@ -54,13 +53,13 @@ public:
 
     ~PhaseFrequencyResponseViewer()
     {
-        filterState->um->removeChangeListener(this);
+        processor->filterState->um->removeChangeListener(this);
         processor->removeChangeListener(this);
     }
 
     void changeListenerCallback(juce::ChangeBroadcaster* source) override
     {
-        if (source == filterState->um)
+        if (source == processor->filterState->um)
             repaint();
         else if (source == processor)
         {
@@ -285,7 +284,7 @@ private:
         }
 
         double ampCoeff, phaseCoeff;
-        for (auto pole : filterState->poles)
+        for (auto pole : processor->filterState->poles)
         {
             for (size_t i = 0; i < size; i++)
             {
@@ -302,7 +301,7 @@ private:
         for (size_t i = 0; i < size; i++)
             amplitudes[i] = 1.0 / std::max(amplitudes[i], eps);
 
-        for (auto zero : filterState->zeros)
+        for (auto zero : processor->filterState->zeros)
         {
             for (size_t i = 0; i < size; i++)
             {
@@ -356,7 +355,6 @@ private:
     double sampleRate;
 
     AudioPluginAudioProcessor* processor;
-    FilterState* filterState;
 
     juce::TextButton zoomInButton, zoomOutButton, logScaleButton;
 };
