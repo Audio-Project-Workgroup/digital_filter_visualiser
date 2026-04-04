@@ -4,19 +4,7 @@
 
 #include "ComplexPlaneEditor.h"
 #include "PhaseFrequencyResponseViewer.h"
-
-class CoefficientsComponent final : public juce::Component
-{
-public:
-  CoefficientsComponent();
-  ~CoefficientsComponent();
-
-  void paint(juce::Graphics& g) override
-  {
-    g.fillAll(juce::Colours::white);
-  }
-private:
-};
+#include "CoeffComponents.h"
 
 //==============================================================================
 class AudioPluginAudioProcessorEditor final : public juce::AudioProcessorEditor

@@ -2,18 +2,17 @@
 
 // NOTE(ry): Don't delete this. I know what I'm doing
 #include "ComplexPlaneEditor.cpp"
+#include "CoeffComponents.cpp"
 #include "StateSerializer.h"
 
 //==============================================================================
-CoefficientsComponent::CoefficientsComponent()
-{}
-
-CoefficientsComponent::~CoefficientsComponent()
-{}
-
-//==============================================================================
 AudioPluginAudioProcessorEditor::AudioPluginAudioProcessorEditor (AudioPluginAudioProcessor& p)
-  : AudioProcessorEditor (&p), processorRef (p), complexPlaneEditor(*p.filterState), phaseFrequencyResponseViewer(&p), exportButton("Export...")
+  : AudioProcessorEditor (&p)
+  , processorRef (p)
+  , complexPlaneEditor(*p.filterState)
+  , phaseFrequencyResponseViewer(&p)
+  , exportButton("Export...")
+  , coefficients(*p.filterState)
 {
   juce::ignoreUnused (processorRef);
 
