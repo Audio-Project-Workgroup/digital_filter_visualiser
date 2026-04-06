@@ -3,9 +3,9 @@
 #include <iostream>
 #define COL_WIDTH 100 // TODO make this value relate to the global UI.
 
-CoefficientsComponent::CoefficientsComponent(FilterState& state)
+CoefficientsComponent::CoefficientsComponent(AudioPluginAudioProcessor* p)
     : isExpanded(bool(DEFAULT_IS_EXPANDED))
-    , filterState(state)
+    , processor(p)
 {
     titleButton.setButtonText(TABLE_TITLE);
     titleButton.onClick = [this]{ toggleCollapseExpand(); };
@@ -21,13 +21,15 @@ CoefficientsComponent::CoefficientsComponent(FilterState& state)
     tbComp.setStretchToFitActive(true); // expand columns to fill the entire width of the component
     coeffTable.setVisible(isExpanded);
 
-    filterState.treeRoot.addListener(this);
+    processor->filterState->treeRoot.addListener(this);
+    processor->filterState->syncListener(this);
 }
 
-CoefficientsComponent::~CoefficientsComponent()
-{
-    // TODO properly deallocate every label is created with new. Actually all the labels.
-}
+// Note:    Apart from any other reasons that may occur throughout future dev updates,..
+//          ..in case that the labels created at refreshComponentForCell have to be properly deallocated,..
+//          ..(See JUCE doc: https://docs.juce.com/master/classjuce_1_1TableListBoxModel.html#a873b2b84429f026ea046528af1f4fe81)..
+//          ..the destructor should be defined, and consequently align explicitly to the rule of 5.
+// CoefficientsComponent::~CoefficientsComponent() {}
 
 void CoefficientsComponent::toggleCollapseExpand()
 {
@@ -79,9 +81,11 @@ void CoefficientsComponent::paintCell(juce::Graphics& g, int row, int col, int w
 
 juce::Component* CoefficientsComponent::refreshComponentForCell(int row, int col, bool, juce::Component* existing)
 {
+    
     if (col !=2 && col !=3 )
         return nullptr;
     
+    // creating new cells
     auto* label = static_cast<juce::Label*>(existing);
     if (!label)
     {
@@ -90,8 +94,8 @@ juce::Component* CoefficientsComponent::refreshComponentForCell(int row, int col
         label = new juce::Label();
         label->setEditable(true, true, false);
 
-        // restrict input when editor apears
         label->onEditorShow = [label] {
+            // restrict input when editor apears
             if (auto* editor = label->getCurrentTextEditor())
                 editor->setInputRestrictions(0, "0123456789.-");
         };
@@ -111,13 +115,14 @@ juce::Component* CoefficientsComponent::refreshComponentForCell(int row, int col
 
     // update value prevernting dump data from appearing in case of a vector size mismatch
     double value;
+    constexpr int defaultCoeffValue {0};
     if (col == 2)
     {
-        value = row < ffcoeffs.size() ? ffcoeffs[row] : 0;
+        value = row < ffcoeffs.size() ? ffcoeffs[row] : defaultCoeffValue;
     } 
     else if (col == 3)
     {
-        value = row < fbcoeffs.size() ? fbcoeffs[row] : 0;
+        value = row < fbcoeffs.size() ? fbcoeffs[row] : defaultCoeffValue;
     }
     label->setText(juce::String(value), juce::dontSendNotification );
     return label;
@@ -125,16 +130,9 @@ juce::Component* CoefficientsComponent::refreshComponentForCell(int row, int col
 
 void CoefficientsComponent::valueTreePropertyChanged (juce::ValueTree& node, const juce::Identifier& property)
 {
-    // 
-    std::cout<<"valueTreePropertyChanged!"<<std::endl;
-    if(property == IDs::ValueRe || property == IDs::ValueIm)
+    if(property == IDs::ValueRe || property == IDs::ValueIm)    // when dragging roots
     {
-    double valueRe = node.getProperty(IDs::ValueRe);
-    double valueIm = node.getProperty(IDs::ValueIm);
-    // updateBounds(c128(valueRe, valueIm));
-    std::cout<< "valueRe "<<valueRe<<" valueIm " <<valueIm<< std::endl;
         updateCoeffTable();
-
     }
 }
 
@@ -145,7 +143,7 @@ void CoefficientsComponent::valueTreeChildAdded (juce::ValueTree& node, juce::Va
 
 void CoefficientsComponent::valueTreeChildRemoved (juce::ValueTree& node, juce::ValueTree& child, int idx)
 {   
-    if (filterState.totalOrder==0) // if filter is cleaned out by erasing the last root
+    if (processor->filterState->totalOrder==0) // if filter is cleaned out by erasing the last root
     {
         ffcoeffs.clear();
         fbcoeffs.clear();
@@ -157,23 +155,13 @@ void CoefficientsComponent::valueTreeChildRemoved (juce::ValueTree& node, juce::
 
 void CoefficientsComponent::updateCoeffTable(){
     
-    filterState.zeros.size();
-    filterState.poles.size();
+    processor->filterState->zeros.size();
+    processor->filterState->poles.size();
 
 	ffcoeffs = RootsToCoefficients::CalculatePolynomialCoefficientsFrom(
-		filterState.zeros);
+		processor->filterState->zeros);
     fbcoeffs = RootsToCoefficients::CalculatePolynomialCoefficientsFrom(
-		filterState.poles);
-    
-    // std::cout<<ffcoeffs.size()<<" ";
-    // for (auto ff : ffcoeffs){
-    //     std::cout<<ff<<" ";
-    // }std::cout<<std::endl;
-
-    // std::cout<<fbcoeffs.size()<<" --> ";
-    // for (auto fb : fbcoeffs){
-    //     std::cout<<fb<<" ";
-    // }std::cout<<std::endl;
+		processor->filterState->poles);
 
     coeffTable.updateContent();
 }
