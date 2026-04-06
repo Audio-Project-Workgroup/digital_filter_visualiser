@@ -29,7 +29,6 @@ public:
       private juce::ValueTree::Listener
   {
   public:
-
     RootPoint(bool c, FilterRoot::Ptr r);
     ~RootPoint();
 

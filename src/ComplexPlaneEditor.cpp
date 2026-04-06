@@ -115,13 +115,23 @@ mouseUp(const juce::MouseEvent &e)
 	  targetRoot->order = newOrder;
 	}
       }
+    }
 
-      editor->targetRoot = nullptr;
+    // NOTE(ry): it's possible the object on which this member function has been
+    // called gets destroyed during its execution, so we only reset its input
+    // state (and the state of its conjugate) if it still exists. we can check
+    // if it still exists by checking if the root it corresponds to still exists
+    if(editor->activeRoot.get())
+    {
+      setInterceptsMouseClicks(true, true);
+      conjugate->setInterceptsMouseClicks(true, true);
+    }
+    else
+    {
       editor->activeRoot = nullptr;
     }
 
-    setInterceptsMouseClicks(true, true);
-    conjugate->setInterceptsMouseClicks(true, true);
+    editor->targetRoot = nullptr;
   }
 }
 
