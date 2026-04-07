@@ -24,6 +24,66 @@ public:
   ComplexPlaneEditor(AudioPluginAudioProcessor *p);
   ~ComplexPlaneEditor();
 
+  class RootTooltip final : public juce::Component, private juce::Timer
+  {
+  public:
+    RootTooltip();
+
+    enum VisibilityFlags : u32
+    {
+      hint = (1 << 0),
+      require = (1 << 1),
+    };
+
+    void mouseEnter(const juce::MouseEvent&) override;
+    void mouseExit(const juce::MouseEvent&) override;
+
+    void resized(void) override;
+
+    void paint(juce::Graphics &g) override;
+
+    inline void setText(juce::String const &text) { orderLabel.setText(text, juce::dontSendNotification); }
+    inline void setRoot(FilterRoot::Ptr r) { root = r; if(auto *rootPtr = root.get()) setText(juce::String(rootPtr->order)); }
+
+    inline void show(void)
+    {
+      keepaliveCounter += 1;
+      setVisible(true);
+    }
+
+    inline void promptHide(void)
+    {
+      if(!isTimerRunning())
+      {
+	startTimer(keepaliveDelayMs);
+      }
+      ++pendingEventCount;
+    }
+
+  private:
+    void timerCallback(void) override
+    {
+      DBG("tooltip timer callback: keepalive = " << keepaliveCounter);
+      keepaliveCounter -= 1;
+      if(!(--pendingEventCount)) stopTimer();
+      if(keepaliveCounter <= 0)
+      {
+	root = nullptr;
+	setVisible(false);
+      }
+    }
+
+    FilterRoot::Ptr root;
+
+    juce::TextButton orderInc;
+    juce::TextButton orderDec;
+    juce::Label orderLabel;
+
+    s32 keepaliveCounter = 0;
+    s32 pendingEventCount = 0;
+    static s32 const keepaliveDelayMs = 60;
+  };
+
   class RootPoint final
     : public juce::Component,
       private juce::ValueTree::Listener
@@ -40,6 +100,9 @@ public:
 
     void paint(juce::Graphics &g) override;
 
+    void showTooltip(void);
+    void hideTooltip(void);
+
     void updateBounds(c128 value);
 
     bool isConjugate;
@@ -47,7 +110,6 @@ public:
     RootPoint *conjugate;
 
   private:
-
     void valueTreePropertyChanged(juce::ValueTree &node, const juce::Identifier &property) override;
 
     friend ComplexPlaneEditor;
@@ -59,7 +121,7 @@ public:
   void mouseDown(const juce::MouseEvent&) override;
   void mouseDrag(const juce::MouseEvent &e) override;
 
-  void resized() override;
+  void resized(void) override;
 
   void paint(juce::Graphics &g) override;
 
@@ -67,7 +129,6 @@ public:
   juce::AffineTransform worldUnitsFromPixels;
 
 private:
-
   void updateTransforms(void);
   void updateTransformsAndChildBounds(void);
 
@@ -89,6 +150,8 @@ private:
   juce::OwnedArray<RootPoint> points;
   FilterRoot::Ptr activeRoot; // NOTE(ry): the root the mouse is hovering over or being dragged
   FilterRoot::Ptr targetRoot; // NOTE(ry): the root the active root is hovering over
+
+  RootTooltip tooltip;
 
   juce::Slider gainSlider;
 

@@ -1,8 +1,67 @@
-// NOTE(ry): ComplexPlaneEditor::RootPoint implementations
+
 
 #include "ComplexPlaneEditor.h"
 
 ComplexPlaneEditor *ComplexPlaneEditor::RootPoint::editor = nullptr;
+
+// NOTE(ry): ComplexPlaneEditor::RootTooltip implementations
+
+ComplexPlaneEditor::RootTooltip::
+RootTooltip()
+  : root(nullptr), orderInc("+"), orderDec("-"), orderLabel()
+{
+  orderInc.onClick = [this](){
+    if(auto *r = root.get()) r->order += r->isPole() ? -1 : 1;
+  };
+  orderDec.onClick = [this](){
+    if(auto *r = root.get()) r->order += r->isPole() ? 1 : -1;
+  };
+
+  setSize(60, 40);
+  setAlwaysOnTop(true);
+  setInterceptsMouseClicks(true, true);
+
+  orderLabel.setInterceptsMouseClicks(false, false);
+
+  addAndMakeVisible(orderInc);
+  addAndMakeVisible(orderDec);
+  addAndMakeVisible(orderLabel);
+}
+
+void ComplexPlaneEditor::RootTooltip::
+mouseEnter(const juce::MouseEvent&)
+{
+  DBG("enter tooltip");
+  show();
+}
+
+void ComplexPlaneEditor::RootTooltip::
+mouseExit(const juce::MouseEvent&)
+{
+  DBG("exit tooltip");
+  promptHide();
+}
+
+void ComplexPlaneEditor::RootTooltip::
+resized(void)
+{
+  auto area = getLocalBounds();
+  auto halfWidth = area.getWidth() / 2;
+  auto halfHeight = area.getHeight() / 2;
+  orderLabel.setBounds(area.removeFromLeft(halfWidth));
+  orderInc.setBounds(area.removeFromTop(halfHeight));
+  orderDec.setBounds(area);
+}
+
+void ComplexPlaneEditor::RootTooltip::
+paint(juce::Graphics &g)
+{
+  g.fillAll(juce::Colours::black);
+  g.setColour(juce::Colours::white);
+  g.drawRect(getLocalBounds(), 1);
+}
+
+// NOTE(ry): ComplexPlaneEditor::RootPoint implementations
 
 ComplexPlaneEditor::RootPoint::
 RootPoint(bool c, FilterRoot::Ptr r)
@@ -25,11 +84,29 @@ ComplexPlaneEditor::RootPoint::
 }
 
 void ComplexPlaneEditor::RootPoint::
+showTooltip(void)
+{
+  editor->tooltip.setTopRightPosition(getX() + (editor->tooltip.getWidth()  + 10),
+				      getY() - (editor->tooltip.getHeight() - 10));
+  editor->tooltip.setRoot(root);
+  editor->tooltip.show();
+}
+
+void ComplexPlaneEditor::RootPoint::
+hideTooltip(void)
+{
+  editor->tooltip.promptHide();
+}
+
+void ComplexPlaneEditor::RootPoint::
 mouseEnter(const juce::MouseEvent &e)
 {
   juce::ignoreUnused(e);
 
   editor->activeRoot = root;
+
+  DBG("enter root point");
+  showTooltip();
 }
 
 void ComplexPlaneEditor::RootPoint::
@@ -37,6 +114,8 @@ mouseExit(const juce::MouseEvent &e)
 {
   juce::ignoreUnused(e);
 
+  DBG("exit root point");
+  hideTooltip();
   editor->activeRoot = nullptr;
 }
 
@@ -219,13 +298,21 @@ valueTreePropertyChanged(juce::ValueTree &node, const juce::Identifier &property
     double valueIm = node.getProperty(IDs::ValueIm);
     updateBounds(c128(valueRe, valueIm));
   }
+  else if(property == IDs::Order)
+  {
+    if(editor->tooltip.isVisible())
+    {
+      int order = node.getProperty(IDs::Order);
+      editor->tooltip.setText(juce::String(order));
+    }
+  }
 }
 
 // NOTE(ry): ComplexPlaneEditor implementations
 
 ComplexPlaneEditor::
 ComplexPlaneEditor(AudioPluginAudioProcessor *p)
-  : processor(p), addRoot("+"), delRoot("-"), undo("undo"), redo("redo")
+  : processor(p), tooltip(), addRoot("+"), delRoot("-"), undo("undo"), redo("redo")
 {
   processor->filterState->addListener(this);
 
@@ -265,6 +352,8 @@ ComplexPlaneEditor(AudioPluginAudioProcessor *p)
   redo.onClick = [this]{
     processor->filterState->um->redo();
   };
+
+  addChildComponent(&tooltip);
 
   addAndMakeVisible(addRoot);
   addAndMakeVisible(delRoot);
