@@ -7,6 +7,9 @@
 FilterRoot::CachedOrder& FilterRoot::CachedOrder::
 operator+=(const int &delta)
 {
+  auto *um = getUndoManager();
+  if(um) um->beginNewTransaction();
+
   int current = this->get();
   *this = current + delta;
 

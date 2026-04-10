@@ -39,7 +39,7 @@ void ComplexPlaneEditor::RootTooltip::
 mouseExit(const juce::MouseEvent&)
 {
   DBG("exit tooltip");
-  promptHide();
+  hide();
 }
 
 void ComplexPlaneEditor::RootTooltip::
@@ -84,29 +84,13 @@ ComplexPlaneEditor::RootPoint::
 }
 
 void ComplexPlaneEditor::RootPoint::
-showTooltip(void)
-{
-  editor->tooltip.setTopRightPosition(getX() + (editor->tooltip.getWidth()  + 10),
-				      getY() - (editor->tooltip.getHeight() - 10));
-  editor->tooltip.setRoot(root);
-  editor->tooltip.show();
-}
-
-void ComplexPlaneEditor::RootPoint::
-hideTooltip(void)
-{
-  editor->tooltip.promptHide();
-}
-
-void ComplexPlaneEditor::RootPoint::
 mouseEnter(const juce::MouseEvent &e)
 {
   juce::ignoreUnused(e);
 
-  editor->activeRoot = root;
-
   DBG("enter root point");
-  showTooltip();
+  editor->activeRoot = root;
+  editor->tooltip.setPointAndShow(this);
 }
 
 void ComplexPlaneEditor::RootPoint::
@@ -115,7 +99,7 @@ mouseExit(const juce::MouseEvent &e)
   juce::ignoreUnused(e);
 
   DBG("exit root point");
-  hideTooltip();
+  editor->tooltip.hide() ;
   editor->activeRoot = nullptr;
 }
 
@@ -124,6 +108,8 @@ mouseDown(const juce::MouseEvent &e)
 {
   if(e.mods.isLeftButtonDown())
   {
+    editor->tooltip.hide();
+
     jassert(root.get() == editor->activeRoot.get());
     setInterceptsMouseClicks(false, false);
     conjugate->setInterceptsMouseClicks(false, false);
@@ -151,7 +137,13 @@ mouseUp(const juce::MouseEvent &e)
       auto *activeRoot = editor->activeRoot.get();
       jassert(activeRoot != nullptr);
 
-      //auto *root_parent = parent;
+      // NOTE(ry): it is possible that in the process of merging roots that this
+      // object will be destroyed. it is important not to access variables or
+      // methods on this after a potentially destructive modification, or else
+      // risk use-after-free crashes. if you need data stored in this object
+      // after it may have been destroyed, put it on this stack frame or use the
+      // static `editor` variable.
+
       int newOrder = targetRoot->order + activeRoot->order;
       if((targetRoot->order < 0) != (activeRoot->order < 0))
       {
@@ -168,11 +160,33 @@ mouseUp(const juce::MouseEvent &e)
 	{
 	  editor->processor->filterState->remove(zero);
 	  pole->order = newOrder;
+	  if(auto *polePtr = pole.get())
+	  {
+	    if(polePtr == activeRoot)
+	    {
+	      // NOTE(ry): the pole is this, so we need to show the tooltip
+	      editor->tooltip.setRootAndShow(pole);
+	    }
+	    // NOTE(ry): since the pole is the target, after this is destroyed a
+	    // mouseEnter callback will fire, calling setRootAndShow on the
+	    // desired root
+	  }
 	}
 	else
 	{
 	  zero->order = newOrder;
 	  editor->processor->filterState->remove(pole);
+	  if(auto *zeroPtr = zero.get())
+	  {
+	    if(zeroPtr == activeRoot)
+	    {
+	      // NOTE(ry): the zero is this, so we need to show the tooltip
+	      editor->tooltip.setRootAndShow(zero);
+	    }
+	    // NOTE(ry): since the zero is the target, after this is destroyed a
+	    // mouseEnter callback will fire, calling setRootAndShow on the
+	    // desired root
+	  }
 	}
       }
       else
@@ -193,7 +207,14 @@ mouseUp(const juce::MouseEvent &e)
 	  editor->processor->filterState->remove(editor->activeRoot);
 	  targetRoot->order = newOrder;
 	}
+	// NOTE(ry): we don't need to set the root since after this is destroyed
+	// a mouseEnter callback will fire, calling setRootAndShow on the
+	// desired root
       }
+    }
+    else
+    {
+      editor->tooltip.show();
     }
 
     // NOTE(ry): it's possible the object on which this member function has been
@@ -248,9 +269,9 @@ mouseDrag(const juce::MouseEvent &e)
     // TODO(ry): use world pos because mouse can be off axis while point is on (or change tolerance)
     auto parentEvent = e.getEventRelativeTo(editor);
     auto *targetComponent = editor->getComponentAt(parentEvent.x, parentEvent.y);
-    if(auto *targetRoot = dynamic_cast<RootPoint*>(targetComponent))
+    if(auto *targetPoint = dynamic_cast<RootPoint*>(targetComponent))
     {
-      editor->targetRoot = targetRoot->root;
+      editor->targetRoot = targetPoint->root;
     }
     else
     {
@@ -297,6 +318,7 @@ valueTreePropertyChanged(juce::ValueTree &node, const juce::Identifier &property
     double valueRe = node.getProperty(IDs::ValueRe);
     double valueIm = node.getProperty(IDs::ValueIm);
     updateBounds(c128(valueRe, valueIm));
+    editor->tooltip.setPos(getPosition());
   }
   else if(property == IDs::Order)
   {
@@ -658,6 +680,14 @@ valueTreeChildRemoved(juce::ValueTree &parent, juce::ValueTree &child, int index
       // callback)
       points.remove(i);
     }
+  }
+
+  if(!tooltip.root.get())
+  {
+    tooltip.keepaliveCounter = 0;
+    tooltip.pendingEventCount = 0;
+    tooltip.stopTimer();
+    tooltip.setVisible(false);
   }
 
   repaint();

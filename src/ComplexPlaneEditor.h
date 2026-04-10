@@ -24,6 +24,36 @@ public:
   ComplexPlaneEditor(AudioPluginAudioProcessor *p);
   ~ComplexPlaneEditor();
 
+  class RootPoint final
+    : public juce::Component,
+      private juce::ValueTree::Listener
+  {
+  public:
+    RootPoint(bool c, FilterRoot::Ptr r);
+    ~RootPoint();
+
+    void mouseEnter(const juce::MouseEvent &e) override;
+    void mouseExit(const juce::MouseEvent &e) override;
+    void mouseDown(const juce::MouseEvent &e) override;
+    void mouseUp(const juce::MouseEvent &e) override;
+    void mouseDrag(const juce::MouseEvent &e) override;
+
+    void paint(juce::Graphics &g) override;
+
+    void updateBounds(c128 value);
+
+    bool isConjugate;
+    FilterRoot::Ptr root;
+    RootPoint *conjugate;
+
+  private:
+    void valueTreePropertyChanged(juce::ValueTree &node, const juce::Identifier &property) override;
+
+    friend ComplexPlaneEditor;
+    static ComplexPlaneEditor *editor;
+    c128 valueAtDragStart;
+  };
+
   class RootTooltip final : public juce::Component, private juce::Timer
   {
   public:
@@ -42,16 +72,45 @@ public:
 
     void paint(juce::Graphics &g) override;
 
-    inline void setText(juce::String const &text) { orderLabel.setText(text, juce::dontSendNotification); }
-    inline void setRoot(FilterRoot::Ptr r) { root = r; if(auto *rootPtr = root.get()) setText(juce::String(rootPtr->order)); }
+    inline void setText(juce::String const &text)
+    {
+      orderLabel.setText(text, juce::dontSendNotification);
+    }
 
-    inline void show(void)
+    inline void setPos(juce::Point<int> point)
+    {
+      setTopRightPosition(point.getX() + (this->getWidth()  + 10),
+			  point.getY() - (this->getHeight() - 10));
+    }
+
+    inline void show()
     {
       keepaliveCounter += 1;
       setVisible(true);
     }
 
-    inline void promptHide(void)
+    inline void setPointAndShow(RootPoint *point)
+    {
+      setPos(juce::Point<int>(point->getX(), point->getY()));
+      setRootAndShow(point->root);
+    }
+
+    inline void setRoot(FilterRoot::Ptr r)
+    {
+      root = r;
+      if(auto *rootPtr = root.get())
+      {
+	setText(juce::String(rootPtr->order));
+      }
+    }
+
+    inline void setRootAndShow(FilterRoot::Ptr r)
+    {
+      setRoot(r);
+      show();
+    }
+
+    inline void hide(void)
     {
       if(!isTimerRunning())
       {
@@ -66,9 +125,8 @@ public:
       DBG("tooltip timer callback: keepalive = " << keepaliveCounter);
       keepaliveCounter -= 1;
       if(!(--pendingEventCount)) stopTimer();
-      if(keepaliveCounter <= 0)
+      if((keepaliveCounter <= 0) && !isMouseOver(true))
       {
-	root = nullptr;
 	setVisible(false);
       }
     }
@@ -82,39 +140,8 @@ public:
     s32 keepaliveCounter = 0;
     s32 pendingEventCount = 0;
     static s32 const keepaliveDelayMs = 60;
-  };
-
-  class RootPoint final
-    : public juce::Component,
-      private juce::ValueTree::Listener
-  {
-  public:
-    RootPoint(bool c, FilterRoot::Ptr r);
-    ~RootPoint();
-
-    void mouseEnter(const juce::MouseEvent &e) override;
-    void mouseExit(const juce::MouseEvent &e) override;
-    void mouseDown(const juce::MouseEvent &e) override;
-    void mouseUp(const juce::MouseEvent &e) override;
-    void mouseDrag(const juce::MouseEvent &e) override;
-
-    void paint(juce::Graphics &g) override;
-
-    void showTooltip(void);
-    void hideTooltip(void);
-
-    void updateBounds(c128 value);
-
-    bool isConjugate;
-    FilterRoot::Ptr root;
-    RootPoint *conjugate;
-
-  private:
-    void valueTreePropertyChanged(juce::ValueTree &node, const juce::Identifier &property) override;
 
     friend ComplexPlaneEditor;
-    static ComplexPlaneEditor *editor;
-    c128 valueAtDragStart;
   };
 
   void mouseWheelMove(const juce::MouseEvent &e, const juce::MouseWheelDetails &w) override;
