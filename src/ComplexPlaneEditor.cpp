@@ -1,5 +1,3 @@
-
-
 #include "ComplexPlaneEditor.h"
 
 ComplexPlaneEditor *ComplexPlaneEditor::RootPoint::editor = nullptr;
@@ -10,6 +8,10 @@ ComplexPlaneEditor::RootTooltip::
 RootTooltip()
   : root(nullptr), orderInc("+"), orderDec("-"), orderLabel()
 {
+  setSize(60, 40);
+  setAlwaysOnTop(true);
+  setInterceptsMouseClicks(true, true);
+
   orderInc.onClick = [this](){
     if(auto *r = root.get()) r->order += r->isPole() ? -1 : 1;
   };
@@ -17,9 +19,8 @@ RootTooltip()
     if(auto *r = root.get()) r->order += r->isPole() ? 1 : -1;
   };
 
-  setSize(60, 40);
-  setAlwaysOnTop(true);
-  setInterceptsMouseClicks(true, true);
+  orderInc.addMouseListener(this, false);
+  orderDec.addMouseListener(this, false);
 
   orderLabel.setInterceptsMouseClicks(false, false);
 
@@ -29,16 +30,18 @@ RootTooltip()
 }
 
 void ComplexPlaneEditor::RootTooltip::
-mouseEnter(const juce::MouseEvent&)
+mouseEnter(const juce::MouseEvent &e)
 {
-  DBG("enter tooltip");
+  if(e.eventComponent == this) DBG("enter tooltip");
+  else DBG("enter tooltip button");
   show();
 }
 
 void ComplexPlaneEditor::RootTooltip::
-mouseExit(const juce::MouseEvent&)
+mouseExit(const juce::MouseEvent &e)
 {
-  DBG("exit tooltip");
+  if(e.eventComponent == this) DBG("exit tooltip");
+  else DBG("exit tooltip button");
   hide();
 }
 

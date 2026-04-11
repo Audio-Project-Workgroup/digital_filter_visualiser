@@ -83,18 +83,6 @@ public:
 			  point.getY() - (this->getHeight() - 10));
     }
 
-    inline void show()
-    {
-      keepaliveCounter += 1;
-      setVisible(true);
-    }
-
-    inline void setPointAndShow(RootPoint *point)
-    {
-      setPos(juce::Point<int>(point->getX(), point->getY()));
-      setRootAndShow(point->root);
-    }
-
     inline void setRoot(FilterRoot::Ptr r)
     {
       root = r;
@@ -104,10 +92,22 @@ public:
       }
     }
 
+    inline void show()
+    {
+      keepaliveCounter += 1;
+      setVisible(true);
+    }
+
     inline void setRootAndShow(FilterRoot::Ptr r)
     {
       setRoot(r);
       show();
+    }
+
+    inline void setPointAndShow(RootPoint *point)
+    {
+      setPos(juce::Point<int>(point->getX(), point->getY()));
+      setRootAndShow(point->root);
     }
 
     inline void hide(void)
@@ -124,8 +124,11 @@ public:
     {
       DBG("tooltip timer callback: keepalive = " << keepaliveCounter);
       keepaliveCounter -= 1;
-      if(!(--pendingEventCount)) stopTimer();
-      if((keepaliveCounter <= 0) && !isMouseOver(true))
+      if(!(--pendingEventCount))
+      {
+	stopTimer();
+      }
+      if(keepaliveCounter <= 0)
       {
 	setVisible(false);
       }
