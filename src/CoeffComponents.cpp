@@ -103,9 +103,9 @@ juce::Component* CoefficientsComponent::refreshComponentForCell(int row, int col
         // update data when editing finishes
         label->onTextChange = [this, row, col, label]{
             double value = label->getText().getDoubleValue();
-            if (col == 2)
+            if (col == 2 && row < ffcoeffs.size() )
                 ffcoeffs[row] = value;
-            else
+            else if ( col == 3 && row < fbcoeffs.size() )
                 fbcoeffs[row] = value;
             
             // TODO: calculate roots through the coefficient2roots function.
