@@ -270,9 +270,8 @@ valueTreePropertyChanged(juce::ValueTree &node, const juce::Identifier &property
 	auto const isPole = newOrder < 0;
 	auto const delta = newOrder - root->lastKnownOrder;
 	auto const increment = root->isReal() ? delta : 2*delta;
-	incrementFilterOrder(isPole ? -increment : increment, isPole);
-
 	root->lastKnownOrder = newOrder;
+	incrementFilterOrder(isPole ? -increment : increment, isPole);
 
 	DBG("filter order: " << int(totalOrder));
 	DBG("filter zeros order: " << int(finiteZerosOrder));
