@@ -155,9 +155,6 @@ void CoefficientsComponent::valueTreeChildRemoved (juce::ValueTree& node, juce::
 
 void CoefficientsComponent::updateCoeffTable(){
     
-    processor->filterState->zeros.size();
-    processor->filterState->poles.size();
-
 	ffcoeffs = RootsToCoefficients::CalculatePolynomialCoefficientsFrom(
 		processor->filterState->zeros);
     fbcoeffs = RootsToCoefficients::CalculatePolynomialCoefficientsFrom(
