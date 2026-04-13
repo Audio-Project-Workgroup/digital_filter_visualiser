@@ -12,6 +12,11 @@ public:
 		FullState<float>* processorState,
 		juce::dsp::ProcessSpec& spec)
 	{
+		// It is proposed that the invariant "total zero order <= total pole order" is maintained
+		// and there cannot be zeros at zero and poles at zero simultaneously
+		// as they will be annihilated immedialely.
+		// That's why zeros at zero (if exist) will always "find" their poles to form biquad.
+
 		struct PolesIndexesWithKeys
 		{
 			std::size_t index;
@@ -27,13 +32,7 @@ public:
 
 		int zerosBiquadSize = 0;
 		for (auto* item : state->zeros)
-		{
-			// TODO(ry): I don't think this assert should be
-			// here. It's possible to have a zero root at z=0 when
-			// there are poles elsewhere
-			jassert(!item->isAtZero());
 			zerosBiquadSize += item->order.get();
-		}
 
 		// 1. Sort non-null poles by priority for pairing with zeros
 		// (they should be cascaded in reverse order);
@@ -316,7 +315,7 @@ private:
 		return std::abs(d - pi);
 	}
 
-	static constexpr double pi = 3.14159265358979323846;
+	static constexpr double pi = juce::MathConstants<double>::pi;
 	static constexpr double angleSimilarityThreshold = 0.1 * pi;
 	static constexpr double magnitudeThreshold = 1e-5;
 	static constexpr double qCoeff = 0.6;

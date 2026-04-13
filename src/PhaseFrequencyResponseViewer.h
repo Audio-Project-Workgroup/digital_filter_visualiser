@@ -95,31 +95,10 @@ public:
         g.setColour(gridColour);
         g.drawRect(rect, 1);
 
-        // Angle values for each plot x point
-        std::vector<double> angles(static_cast<std::size_t>(width));
+        // angles, amplitudes & phases
         const bool isLogScale = logScaleButton.getToggleState();
-        if (isLogScale)
-        {
-            const float maxAngle = juce::MathConstants<float>::pi;
-            const float minAngle = maxAngle * minFreq / (sampleRate / 2);
-            const float logMaxAngle = std::log10(maxAngle);
-            const float logMinAngle = std::log10(minAngle);
-            const float angleCoeff = (logMaxAngle - logMinAngle) / width;
-            for (int i = 0; i < width; i++)
-                angles[static_cast<size_t>(i)] = std::pow(10.f, angleCoeff * i + logMinAngle);
-        }
-        else
-        {
-            const double angleStep = juce::MathConstants<double>::pi / width;
-            for (int i = 0; i < width; i++)
-                angles[static_cast<size_t>(i)] = angleStep * i;
-        }
-
-        // amplitudes & phases
-        std::vector<double> amplitudes, phases;
-        calculate(angles, amplitudes, phases);
-        for (int i = 0; i < width; i++)
-            amplitudes[static_cast<size_t>(i)] = juce::Decibels::gainToDecibels(amplitudes[static_cast<size_t>(i)]);
+        std::vector<double> angles, amplitudes, phases;
+        calculate(isLogScale, width, angles, amplitudes, phases);
 
         // Y grid
         g.setColour(lineColour);
@@ -269,49 +248,54 @@ public:
 
 private:
     void calculate(
+        bool isLogScale,
+        int intWidth,
         std::vector<double>& angles,
         std::vector<double>& amplitudes,
         std::vector<double>& phases)
     {
-        auto size = angles.size();
-        amplitudes.resize(size);
-        phases.resize(size);
-
-        for (size_t i = 0; i < size; i++)
-        {
-            amplitudes[i] = 1.0;
-            phases[i] = 0.0;
-        }
-
-        double ampCoeff, phaseCoeff;
-        for (auto pole : processor->filterState->poles)
-        {
-            for (size_t i = 0; i < size; i++)
-            {
-                calculateCoefficients(angles[i], pole, ampCoeff, phaseCoeff);
-                for (auto j = 0; j < std::abs(pole->order); j++)
-                {
-                    amplitudes[i] *= ampCoeff; // later it turns to 1 / amplitudes[i]
-                    phases[i] -= phaseCoeff;
-                }
-            }
-        }
+        std::size_t width = static_cast<size_t>(intWidth);
+        angles.resize(width);
+        amplitudes.resize(width, 1.);
+        phases.resize(width, 0.);
 
         const double eps = std::numeric_limits<double>::epsilon();
-        for (size_t i = 0; i < size; i++)
+        const double maxAngle = juce::MathConstants<double>::pi;
+        const double minAngle = maxAngle * minFreq / (sampleRate / 2);
+        const double logMaxAngle = std::log10(maxAngle);
+        const double logMinAngle = std::log10(minAngle);
+        const double angleCoeff = 
+            isLogScale ? 
+            (logMaxAngle - logMinAngle) / width :
+            maxAngle / width;
+
+        double ampCoeff, phaseCoeff;
+        for (std::size_t i = 0; i < width; i++)
+        {
+            angles[i] =
+                isLogScale ?
+                std::pow(10., angleCoeff * i + logMinAngle) :
+                angleCoeff * i;
+
+            for (auto pole : processor->filterState->poles)
+            {
+                int order = std::abs(pole->order.get());
+                calculateCoefficients(angles[i], pole, ampCoeff, phaseCoeff);
+                amplitudes[i] *= std::pow(ampCoeff, order); // later it turns to 1 / amplitudes[i]
+                phases[i] -= phaseCoeff * order;
+            }
+
             amplitudes[i] = 1.0 / std::max(amplitudes[i], eps);
 
-        for (auto zero : processor->filterState->zeros)
-        {
-            for (size_t i = 0; i < size; i++)
+            for (auto zero : processor->filterState->zeros)
             {
+                int order = zero->order.get();
                 calculateCoefficients(angles[i], zero, ampCoeff, phaseCoeff);
-                for (auto j = 0; j < zero->order; j++)
-                {
-                    amplitudes[i] *= ampCoeff;
-                    phases[i] += phaseCoeff;
-                }
+                amplitudes[i] *= std::pow(ampCoeff, order); 
+                phases[i] += phaseCoeff * order;
             }
+
+            amplitudes[i] = juce::Decibels::gainToDecibels(amplitudes[i]);
         }
     }
 
