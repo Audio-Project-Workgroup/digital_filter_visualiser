@@ -325,7 +325,11 @@ valueTreePropertyChanged(juce::ValueTree &node, const juce::Identifier &property
   }
   else if(property == IDs::Order)
   {
-    if(editor->tooltip.isVisible())
+    // NOTE(ry): a root's order can change when it is not the active root (eg
+    // when the order of a pole at zero changes to maintain the causality
+    // invariant), so we have to check if this root is the one associated with
+    // the tooltip when updating the tooltip text
+    if(editor->tooltip.isVisible() && editor->tooltip.root == root)
     {
       int order = node.getProperty(IDs::Order);
       editor->tooltip.setText(juce::String(order));
