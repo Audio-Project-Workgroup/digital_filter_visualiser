@@ -112,11 +112,14 @@ public:
 
     inline void hide(void)
     {
-      if(!isTimerRunning())
+      if(keepaliveCounter)
       {
-	startTimer(keepaliveDelayMs);
+	if(!isTimerRunning())
+	{
+	  startTimer(keepaliveDelayMs);
+	}
+	++pendingEventCount;
       }
-      ++pendingEventCount;
     }
 
   private:

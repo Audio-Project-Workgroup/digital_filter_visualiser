@@ -113,7 +113,7 @@ remove(FilterRoot::Ptr rootRef)
   {
     auto node = root->node;
     auto parent = node.getParent();
-    parent.removeChild(node, um);
+    parent.removeChild(node, getCurrentUndoManager());
   }
 }
 
@@ -252,16 +252,16 @@ valueTreePropertyChanged(juce::ValueTree &node, const juce::Identifier &property
       int const newOrder = node.getProperty(IDs::Order);
       if(newOrder == 0)
       {
-	// NOTE(ry): we remove the root if it has zero order. we also have to
-	// decrement the filter order here since removing the root will not do
-	// that (the order is now zero!)
+	// NOTE(ry): we remove the root if it has zero order.
+	auto parent = node.getParent();
+	parent.removeChild(node, getCurrentUndoManager());
+
+	// NOTE(ry): we also have to decrement the filter order here since
+	// removing the root will not do that (the order is now zero!)
 	auto const delta = -root->lastKnownOrder;
 	auto const decrement = root->isReal() ? delta : 2*delta;
 	auto const wasPole = root->lastKnownOrder < 0;
 	incrementFilterOrder(wasPole ? -decrement : decrement, wasPole);
-
-	auto parent = node.getParent();
-	parent.removeChild(node, getCurrentUndoManager());
       }
       else
       {
@@ -297,20 +297,25 @@ incrementFilterOrder(int delta, bool isPole)
     finiteZerosOrder = u32(result);
   }
 
-  // NOTE(ry): make sure the order invariant is satisfied
-  if(finiteZerosOrder > totalOrder)
+  // NOTE(ry): if we're in the middle of an undo/redo, we shouldn't try to
+  // maintain the causality invariant through additional state
+  // modifications. the transaction should contain changes that when performed
+  // result in a valid state
+  if(!um->isPerformingUndoRedo())
   {
-    // NOTE(ry): add a pole to make up for the difference in order
-    // TODO(ry): automatically merge newly created roots so we don't have
-    // multiple slack poles lying on top of each other
-    u32 slack = finiteZerosOrder - totalOrder;
-    DBG("creating slack pole of order " << int(slack));
-    add(-s32(slack));
-    // NOTE(ry): `add()` itself calls `incrementFilterOrder()`, but we don't end
-    // up in an infinite loop since this branch will not be taken in the second
-    // call (the invariant will have been satisfied)
+    // NOTE(ry): maintain the causality invariant.
+    if(finiteZerosOrder > totalOrder)
+    {
+      // NOTE(ry): add a pole to make up for the difference in order
+      u32 slack = finiteZerosOrder - totalOrder;
+      DBG("creating slack pole of order " << int(slack));
+      // NOTE(ry): `add()` itself calls `incrementFilterOrder()`, but we don't end
+      // up in an infinite loop since this branch will not be taken in the second
+      // call (the invariant will have been satisfied)
+      add(-s32(slack));
+    }
+    jassert(totalOrder >= finiteZerosOrder);
   }
-  jassert(totalOrder >= finiteZerosOrder);
 }
 
 void FilterState::

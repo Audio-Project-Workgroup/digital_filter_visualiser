@@ -377,9 +377,11 @@ ComplexPlaneEditor(AudioPluginAudioProcessor *p)
 
   undo.onClick = [this]{
     processor->filterState->um->undo();
+    jassert(processor->filterState->totalOrder >= processor->filterState->finiteZerosOrder);
   };
   redo.onClick = [this]{
     processor->filterState->um->redo();
+    jassert(processor->filterState->totalOrder >= processor->filterState->finiteZerosOrder);
   };
 
   addChildComponent(&tooltip);
