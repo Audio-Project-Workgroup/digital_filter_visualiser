@@ -5,17 +5,19 @@ ComplexPlaneEditor *ComplexPlaneEditor::RootPoint::editor = nullptr;
 // NOTE(ry): ComplexPlaneEditor::RootTooltip implementations
 
 ComplexPlaneEditor::RootTooltip::
-RootTooltip()
-  : root(nullptr), orderInc("+"), orderDec("-"), orderLabel()
+RootTooltip(ComplexPlaneEditor *e)
+  : root(nullptr), orderInc("+"), orderDec("-"), orderLabel(), editor(e)
 {
   setSize(60, 40);
   setAlwaysOnTop(true);
   setInterceptsMouseClicks(true, true);
 
   orderInc.onClick = [this](){
+    editor->processor->filterState->um->beginNewTransaction();
     if(auto *r = root.get()) r->order += r->isPole() ? -1 : 1;
   };
   orderDec.onClick = [this](){
+    editor->processor->filterState->um->beginNewTransaction();
     if(auto *r = root.get()) r->order += r->isPole() ? 1 : -1;
   };
 
@@ -111,6 +113,9 @@ mouseDown(const juce::MouseEvent &e)
 {
   if(e.mods.isLeftButtonDown())
   {
+    isDragging = true;
+    startTimerHz(timerFreq);
+
     editor->tooltip.hide();
 
     jassert(root.get() == editor->activeRoot.get());
@@ -134,6 +139,9 @@ mouseUp(const juce::MouseEvent &e)
 {
   if(e.mods.isLeftButtonDown())
   {
+    stopTimer();
+    isDragging = false;
+
     if(auto *targetRoot = editor->targetRoot.get())
     {
       // NOTE(ry): merge the active root into the target root
@@ -217,7 +225,7 @@ mouseUp(const juce::MouseEvent &e)
     }
     else
     {
-      editor->tooltip.show();
+      editor->tooltip.setPointAndShow(this);
     }
 
     // NOTE(ry): it's possible the object on which this member function has been
@@ -241,49 +249,88 @@ mouseUp(const juce::MouseEvent &e)
 void ComplexPlaneEditor::RootPoint::
 mouseDrag(const juce::MouseEvent &e)
 {
-  if(auto *rootPtr = root.get())
+  if(e.mods.isLeftButtonDown())
   {
-    auto worldUnitsFromPixels = juce::Point<double>(editor->unitsPerPixel, -editor->unitsPerPixel);
-    auto dragOffsetPixels = e.getOffsetFromDragStart().toDouble();
-    auto dragOffsetWorld = worldUnitsFromPixels * dragOffsetPixels;
-    auto newRootValue = valueAtDragStart + c128(dragOffsetWorld.getX(), dragOffsetWorld.getY());
-
-    auto const snapThresholdPixels = 18.0; // TODO(ry): tune
-    auto snapThresholdWorld = editor->unitsPerPixel * snapThresholdPixels;
-
-    // NOTE(ry): snap to axis
-    if(std::abs(newRootValue.imag()) < snapThresholdWorld)
+    if(auto *rootPtr = root.get())
     {
-      newRootValue = c128(newRootValue.real(), 0.0);
-    }
+      auto worldUnitsFromPixels = juce::Point<double>(editor->unitsPerPixel, -editor->unitsPerPixel);
+      auto dragOffsetPixels = e.getOffsetFromDragStart().toDouble();
+      auto dragOffsetWorld = worldUnitsFromPixels * dragOffsetPixels;
+      auto newRootValue = valueAtDragStart + c128(dragOffsetWorld.getX(), dragOffsetWorld.getY());
 
-    if(rootPtr->order < 0)
-    {
-      // TODO(ry): better stability clamp!
-      // NOTE(ry): stability clamp
-      if(std::abs(newRootValue) >= 1)
+      auto const snapThresholdPixels = 18.0; // TODO(ry): tune
+      auto snapThresholdWorld = editor->unitsPerPixel * snapThresholdPixels;
+
+      // NOTE(ry): snap to axis
+      if(std::abs(newRootValue.imag()) < snapThresholdWorld)
       {
-	auto const epsClamp = 1e-3; // TODO(ry): tune
-        newRootValue /= std::abs(newRootValue) + epsClamp;
+	newRootValue = c128(newRootValue.real(), 0.0);
+      }
+
+      if(rootPtr->order < 0)
+      {
+	// TODO(ry): better stability clamp!
+	// NOTE(ry): stability clamp
+	if(std::abs(newRootValue) >= 1)
+	{
+	  auto const epsClamp = 1e-3; // TODO(ry): tune
+	  newRootValue /= std::abs(newRootValue) + epsClamp;
+	}
+      }
+
+      // NOTE(ry): this is maybe the shittiest way I can imagine finding where another component is
+      // TODO(ry): use world pos because mouse can be off axis while point is on (or change tolerance)
+      auto parentEvent = e.getEventRelativeTo(editor);
+      auto *targetComponent = editor->getComponentAt(parentEvent.x, parentEvent.y);
+      if(auto *targetPoint = dynamic_cast<RootPoint*>(targetComponent))
+      {
+	editor->targetRoot = targetPoint->root;
+      }
+      else
+      {
+	editor->targetRoot = nullptr;
+      }
+
+      // NOTE(ry): update all properties related to this root
+      rootPtr->value = newRootValue;
+      // TODO(ry): splitting logic (create new root, subtract new root order from current root order)
+    }
+  }
+}
+
+void ComplexPlaneEditor::RootPoint::
+timerCallback(void)
+{
+  if(isDragging)
+  {
+    auto const m = juce::ModifierKeys::getCurrentModifiersRealtime();
+    auto const isRightButtonDown = m.isRightButtonDown();
+
+    // NOTE(ry): right click while dragging to split higher-order root
+    if(isRightButtonDown && !wasRightButtonDown)
+    {
+      DBG("right click while dragging");
+      if(auto *rootPtr = root.get())
+      {
+	// NOTE(ry): when dragging a higher-order root, deselect roots, decreasing
+	// the active root order and moving roots to the start of the drag
+	if(std::abs(rootPtr->order) > 1)
+	{
+	  if(rootPtr->isPole())
+	  {
+	    editor->processor->filterState->add(-1, valueAtDragStart);
+	    rootPtr->order += 1;
+	  }
+	  else
+	  {
+	    rootPtr->order += -1;
+	    editor->processor->filterState->add(1, valueAtDragStart);
+	  }
+	}
       }
     }
 
-    // NOTE(ry): this is maybe the shittiest way I can imagine finding where another component is
-    // TODO(ry): use world pos because mouse can be off axis while point is on (or change tolerance)
-    auto parentEvent = e.getEventRelativeTo(editor);
-    auto *targetComponent = editor->getComponentAt(parentEvent.x, parentEvent.y);
-    if(auto *targetPoint = dynamic_cast<RootPoint*>(targetComponent))
-    {
-      editor->targetRoot = targetPoint->root;
-    }
-    else
-    {
-      editor->targetRoot = nullptr;
-    }
-
-    // NOTE(ry): update all properties related to this root
-    rootPtr->value = newRootValue;
-    // TODO(ry): splitting logic (create new root, subtract new root order from current root order)
+    wasRightButtonDown = isRightButtonDown;
   }
 }
 
@@ -341,7 +388,7 @@ valueTreePropertyChanged(juce::ValueTree &node, const juce::Identifier &property
 
 ComplexPlaneEditor::
 ComplexPlaneEditor(AudioPluginAudioProcessor *p)
-  : processor(p), tooltip(), addRoot("+"), delRoot("-"), undo("undo"), redo("redo")
+  : processor(p), tooltip(this), addRoot("+"), delRoot("-"), undo("undo"), redo("redo")
 {
   processor->filterState->addListener(this);
 

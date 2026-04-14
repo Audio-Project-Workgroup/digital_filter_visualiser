@@ -26,7 +26,8 @@ public:
 
   class RootPoint final
     : public juce::Component,
-      private juce::ValueTree::Listener
+      private juce::ValueTree::Listener,
+      private juce::Timer
   {
   public:
     RootPoint(bool c, FilterRoot::Ptr r);
@@ -48,16 +49,22 @@ public:
 
   private:
     void valueTreePropertyChanged(juce::ValueTree &node, const juce::Identifier &property) override;
+    void timerCallback(void) override;
+
+    static s32 constexpr timerFreq = 50;
 
     friend ComplexPlaneEditor;
     static ComplexPlaneEditor *editor;
     c128 valueAtDragStart;
+
+    bool isDragging;
+    bool wasRightButtonDown;
   };
 
   class RootTooltip final : public juce::Component, private juce::Timer
   {
   public:
-    RootTooltip();
+    explicit RootTooltip(ComplexPlaneEditor *e);
 
     enum VisibilityFlags : u32
     {
@@ -148,6 +155,7 @@ public:
     static s32 const keepaliveDelayMs = 60;
 
     friend ComplexPlaneEditor;
+    ComplexPlaneEditor *editor;
   };
 
   void mouseWheelMove(const juce::MouseEvent &e, const juce::MouseWheelDetails &w) override;

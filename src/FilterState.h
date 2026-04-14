@@ -184,9 +184,11 @@ struct FilterState : private juce::ValueTree::Listener
   /** Add a new root with given order.
    * Positive order adds a zero, negative order adds a pole.
    * Creates value tree node and adds it as a child to the appropriate node.
+   * When not passed a value, default value is (1, 0) for zero and (0, 0) for pole.
    * Filter order is updated automatically.
    */
   FilterRoot::Ptr add(s32 newOrder);
+  FilterRoot::Ptr add(s32 newOrder, c128 newValue);
 
   /** Remove given root.
    * This is the only function that should destroy `FilterRoot`s.

@@ -7,9 +7,6 @@
 FilterRoot::CachedOrder& FilterRoot::CachedOrder::
 operator+=(const int &delta)
 {
-  auto *um = getUndoManager();
-  if(um) um->beginNewTransaction();
-
   int current = this->get();
   *this = current + delta;
 
@@ -56,18 +53,28 @@ add(s32 newOrder)
   auto const defIm = 0.0;
   auto const defValue = c128(defRe, defIm);
 
+  auto result = add(newOrder, defValue);
+  return(result);
+}
+
+FilterRoot::Ptr FilterState::
+add(s32 newOrder, c128 newValue)
+{
+  jassert(newOrder != 0); // order must be nonzero
+
   // TODO(ry): I hate having to do a linear scan here, especially since we scan
   // through *again* to get the root pointer from the value tree node (we
   // shouldn't have to do that either). We should really make a data structure
   // for storing roots that supports spatial queries
 
-  // NOTE(ry): if there is already a root at the default location, we don't add
+  // NOTE(ry): if there is already a root at the desired location, we don't add
   // a new one, and instead increment the existing root's order
+  auto const isZero = newOrder > 0;
   if(isZero)
   {
     for(auto *z : zeros)
     {
-      if(z->value == defValue)
+      if(z->value == newValue)
       {
 	z->order += newOrder;
 	return(z);
@@ -78,7 +85,7 @@ add(s32 newOrder)
   {
     for(auto *p : poles)
     {
-      if(p->value == defValue)
+      if(p->value == newValue)
       {
 	p->order += newOrder;
 	return(p);
@@ -89,8 +96,8 @@ add(s32 newOrder)
   // NOTE(ry): setting initial values is not undoable
   juce::ValueTree newNode(IDs::Root);
   newNode.setProperty(IDs::Order, newOrder, nullptr);
-  newNode.setProperty(IDs::ValueRe, defRe, nullptr);
-  newNode.setProperty(IDs::ValueIm, defIm, nullptr);
+  newNode.setProperty(IDs::ValueRe, newValue.real(), nullptr);
+  newNode.setProperty(IDs::ValueIm, newValue.imag(), nullptr);
 
   if(isZero)
   {
