@@ -6,12 +6,16 @@ ComplexPlaneEditor *ComplexPlaneEditor::RootPoint::editor = nullptr;
 
 ComplexPlaneEditor::RootTooltip::
 RootTooltip(ComplexPlaneEditor *e)
-  : root(nullptr), orderInc("+"), orderDec("-"), orderLabel(), editor(e)
+  : root(nullptr), destroy("X"), orderInc("+"), orderDec("-"), orderLabel(), editor(e)
 {
-  setSize(60, 40);
+  setSize(90, 40);
   setAlwaysOnTop(true);
   setInterceptsMouseClicks(true, true);
 
+  destroy.onClick = [this](){
+    editor->processor->filterState->um->beginNewTransaction();
+    editor->processor->filterState->remove(root);
+  };
   orderInc.onClick = [this](){
     editor->processor->filterState->um->beginNewTransaction();
     if(auto *r = root.get()) r->order += r->isPole() ? -1 : 1;
@@ -21,11 +25,13 @@ RootTooltip(ComplexPlaneEditor *e)
     if(auto *r = root.get()) r->order += r->isPole() ? 1 : -1;
   };
 
+  destroy.addMouseListener(this, false);
   orderInc.addMouseListener(this, false);
   orderDec.addMouseListener(this, false);
 
   orderLabel.setInterceptsMouseClicks(false, false);
 
+  addAndMakeVisible(destroy);
   addAndMakeVisible(orderInc);
   addAndMakeVisible(orderDec);
   addAndMakeVisible(orderLabel);
@@ -51,11 +57,15 @@ void ComplexPlaneEditor::RootTooltip::
 resized(void)
 {
   auto area = getLocalBounds();
-  auto halfWidth = area.getWidth() / 2;
+  auto thirdWidth = area.getWidth() / 3;
   auto halfHeight = area.getHeight() / 2;
-  orderLabel.setBounds(area.removeFromLeft(halfWidth));
-  orderInc.setBounds(area.removeFromTop(halfHeight));
-  orderDec.setBounds(area);
+  orderLabel.setBounds(area.removeFromLeft(thirdWidth));
+
+  auto incDecArea = area.removeFromLeft(thirdWidth);
+  orderInc.setBounds(incDecArea.removeFromTop(halfHeight));
+  orderDec.setBounds(incDecArea);
+
+  destroy.setBounds(area);
 }
 
 void ComplexPlaneEditor::RootTooltip::

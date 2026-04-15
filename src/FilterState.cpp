@@ -119,8 +119,19 @@ remove(FilterRoot::Ptr rootRef)
   if(auto root = rootRef.get())
   {
     auto node = root->node;
-    auto parent = node.getParent();
-    parent.removeChild(node, getCurrentUndoManager());
+    // auto parent = node.getParent();
+    // parent.removeChild(node, getCurrentUndoManager());
+
+    // TODO(ry): this is a hacky fix to make removals that trigger slack pole
+    // additions work with undo. the way the ValueTree/UndoManager system works
+    // doesn't handle the case where a child addition happens inside a child
+    // removal, which is what currently happens when we remove a pole with
+    // nonzero order (and that removal violates causality). setting the order to
+    // 0 defers the slack pole addition until after the removal action has
+    // completed, so everything behaves nicely. we should consider better ways
+    // of maintaining invariants after multiple state updates, such as using
+    // AsyncUpdater or a better data structure.
+    node.setProperty(IDs::Order, 0, getCurrentUndoManager());
   }
 }
 
@@ -190,15 +201,18 @@ void FilterState::
 valueTreeChildRemoved(juce::ValueTree &parent, juce::ValueTree &child, int index)
 {
   juce::ignoreUnused(index);
+  juce::ignoreUnused(parent);
+
   if(child.hasType(IDs::Root))
   {
     auto root = getRootFromTreeNode(child);
-    if(auto *rootPtr = root.get())
-    {
-      r64 valueIm = rootPtr->value.im;
-      s32 order = rootPtr->order;
-      bool isPole = parent.hasType(IDs::Poles);
 
+    r64 valueIm = child.getProperty(IDs::ValueIm);
+    s32 order = child.getProperty(IDs::Order);
+    auto const isPole = order < 0;
+
+    if(root.get())
+    {
       if(isPole)
       {
         poles.removeObject(root);

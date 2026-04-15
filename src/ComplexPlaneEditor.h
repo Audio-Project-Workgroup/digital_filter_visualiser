@@ -146,6 +146,7 @@ public:
 
     FilterRoot::Ptr root;
 
+    juce::TextButton destroy;
     juce::TextButton orderInc;
     juce::TextButton orderDec;
     juce::Label orderLabel;
