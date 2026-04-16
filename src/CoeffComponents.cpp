@@ -21,7 +21,7 @@ CoefficientsComponent::CoefficientsComponent(AudioPluginAudioProcessor* p)
     tbComp.setStretchToFitActive(true); // expand columns to fill the entire width of the component
     coeffTable.setVisible(isExpanded);
 
-    processor->filterState->treeRoot.addListener(this);
+    processor->filterState->addListener(this);
     processor->filterState->syncListener(this);
 }
 
@@ -133,6 +133,14 @@ void CoefficientsComponent::valueTreePropertyChanged (juce::ValueTree& node, con
     if(property == IDs::ValueRe || property == IDs::ValueIm)    // when dragging roots
     {
         updateCoeffTable();
+    }
+    else if (property == IDs::Order)    // when changing order of a root
+    {
+        int order = node.getProperty(IDs::Order);
+        if(order != 0) 
+        {
+            updateCoeffTable();
+        }
     }
 }
 
