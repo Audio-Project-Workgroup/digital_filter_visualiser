@@ -168,5 +168,9 @@ void CoefficientsComponent::updateCoeffTable(){
     fbcoeffs = RootsToCoefficients::CalculatePolynomialCoefficientsFrom(
 		processor->filterState->poles);
 
+    // TODO requires optimization -  reversing should be done in-place
+    std::reverse(ffcoeffs.begin(), ffcoeffs.end());
+    std::reverse(fbcoeffs.begin(), fbcoeffs.end());
+
     coeffTable.updateContent();
 }
