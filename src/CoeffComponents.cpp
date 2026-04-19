@@ -39,11 +39,14 @@ void CoefficientsComponent::toggleCollapseExpand()
 
 void CoefficientsComponent::resized()
 {   
-    // TODO adjust dims and position based on area or neighbor components
+    // TODO adjust dims and position based on area or neighbor components --> should call something like getChildren() + getName() but seems fragile quering approach
     auto area = getLocalBounds();
-    constexpr int button_height {30}; // TODO can we retrieve this value?
-    titleButton.setBounds(102, 0, 150, button_height);
-    coeffTable.setBounds(102, button_height, 150, area.getHeight()-10);
+    constexpr int button_height {30};
+    constexpr int button_width {150};
+    constexpr int width_besideExportButton {102};
+    titleButton.setBounds(width_besideExportButton, 0, button_width, button_height);
+    constexpr int offsetFromBottom {35};
+    coeffTable.setBounds(width_besideExportButton, button_height, button_width, area.getHeight()-offsetFromBottom);
 }
 
 
