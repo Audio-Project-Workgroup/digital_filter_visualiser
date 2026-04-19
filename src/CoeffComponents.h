@@ -26,6 +26,7 @@ class CoefficientsComponent final
         juce::TableListBox coeffTable;
         bool isExpanded;
         AudioPluginAudioProcessor *processor;
+        juce::TooltipWindow tooltipWindow; 
 
         void toggleCollapseExpand();
         void updateCoeffTable();
@@ -45,4 +46,20 @@ class CoefficientsComponent final
         void valueTreeChildRemoved (juce::ValueTree&, juce::ValueTree&, int) override;
         // will be used for single cell edits
         // void sendPropertyChangeMessage (const Identifier& property);         
+
+        // provide tooltips for Table headers on hover
+        class CoeffTableHeader 
+            : public juce::TableHeaderComponent
+            , public juce::TooltipClient
+        {
+            public:
+                juce::String getTooltip() override
+                {
+                    auto pos = getMouseXYRelative();
+                    const int idx = getColumnIdAtX(pos.x);
+                    return (idx > 0 && idx <= (int)tooltips.size()) ? tooltips[idx-1] : "";
+                }
+            private:
+                std::array<juce::String, 3> tooltips{"Delay", "FeedForward", "FeedBack"};
+        };
 };

@@ -6,6 +6,7 @@
 CoefficientsComponent::CoefficientsComponent(AudioPluginAudioProcessor* p)
     : isExpanded(bool(DEFAULT_IS_EXPANDED))
     , processor(p)
+    , tooltipWindow(this)
 {
     titleButton.setButtonText(TABLE_TITLE);
     titleButton.onClick = [this]{ toggleCollapseExpand(); };
@@ -14,10 +15,11 @@ CoefficientsComponent::CoefficientsComponent(AudioPluginAudioProcessor* p)
     //setupCoefficient's table
     coeffTable.setModel(this); // pass ownership to the class.
     addAndMakeVisible(coeffTable);
+    coeffTable.setHeader(std::make_unique<CoeffTableHeader>());
     juce::TableHeaderComponent& tbComp = coeffTable.getHeader();
-    tbComp.addColumn("#", 1, int(COL_WIDTH/3)); // @TODO create desc on hover --> Delay
-    tbComp.addColumn("FF", 2, int(COL_WIDTH)); // @TODO create desc on hover --> FeedForward
-    tbComp.addColumn("FB", 3, int(COL_WIDTH)); // @TODO create desc on hover --> Feedback
+    tbComp.addColumn("#", 1, int(COL_WIDTH/3));
+    tbComp.addColumn("FF", 2, int(COL_WIDTH));
+    tbComp.addColumn("FB", 3, int(COL_WIDTH));
     tbComp.setStretchToFitActive(true); // expand columns to fill the entire width of the component
     coeffTable.setVisible(isExpanded);
 
