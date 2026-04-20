@@ -54,10 +54,7 @@ void CoefficientsComponent::resized()
 
 int CoefficientsComponent::getNumRows() 
 {
-    return std::max(
-        static_cast<int>(ffcoeffs.size()), 
-        static_cast<int> (fbcoeffs.size())
-    );
+    return fbcoeffs.size();
 }
 
 void CoefficientsComponent::paintRowBackground(juce::Graphics& g, int row, int w, int h, bool rowIsSelected)
@@ -108,9 +105,9 @@ juce::Component* CoefficientsComponent::refreshComponentForCell(int row, int col
         // update data when editing finishes
         label->onTextChange = [this, row, col, label]{
             double value = label->getText().getDoubleValue();
-            if (col == 2 && row < ffcoeffs.size() )
+            if (col == 2)
                 ffcoeffs[row] = value;
-            else if ( col == 3 && row < fbcoeffs.size() )
+            else if (col == 3)
                 fbcoeffs[row] = value;
             
             // TODO: calculate roots through the coefficient2roots function.
@@ -120,14 +117,13 @@ juce::Component* CoefficientsComponent::refreshComponentForCell(int row, int col
 
     // update value prevernting dump data from appearing in case of a vector size mismatch
     double value;
-    constexpr int defaultCoeffValue {0};
     if (col == 2)
     {
-        value = row < ffcoeffs.size() ? ffcoeffs[row] : defaultCoeffValue;
-    } 
+        value = ffcoeffs[row];
+    }
     else if (col == 3)
     {
-        value = row < fbcoeffs.size() ? fbcoeffs[row] : defaultCoeffValue;
+        value = fbcoeffs[row];
     }
     label->setText(juce::String(value), juce::dontSendNotification );
     return label;
@@ -166,16 +162,11 @@ void CoefficientsComponent::valueTreeChildRemoved (juce::ValueTree& node, juce::
     updateCoeffTable();
 }
 
-void CoefficientsComponent::updateCoeffTable(){
-    
-	ffcoeffs = RootsToCoefficients::CalculatePolynomialCoefficientsFrom(
-		processor->filterState->zeros);
+void CoefficientsComponent::updateCoeffTable()
+{
     fbcoeffs = RootsToCoefficients::CalculatePolynomialCoefficientsFrom(
-		processor->filterState->poles);
-
-    // TODO requires optimization -  reversing should be done in-place
-    std::reverse(ffcoeffs.begin(), ffcoeffs.end());
-    std::reverse(fbcoeffs.begin(), fbcoeffs.end());
-
+        processor->filterState->poles);
+    ffcoeffs = RootsToCoefficients::CalculatePolynomialCoefficientsFrom(
+		processor->filterState->zeros, fbcoeffs.size());
     coeffTable.updateContent();
 }

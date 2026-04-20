@@ -9,6 +9,7 @@ class RootsToCoefficients
 public:
 	static std::vector<double> CalculatePolynomialCoefficientsFrom(
 		juce::OwnedArray<FilterRoot>& roots,
+		int minimalLength = 1,
 		std::vector<int>* usedRootsPtr = nullptr)
 	{
 		std::vector<int> usedRoots;
@@ -17,6 +18,7 @@ public:
 		else
 			usedRoots = *usedRootsPtr;
 		jassert(usedRoots.size() == static_cast<size_t>(roots.size()));
+		jassert(minimalLength > 0);
 
 		// Determine polinomial order
 
@@ -28,8 +30,13 @@ public:
 			bool isReal = root->isReal();//root->value.im.get() == 0;
 			order += (isReal ? 1 : 2) * (rootOrder - usedRoots[static_cast<size_t>(i)]);
 		}
+
+		size_t resLength = static_cast<size_t>(std::max(order + 1, minimalLength));
+		std::vector<double> res(resLength);
+		res[resLength - 1] = 1;
+
 		if (order == 0)
-			return { 1 };
+			return res;
 
 		// Sort roots by magnitude for reducing numerical mistakes
 
@@ -54,8 +61,6 @@ public:
 
 		// Calculate coefficients
 
-		std::vector<double> res(static_cast<size_t>(order + 1));
-		res[0] = 1;
 		int nonZeroCoeffCount = 1;
 
 		for (int i = 0; i < roots.size(); i++)
@@ -69,17 +74,17 @@ public:
 			if (rootOrder == 0)
 				continue;
 			//if (im == 0) // One real root
-			if(isReal)
+			if (isReal)
 			{
 				const double a0 = -re;
 				const double a1 = 1.0;
 				for (int j = 0; j < rootOrder; j++)
 				{
-					for (int k = nonZeroCoeffCount - 1; k >= 0; k--)
+					for (size_t k = static_cast<size_t>(resLength - nonZeroCoeffCount); k < resLength; k++)
 					{
-						double v = res[static_cast<size_t>(k)];
-						res[static_cast<size_t>(k + 1)] += v * a1;
-						res[static_cast<size_t>(k)] = v * a0;
+						double v = res[k];
+						res[k - 1] += v * a1;
+						res[k] = v * a0;
 					}
 					nonZeroCoeffCount += 1;
 				}
@@ -91,12 +96,12 @@ public:
 				const double a2 = 1.0;
 				for (int j = 0; j < rootOrder; j++)
 				{
-					for (int k = nonZeroCoeffCount - 1; k >= 0; k--)
+					for (size_t k = static_cast<size_t>(resLength - nonZeroCoeffCount); k < resLength; k++)
 					{
-						double v = res[static_cast<size_t>(k)];
-						res[static_cast<size_t>(k + 2)] += v * a2;
-						res[static_cast<size_t>(k + 1)] += v * a1;
-						res[static_cast<size_t>(k)] = v * a0;
+						double v = res[k];
+						res[k - 2] += v * a2;
+						res[k - 1] += v * a1;
+						res[k] = v * a0;
 					}
 					nonZeroCoeffCount += 2;
 				}

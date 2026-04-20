@@ -113,11 +113,11 @@ public:
 
 		// 3. Calculate FIR coefficients for non-paired zeros.
 		std::vector<double> firCoeffsDblArray =
-			RootsToCoefficients::CalculatePolynomialCoefficientsFrom(state->zeros, &usedZeros);
+			RootsToCoefficients::CalculatePolynomialCoefficientsFrom(state->zeros, 1, &usedZeros);
 		std::size_t firCoeffArraySize = firCoeffsDblArray.size();
 		std::vector<float> firCoeffsArray(firCoeffArraySize);
 		for (std::size_t i = 0; i < firCoeffArraySize; i++)
-			firCoeffsArray[firCoeffArraySize - i - 1] = static_cast<float>(firCoeffsDblArray[i]);
+			firCoeffsArray[i] = static_cast<float>(firCoeffsDblArray[i]);
 		//delayCount = std::max(0, delayCount - static_cast<int>(firCoeffArraySize - 1));
 
 		// 4. Set processors parameters
