@@ -201,7 +201,6 @@ void FilterState::
 valueTreeChildRemoved(juce::ValueTree &parent, juce::ValueTree &child, int index)
 {
   juce::ignoreUnused(index);
-  juce::ignoreUnused(parent);
 
   if(child.hasType(IDs::Root))
   {
@@ -209,10 +208,15 @@ valueTreeChildRemoved(juce::ValueTree &parent, juce::ValueTree &child, int index
 
     r64 valueIm = child.getProperty(IDs::ValueIm);
     s32 order = child.getProperty(IDs::Order);
-    auto const isPole = order < 0;
+    auto const isPole = parent.hasType(IDs::Poles);
 
     if(root.get())
     {
+      // NOTE(ry): apparently removeObject can just fail silently?! like at
+      // least log something, or return an indicator that the operation failed
+      // that I can check so I know what's actually happening. some seriously
+      // sloppy shit here. this api ain't worth a cent. anyone who buys a juce
+      // commercial license seriously needs a psychological evaluation
       if(isPole)
       {
         poles.removeObject(root);
