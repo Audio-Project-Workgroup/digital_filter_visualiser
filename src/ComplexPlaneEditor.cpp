@@ -268,10 +268,8 @@ mouseDrag(const juce::MouseEvent &e)
       auto dragOffsetWorld = worldUnitsFromPixels * dragOffsetPixels;
       auto newRootValue = valueAtDragStart + c128(dragOffsetWorld.getX(), dragOffsetWorld.getY());
 
-      auto const snapThresholdPixels = 18.0; // TODO(ry): tune
-      auto snapThresholdWorld = editor->unitsPerPixel * snapThresholdPixels;
-
       // NOTE(ry): snap to axis
+      auto snapThresholdWorld = editor->unitsPerPixel * ComplexPlaneEditor::snapThresholdPixels;
       if(std::abs(newRootValue.imag()) < snapThresholdWorld)
       {
 	newRootValue = c128(newRootValue.real(), 0.0);
@@ -281,10 +279,10 @@ mouseDrag(const juce::MouseEvent &e)
       {
 	// TODO(ry): better stability clamp!
 	// NOTE(ry): stability clamp
-	if(std::abs(newRootValue) >= 1)
+	if(std::abs(newRootValue) >= FilterState::maxPoleMagnitude)
 	{
-	  auto const epsClamp = 1e-3; // TODO(ry): tune
-	  newRootValue /= std::abs(newRootValue) + epsClamp;
+	  newRootValue /= std::abs(newRootValue);
+	  newRootValue *= FilterState::maxPoleMagnitude;
 	}
       }
 
@@ -303,7 +301,6 @@ mouseDrag(const juce::MouseEvent &e)
 
       // NOTE(ry): update all properties related to this root
       rootPtr->value = newRootValue;
-      // TODO(ry): splitting logic (create new root, subtract new root order from current root order)
     }
   }
 }
@@ -500,21 +497,49 @@ mouseWheelMove(const juce::MouseEvent &e, const juce::MouseWheelDetails &w)
 }
 
 void ComplexPlaneEditor::
-mouseDown(const juce::MouseEvent&)
+mouseDown(const juce::MouseEvent &e)
 {
-  worldCenterAtDragStart = worldCenter;
+  if(e.mods.isLeftButtonDown())
+  {
+    // NOTE(ry): dragging the world position
+    worldCenterAtDragStart = worldCenter;
+  }
+  else if(e.mods.isRightButtonDown())
+  {
+    // NOTE(ry): creating a root point.
+    // root is a pole if no mods are down, and a zero if control is down.
+    s32 newOrder = e.mods.isCtrlDown() ? 1 : -1;
+    auto const mousePixels = e.position.toDouble();
+    auto mouseWorldX = mousePixels.x;
+    auto mouseWorldY = mousePixels.y;
+    worldUnitsFromPixels.transformPoint(mouseWorldX, mouseWorldY);
+
+    // NOTE(ry): snap to axis
+    auto const snapThresholdWorld = unitsPerPixel * ComplexPlaneEditor::snapThresholdPixels;
+    if(std::abs(mouseWorldY) < snapThresholdWorld)
+    {
+      mouseWorldY = 0.0;
+    }
+
+    auto const newVal = c128(mouseWorldX, mouseWorldY);
+    processor->filterState->um->beginNewTransaction();
+    processor->filterState->add(newOrder, newVal);
+  }
 }
 
 void ComplexPlaneEditor::
 mouseDrag(const juce::MouseEvent &e)
 {
-  auto offsetPixels = e.getOffsetFromDragStart().toDouble();
-  const auto worldUnitsFromPixelsScale = juce::Point<double>(unitsPerPixel, -unitsPerPixel);
-  auto offsetWorld = worldUnitsFromPixelsScale * offsetPixels;
-  worldCenter = worldCenterAtDragStart - offsetWorld;
+  if(e.mods.isLeftButtonDown())
+  {
+    auto offsetPixels = e.getOffsetFromDragStart().toDouble();
+    const auto worldUnitsFromPixelsScale = juce::Point<double>(unitsPerPixel, -unitsPerPixel);
+    auto offsetWorld = worldUnitsFromPixelsScale * offsetPixels;
+    worldCenter = worldCenterAtDragStart - offsetWorld;
 
-  updateTransformsAndChildBounds();
-  repaint();
+    updateTransformsAndChildBounds();
+    repaint();
+  }
 }
 
 void ComplexPlaneEditor::

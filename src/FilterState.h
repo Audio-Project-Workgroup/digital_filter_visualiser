@@ -185,6 +185,7 @@ struct FilterState : private juce::ValueTree::Listener
    * Positive order adds a zero, negative order adds a pole.
    * Creates value tree node and adds it as a child to the appropriate node.
    * When not passed a value, default value is (1, 0) for zero and (0, 0) for pole.
+   * If adding a pole outside the unit circle, return null and don't add a root.
    * Filter order is updated automatically.
    */
   FilterRoot::Ptr add(s32 newOrder);
@@ -234,6 +235,8 @@ struct FilterState : private juce::ValueTree::Listener
   // TODO(ry): separate trees for filter roots and parameters/automation
   juce::ValueTree treeRoot;
   juce::UndoManager *um;
+
+  static constexpr r64 maxPoleMagnitude = 1.0 - 1e-3; // TODO(ry): tune
 
 private:
 

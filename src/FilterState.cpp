@@ -67,21 +67,18 @@ add(s32 newOrder, c128 newValue)
   // shouldn't have to do that either). We should really make a data structure
   // for storing roots that supports spatial queries
 
+  auto const isPole = newOrder < 0;
+  if(isPole && std::abs(newValue) > maxPoleMagnitude)
+  {
+    // NOTE: if trying to add a pole outside the unit circle, return a null root
+    // and don't add anything
+    FilterRoot::Ptr result{};
+    return(result);
+  }
+
   // NOTE(ry): if there is already a root at the desired location, we don't add
   // a new one, and instead increment the existing root's order
-  auto const isZero = newOrder > 0;
-  if(isZero)
-  {
-    for(auto *z : zeros)
-    {
-      if(z->value == newValue)
-      {
-	z->order += newOrder;
-	return(z);
-      }
-    }
-  }
-  else
+  if(isPole)
   {
     for(auto *p : poles)
     {
@@ -92,6 +89,17 @@ add(s32 newOrder, c128 newValue)
       }
     }
   }
+  else
+  {
+    for(auto *z : zeros)
+    {
+      if(z->value == newValue)
+      {
+	z->order += newOrder;
+	return(z);
+      }
+    }
+  }
 
   // NOTE(ry): setting initial values is not undoable
   juce::ValueTree newNode(IDs::Root);
@@ -99,13 +107,13 @@ add(s32 newOrder, c128 newValue)
   newNode.setProperty(IDs::ValueRe, newValue.real(), nullptr);
   newNode.setProperty(IDs::ValueIm, newValue.imag(), nullptr);
 
-  if(isZero)
+  if(isPole)
   {
-    treeRoot.getChildWithName(IDs::Zeros).appendChild(newNode, getCurrentUndoManager());
+    treeRoot.getChildWithName(IDs::Poles).appendChild(newNode, getCurrentUndoManager());
   }
   else
   {
-    treeRoot.getChildWithName(IDs::Poles).appendChild(newNode, getCurrentUndoManager());
+    treeRoot.getChildWithName(IDs::Zeros).appendChild(newNode, getCurrentUndoManager());
   }
 
   FilterRoot::Ptr result = getRootFromTreeNode(newNode);
