@@ -15,13 +15,13 @@ public:
 
 		auto* subElement = root->createNewChildElement("numerator_coefficients");
 		juce::StringArray bCoeffStrArray;
-		for (int i = zeroCoeffs.size() - 1; i >= 0; i--)
+		for (int i = 0; i < zeroCoeffs.size(); i++)
 			bCoeffStrArray.add(juce::String(zeroCoeffs[static_cast<size_t>(i)]));
 		subElement->addTextElement(bCoeffStrArray.joinIntoString(", "));
 
 		subElement = root->createNewChildElement("denominator_coefficients");
 		juce::StringArray aCoeffStrArray;
-		for (int i = poleCoeffs.size() - 1; i >= 0; i--)
+		for (int i = 0; i < poleCoeffs.size(); i++)
 			aCoeffStrArray.add(juce::String(poleCoeffs[static_cast<size_t>(i)]));
 		subElement->addTextElement(aCoeffStrArray.joinIntoString(", "));
 
