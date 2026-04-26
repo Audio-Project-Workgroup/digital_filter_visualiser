@@ -17,5 +17,8 @@ pushd build > /dev/null
 BUILD_DIR=$PWD
 cmake -S $SRC_DIR -B $BUILD_DIR
 cmake --build $BUILD_DIR $PARALLEL_BUILD
+STATUS=$?
 
 popd > /dev/null
+
+exit $STATUS
