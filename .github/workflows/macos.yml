@@ -1,0 +1,31 @@
+name: macOS
+run-name: "MacOS Build | Standalone & VST3 | Commit: ${{ github.sha }}"
+on:
+  push:
+    branches:
+      - master
+      - ci
+  pull_request:
+    branches:
+      - master
+jobs:
+  build:
+    runs-on: macos-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Install dependencies
+        run: |
+          brew install cmake
+          
+      - name: Set up environment paths
+        run: |
+          echo "CPATH=/opt/homebrew/include:$CPATH" >> $GITHUB_ENV
+          echo "LIBRARY_PATH=/opt/homebrew/lib:$LIBRARY_PATH" >> $GITHUB_ENV
+          
+      - name: Build
+        run: |
+          bash build.sh --parallel

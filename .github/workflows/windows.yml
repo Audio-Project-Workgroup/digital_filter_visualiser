@@ -1,0 +1,27 @@
+name: Windows
+run-name: "Windows Build | Standalone & VST3 | Commit: ${{ github.sha }}"
+on:
+  push:
+    branches:
+      - master
+      - ci
+  pull_request:
+    branches:
+      - master
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          
+      - name: Set up Visual Studio environment
+        uses: microsoft/setup-msbuild@v1.3
+                
+      - name: Build standalone
+        run: |
+          call "C:\Program Files\Microsoft Visual Studio\2022\Enterprise\VC\Auxiliary\Build\vcvarsall.bat" x64
+          call build.bat          
+        shell: cmd 
