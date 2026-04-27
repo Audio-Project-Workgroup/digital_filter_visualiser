@@ -32,6 +32,7 @@ AudioPluginAudioProcessorEditor::AudioPluginAudioProcessorEditor (AudioPluginAud
   addAndMakeVisible(exportButton);
 
   setSize(640, 480);
+  setResizable(true, true);
 }
 
 AudioPluginAudioProcessorEditor::~AudioPluginAudioProcessorEditor()

@@ -575,8 +575,8 @@ paint(juce::Graphics &g)
   auto const circleColor = juce::Colours::goldenrod;
   auto const textColor = juce::Colours::white;
 
-  auto const axisLabelFontHeightPixels = 32.f;
-  auto const gridLineLabelFontHeightPixels = 24.f;
+  auto const axisLabelFontHeightPixels = 32.0;
+  auto const gridLineLabelFontHeightPixels = 24.0;
 
   auto const axisThicknessPixels = 3;
   auto const circleThicknessPixels = 3;
@@ -584,7 +584,7 @@ paint(juce::Graphics &g)
 
   auto const eps = 1e-6;
 
-  auto const textRightOffsetPixels = 50;
+  auto const textRightOffsetPixels = 50.0;
 
   // NOTE(ry): draw background
   g.fillAll(backgroundColor);
@@ -648,8 +648,14 @@ paint(juce::Graphics &g)
       pixelsFromWorldUnits.transformPoint(imLabelX, imLabelY);
 
       reLabelX -= textRightOffsetPixels;
-      reLabelY = std::clamp(reLabelY, localBounds.getY() + axisLabelFontHeightPixels, localBounds.getBottom());
-      imLabelX = std::clamp(imLabelX, localBounds.getX(), localBounds.getRight() - textRightOffsetPixels);
+      reLabelY = std::clamp(reLabelY,
+			    localBounds.getY() + std::min(axisLabelFontHeightPixels,
+							  localBounds.getHeight()),
+			    localBounds.getBottom());
+      imLabelX = std::clamp(imLabelX,
+			    localBounds.getX(),
+			    localBounds.getRight() - std::min(textRightOffsetPixels,
+							      localBounds.getWidth()));
       imLabelY += axisLabelFontHeightPixels;
       g.drawSingleLineText("Re", reLabelX, reLabelY);
       g.drawSingleLineText("Im", imLabelX, imLabelY);
@@ -666,7 +672,10 @@ paint(juce::Graphics &g)
         auto drawX = labelX;
         auto drawY = 0.0;
         pixelsFromWorldUnits.transformPoint(drawX, drawY);
-        drawY = std::clamp(drawY, localBounds.getY() + gridLineLabelFontHeightPixels, localBounds.getBottom());
+        drawY = std::clamp(drawY,
+			   localBounds.getY() + std::min(gridLineLabelFontHeightPixels,
+							 localBounds.getHeight()),
+			   localBounds.getBottom());
         if(eps <= labelX || labelX <= -eps)
         { g.drawSingleLineText(juce::String(labelX), drawX, drawY); }
         else
@@ -680,7 +689,10 @@ paint(juce::Graphics &g)
         auto drawX = 0.0;
         auto drawY = labelY;
         pixelsFromWorldUnits.transformPoint(drawX, drawY);
-        drawX = std::clamp(drawX, localBounds.getX(), localBounds.getRight() - textRightOffsetPixels);
+        drawX = std::clamp(drawX,
+			   localBounds.getX(),
+			   localBounds.getRight() - std::min(textRightOffsetPixels,
+							     localBounds.getWidth()));
 
         if(eps <= labelY || labelY <= -eps)
         { g.drawSingleLineText(juce::String(labelY), drawX, drawY); }
