@@ -40,7 +40,7 @@ void CoefficientsComponent::toggleCollapseExpand()
 }
 
 void CoefficientsComponent::resized()
-{   
+{
     // TODO adjust dims and position based on area or neighbor components --> should call something like getChildren() + getName() but seems fragile quering approach
     auto area = getLocalBounds();
     constexpr int button_height {30};
@@ -52,13 +52,17 @@ void CoefficientsComponent::resized()
 }
 
 
-int CoefficientsComponent::getNumRows() 
+int CoefficientsComponent::getNumRows()
 {
     return fbcoeffs.size();
 }
 
 void CoefficientsComponent::paintRowBackground(juce::Graphics& g, int row, int w, int h, bool rowIsSelected)
 {
+    juce::ignoreUnused(row);
+	juce::ignoreUnused(w);
+	juce::ignoreUnused(h);
+
     // TODO fix line can t become unselected, but only when other line is selected
     if (rowIsSelected)
     {
@@ -75,18 +79,18 @@ void CoefficientsComponent::paintCell(juce::Graphics& g, int row, int col, int w
 
     juce::String text;
     if (col == 1) text = juce::String(row);
-    if (col == 2) text = juce::String(ffcoeffs[row]);
-    if (col == 3) text = juce::String(fbcoeffs[row]);
+    if (col == 2) text = juce::String(ffcoeffs[static_cast<size_t>(row)]);
+    if (col == 3) text = juce::String(fbcoeffs[static_cast<size_t>(row)]);
 
     g.drawText(text, 0, 0, w, h, juce::Justification::centredLeft);
 }
 
 juce::Component* CoefficientsComponent::refreshComponentForCell(int row, int col, bool, juce::Component* existing)
 {
-    
+
     if (col !=2 && col !=3 )
         return nullptr;
-    
+
     // creating new cells
     auto* label = static_cast<juce::Label*>(existing);
     if (!label)
@@ -106,10 +110,10 @@ juce::Component* CoefficientsComponent::refreshComponentForCell(int row, int col
         label->onTextChange = [this, row, col, label]{
             double value = label->getText().getDoubleValue();
             if (col == 2)
-                ffcoeffs[row] = value;
+                ffcoeffs[static_cast<size_t>(row)] = value;
             else if (col == 3)
-                fbcoeffs[row] = value;
-            
+                fbcoeffs[static_cast<size_t>(row)] = value;
+
             // TODO: calculate roots through the coefficient2roots function.
             // TODO: notify other listeners about this change
         };
@@ -119,11 +123,11 @@ juce::Component* CoefficientsComponent::refreshComponentForCell(int row, int col
     double value;
     if (col == 2)
     {
-        value = ffcoeffs[row];
+        value = ffcoeffs[static_cast<size_t>(row)];
     }
     else if (col == 3)
     {
-        value = fbcoeffs[row];
+        value = fbcoeffs[static_cast<size_t>(row)];
     }
     label->setText(juce::String(value), juce::dontSendNotification );
     return label;
@@ -138,7 +142,7 @@ void CoefficientsComponent::valueTreePropertyChanged (juce::ValueTree& node, con
     else if (property == IDs::Order)    // when changing order of a root
     {
         int order = node.getProperty(IDs::Order);
-        if(order != 0) 
+        if(order != 0)
         {
             updateCoeffTable();
         }
@@ -147,11 +151,18 @@ void CoefficientsComponent::valueTreePropertyChanged (juce::ValueTree& node, con
 
 void CoefficientsComponent::valueTreeChildAdded (juce::ValueTree& node, juce::ValueTree& child)
 {
+	juce::ignoreUnused(node);
+	juce::ignoreUnused(child);
+
     updateCoeffTable();
 }
 
 void CoefficientsComponent::valueTreeChildRemoved (juce::ValueTree& node, juce::ValueTree& child, int idx)
-{   
+{
+	juce::ignoreUnused(node);
+	juce::ignoreUnused(child);
+	juce::ignoreUnused(idx);
+
     if (processor->filterState->totalOrder==0) // if filter is cleaned out by erasing the last root
     {
         ffcoeffs.clear();
@@ -170,3 +181,12 @@ void CoefficientsComponent::updateCoeffTable()
 		processor->filterState->zeros, fbcoeffs.size());
     coeffTable.updateContent();
 }
+
+// NOTE(ry): I need to put this here so my editor doesn't screw with the style of this file
+/* Local Variables: */
+/* mode: c++ */
+/* tab-width: 4 */
+/* c-basic-offset: 4 */
+/* indent-tabs-mode: t */
+/* buffer-file-coding-system: undecided-unix */
+/* End: */

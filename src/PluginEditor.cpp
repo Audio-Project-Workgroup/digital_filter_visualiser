@@ -11,8 +11,8 @@ AudioPluginAudioProcessorEditor::AudioPluginAudioProcessorEditor (AudioPluginAud
   , processorRef (p)
   , complexPlaneEditor(&p)
   , phaseFrequencyResponseViewer(&p)
-  , exportButton("Export...")
   , coefficients(&p)
+  , exportButton("Export...")
 {
   juce::ignoreUnused (processorRef);
 

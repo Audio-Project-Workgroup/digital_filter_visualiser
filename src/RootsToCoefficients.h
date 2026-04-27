@@ -61,7 +61,7 @@ public:
 
 		// Calculate coefficients
 
-		int nonZeroCoeffCount = 1;
+		size_t nonZeroCoeffCount = 1;
 
 		for (int i = 0; i < roots.size(); i++)
 		{
@@ -80,7 +80,8 @@ public:
 				const double a1 = 1.0;
 				for (int j = 0; j < rootOrder; j++)
 				{
-					for (size_t k = static_cast<size_t>(resLength - nonZeroCoeffCount); k < resLength; k++)
+					jassert(resLength >= nonZeroCoeffCount);
+					for (size_t k = resLength - nonZeroCoeffCount; k < resLength; k++)
 					{
 						double v = res[k];
 						res[k - 1] += v * a1;
