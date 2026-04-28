@@ -41,6 +41,8 @@ void CoefficientsComponent::toggleCollapseExpand()
 
 void CoefficientsComponent::resized()
 {
+	PROFILE_FUNCTION();
+
     // TODO adjust dims and position based on area or neighbor components --> should call something like getChildren() + getName() but seems fragile quering approach
     auto area = getLocalBounds();
     constexpr int button_height {30};
@@ -59,6 +61,8 @@ int CoefficientsComponent::getNumRows()
 
 void CoefficientsComponent::paintRowBackground(juce::Graphics& g, int row, int w, int h, bool rowIsSelected)
 {
+	PROFILE_FUNCTION();
+
     juce::ignoreUnused(row);
 	juce::ignoreUnused(w);
 	juce::ignoreUnused(h);
@@ -72,6 +76,8 @@ void CoefficientsComponent::paintRowBackground(juce::Graphics& g, int row, int w
 
 void CoefficientsComponent::paintCell(juce::Graphics& g, int row, int col, int w, int h, bool)
 {
+	PROFILE_FUNCTION();
+
     if (row >= getNumRows()) return;
 
     g.setColour(juce::Colours::white);

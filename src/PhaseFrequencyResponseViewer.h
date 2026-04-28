@@ -69,8 +69,14 @@ public:
         }
     }
 
+	// NOTE(ry): I'd like to profile these functions, but adding the hooks here
+	// causes an error, probably due to the functions being defined inside a
+	// class definition. maybe moving them to their own cpp file (included in
+	// PluginEditor.cpp of course :P) will make the problem magically go away
     void resized() override
     {
+		//PROFILE_FUNCTION();
+
         zoomOutButton.setBounds(padding, padding, zoomButtonsSize, zoomButtonsSize);
         zoomInButton.setBounds(2 * padding + zoomButtonsSize, padding, zoomButtonsSize, zoomButtonsSize);
         logScaleButton.setBounds(getWidth() - plotPaddingRight - logScaleButtonWidth, padding, logScaleButtonWidth, zoomButtonsSize);
@@ -79,6 +85,8 @@ public:
 
     void paint(juce::Graphics& g) override
     {
+		//PROFILE_FUNCTION();
+
         const auto bounds = getBounds();
         const auto width = bounds.getWidth() - plotPaddingLeft - plotPaddingRight;
         const auto height = bounds.getHeight() - plotPaddingTop - plotPaddingBottom;
@@ -264,8 +272,8 @@ private:
         const double minAngle = maxAngle * minFreq / (sampleRate / 2);
         const double logMaxAngle = std::log10(maxAngle);
         const double logMinAngle = std::log10(minAngle);
-        const double angleCoeff = 
-            isLogScale ? 
+        const double angleCoeff =
+            isLogScale ?
             (logMaxAngle - logMinAngle) / width :
             maxAngle / width;
 
@@ -291,7 +299,7 @@ private:
             {
                 int order = zero->order.get();
                 calculateCoefficients(angles[i], zero, ampCoeff, phaseCoeff);
-                amplitudes[i] *= std::pow(ampCoeff, order); 
+                amplitudes[i] *= std::pow(ampCoeff, order);
                 phases[i] += phaseCoeff * order;
             }
 

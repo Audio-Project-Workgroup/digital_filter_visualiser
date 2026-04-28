@@ -56,6 +56,8 @@ mouseExit(const juce::MouseEvent &e)
 void ComplexPlaneEditor::RootTooltip::
 resized(void)
 {
+  PROFILE_FUNCTION();
+
   auto area = getLocalBounds();
   auto thirdWidth = area.getWidth() / 3;
   auto halfHeight = area.getHeight() / 2;
@@ -71,6 +73,8 @@ resized(void)
 void ComplexPlaneEditor::RootTooltip::
 paint(juce::Graphics &g)
 {
+  PROFILE_FUNCTION();
+
   g.fillAll(juce::Colours::black);
   g.setColour(juce::Colours::white);
   g.drawRect(getLocalBounds(), 1);
@@ -344,6 +348,8 @@ timerCallback(void)
 void ComplexPlaneEditor::RootPoint::
 paint(juce::Graphics &g)
 {
+  PROFILE_FUNCTION();
+
   if(auto *rootPtr = root.get())
   {
     if(rootPtr->order < 0) g.setColour(juce::Colours::red); // poles are red
@@ -545,6 +551,8 @@ mouseDrag(const juce::MouseEvent &e)
 void ComplexPlaneEditor::
 resized()
 {
+  PROFILE_FUNCTION();
+
   auto area = getLocalBounds();
 
   auto const gainSliderHeight = 100;
@@ -569,6 +577,8 @@ resized()
 void ComplexPlaneEditor::
 paint(juce::Graphics &g)
 {
+  PROFILE_FUNCTION();
+
   auto const backgroundColor = juce::Colour(0x08, 0x0C, 0x1C);
   auto const axisColor = juce::Colours::navajowhite;
   auto const lineColor = juce::Colours::snow;
@@ -599,6 +609,8 @@ paint(juce::Graphics &g)
   worldUnitsFromPixels.transformPoint(rightWorld, bottomWorld);
 
   {
+    PROFILE_SCOPE("draw lines");
+
     juce::Graphics::ScopedSaveState savedGraphicsState(g);
     g.addTransform(pixelsFromWorldUnits);
 
@@ -615,18 +627,20 @@ paint(juce::Graphics &g)
     {
       g.setColour(lineColor);
 
-      for(auto lineX = std::floor(leftWorld / unitsPerLine)*unitsPerLine;
+      for(auto lineX = std::floor(leftWorld) + 1;
           lineX < rightWorld;
           lineX += unitsPerLine)
       {
+	PROFILE_SCOPE("draw x lines");
         if(-eps >= lineX || lineX >= eps)
         { g.drawLine(lineX, bottomWorld, lineX, topWorld, lineThicknessPixels * unitsPerPixel); }
       }
 
-      for(auto lineY = std::floor(bottomWorld / unitsPerLine)*unitsPerLine;
+      for(auto lineY = std::floor(bottomWorld) + 1;
           lineY < topWorld;
           lineY += unitsPerLine)
       {
+        PROFILE_SCOPE("draw y lines");
         if(-eps >= lineY || lineY >= eps)
         { g.drawLine(leftWorld, lineY, rightWorld, lineY, lineThicknessPixels * unitsPerPixel); }
       }
@@ -635,11 +649,15 @@ paint(juce::Graphics &g)
 
   // NOTE(ry): draw axis and grid line labels
   {
+    PROFILE_SCOPE("draw labels");
+
     g.setColour(textColor);
     g.setFont(juce::Font(juce::FontOptions(axisLabelFontHeightPixels)));
 
     // NOTE(ry): draw axis labels
     {
+      PROFILE_SCOPE("draw axis labels");
+
       auto reLabelX = rightWorld;
       auto reLabelY = 0.0;
       auto imLabelX = 0.0;
@@ -663,12 +681,16 @@ paint(juce::Graphics &g)
 
     // NOTE(ry): draw grid line labels
     {
+      PROFILE_SCOPE("draw grid line labels");
+
       g.setFont(juce::Font(juce::FontOptions(gridLineLabelFontHeightPixels)));
 
-      for(auto labelX = std::floor(leftWorld / unitsPerLine)*unitsPerLine;
+      for(auto labelX = std::floor(leftWorld) + 1;
           labelX < rightWorld;
           labelX += unitsPerLine)
       {
+        PROFILE_SCOPE("draw x labels");
+
         auto drawX = labelX;
         auto drawY = 0.0;
         pixelsFromWorldUnits.transformPoint(drawX, drawY);
@@ -682,10 +704,12 @@ paint(juce::Graphics &g)
         { g.drawSingleLineText(juce::String(0), drawX, drawY); }
       }
 
-      for(auto labelY = std::floor(bottomWorld / unitsPerLine)*unitsPerLine;
+      for(auto labelY = std::floor(bottomWorld) + 1;
           labelY < topWorld;
           labelY += unitsPerLine)
       {
+	PROFILE_SCOPE("draw y labels");
+
         auto drawX = 0.0;
         auto drawY = labelY;
         pixelsFromWorldUnits.transformPoint(drawX, drawY);

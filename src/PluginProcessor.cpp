@@ -44,6 +44,17 @@ AudioPluginAudioProcessor::~AudioPluginAudioProcessor()
         delete pendingState;
         pendingState = nullptr;
     }
+
+	// NOTE(ry): print each profile site's maximum runtime
+	for(u32 siteIdx = 0; siteIdx < Profiler::siteCount; ++siteIdx)
+	{
+		auto *profSite = Profiler::sites + siteIdx;
+		if(profSite->label)
+		{
+			r64 siteMaxTscElapsed_us = 1e6 * (r64)profSite->tscElapsedMax / (r64)Profiler::tscFreq;
+			DBG(profSite->label << " elapsed: " << siteMaxTscElapsed_us << " us");
+		}
+	}
 }
 
 //==============================================================================
