@@ -57,16 +57,16 @@ static u64
 osReadTimer(void)
 {
   LARGE_INTEGER result;
-  QueryPerformancCounter(&result);
-  return(reuslt.QuadPart);
+  QueryPerformanceCounter(&result);
+  return(result.QuadPart);
 }
 
 static u64
 osGetTimerFreq(void)
 {
   LARGE_INTEGER result;
-  QueryPerformancFrequency(&result);
-  return(reuslt.QuadPart);
+  QueryPerformanceFrequency(&result);
+  return(result.QuadPart);
 }
 
 #  elif OS_MAC || OS_LINUX
