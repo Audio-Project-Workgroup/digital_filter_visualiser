@@ -52,6 +52,7 @@ tscGetFreq(void)
 }
 
 #  if OS_WINDOWS
+#define NOMINMAX
 #include <windows.h>
 static u64
 osReadTimer(void)
