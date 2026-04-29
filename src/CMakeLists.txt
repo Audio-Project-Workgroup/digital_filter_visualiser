@@ -30,6 +30,10 @@ target_sources(
   PRIVATE
   PluginEditor.cpp
   PluginProcessor.cpp
+  StateSerializer.cpp
+  RootsToCoefficients.cpp
+  ProcessorChainModifier.cpp
+  PhaseFrequencyResponseViewer.cpp
 )
 
 target_compile_definitions(
