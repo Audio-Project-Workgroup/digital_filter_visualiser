@@ -22,6 +22,13 @@ juce_add_plugin(
   PRODUCT_NAME                DigitalFilterVisualizer
 )
 
+set_target_properties(${PROJECT_NAME} PROPERTIES 
+    UNITY_BUILD ON
+    #UNITY_BUILD_BATCH_SIZE 8
+)
+file(GLOB_RECURSE JUCE_SOURCES "JUCE/modules/*.cpp")
+set_source_files_properties(${JUCE_SOURCES} PROPERTIES SKIP_UNITY_BUILD_INCLUSION ON)
+
 # juce_generate_juce_header(AudioPluginExample)
 
 # NOTE(ry): To everybody else: Don't add files I write as sources. I know what I'm doing
@@ -34,6 +41,9 @@ target_sources(
   RootsToCoefficients.cpp
   ProcessorChainModifier.cpp
   PhaseFrequencyResponseViewer.cpp
+  ComplexPlaneEditor.cpp
+  CoeffComponents.cpp
+  FilterState.cpp
 )
 
 target_compile_definitions(

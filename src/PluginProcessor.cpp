@@ -4,7 +4,7 @@
 #include "ProcessorChainModifier.h"
 
 // NOTE(ry): don't delete this. I know what I'm doing
-#include "FilterState.cpp"
+#include "FilterState.h"
 
 //==============================================================================
 AudioPluginAudioProcessor::AudioPluginAudioProcessor()

@@ -1,8 +1,8 @@
 #include "PluginEditor.h"
 
 // NOTE(ry): Don't delete this. I know what I'm doing
-#include "ComplexPlaneEditor.cpp"
-#include "CoeffComponents.cpp"
+//#include "ComplexPlaneEditor.h"
+//#include "CoeffComponents.h"
 #include "StateSerializer.h"
 
 //==============================================================================

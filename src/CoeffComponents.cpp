@@ -1,5 +1,5 @@
 #include "CoeffComponents.h"
-
+#include "PluginProcessor.h"
 #include <iostream>
 #define COL_WIDTH 100 // TODO make this value relate to the global UI.
 
