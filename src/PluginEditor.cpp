@@ -3,35 +3,21 @@
 // NOTE(ry): Don't delete this. I know what I'm doing
 #include "ComplexPlaneEditor.cpp"
 #include "CoeffComponents.cpp"
-#include "StateSerializer.h"
 
 //==============================================================================
 AudioPluginAudioProcessorEditor::AudioPluginAudioProcessorEditor (AudioPluginAudioProcessor& p)
   : AudioProcessorEditor (&p)
-  , processorRef (p)
   , complexPlaneEditor(&p)
   , phaseFrequencyResponseViewer(&p)
   , coefficients(&p)
-  , exportButton("Export...")
+  , buttonPanel(p)
 {
-  juce::ignoreUnused (processorRef);
-
-  exportPopupMenu.addItem("Filter coefficients", [this]
-    {
-      chooseFileAndSave(StateSerializer::exportCoefficients(this->processorRef.filterState.get()));
-    });
-  exportPopupMenu.addItem("Processor chain parameters", [this]
-    {
-      chooseFileAndSave(StateSerializer::exportProcessorChainParameters(this->processorRef.activeState.load()));
-    });
-  exportButton.onClick = [this] { exportPopupMenu.showMenuAsync({}); };
-
   addAndMakeVisible(complexPlaneEditor);
   addAndMakeVisible(coefficients);
   addAndMakeVisible(phaseFrequencyResponseViewer);
-  addAndMakeVisible(exportButton);
+  addAndMakeVisible(buttonPanel);
 
-  setSize(640, 480);
+  setSize(960, 520);
   setResizable(true, true);
 }
 
@@ -53,36 +39,13 @@ void AudioPluginAudioProcessorEditor::paint (juce::Graphics& g)
 
 void AudioPluginAudioProcessorEditor::resized()
 {
-  exportButton.setBounds(0, 0, 100, 30);
-  coefficients.setBounds(0, 0, getWidth() / 2, getHeight() / 2);
-  phaseFrequencyResponseViewer.setBounds(0, getHeight() / 2, getWidth() / 2, getHeight() / 2);
-  complexPlaneEditor.setBounds(getWidth() / 2, 0, getWidth() / 2, getHeight());
-}
-
-void AudioPluginAudioProcessorEditor::chooseFileAndSave(std::shared_ptr<juce::XmlElement> xml)
-{
-    chooser = std::make_unique<juce::FileChooser>(
-        "Save to file...", juce::File{}, "*.xml");
-    const auto chooserFlags =
-        juce::FileBrowserComponent::FileChooserFlags::saveMode |
-        juce::FileBrowserComponent::FileChooserFlags::warnAboutOverwriting;
-    std::function<void(const juce::FileChooser& fc)> function =
-        [this, xml](const juce::FileChooser& fc)
-        {
-            try
-            {
-                juce::File file = fc.getResult();
-                if (file != juce::File{})
-                {
-                    auto str = xml.get()->toString().toStdString();
-                    xml->writeTo(file, {});
-                }
-            }
-            catch (const std::exception& e)
-            {
-                juce::NativeMessageBox::showMessageBoxAsync(
-                    juce::MessageBoxIconType::WarningIcon, "Error", e.what());
-            }
-        };
-    chooser->launchAsync(chooserFlags, function);
+    constexpr int padding = 5;
+    auto bounds = getBounds();
+    auto buttonPanelBounds = bounds.removeFromTop(40);
+    auto phaseFrequencyResponseViewerBounds = bounds.removeFromRight(bounds.getWidth() / 3);
+    auto complexPlaneEditorBounds = bounds.removeFromRight(bounds.getWidth() / 2);
+    buttonPanel.setBounds(buttonPanelBounds.reduced(padding));
+    phaseFrequencyResponseViewer.setBounds(phaseFrequencyResponseViewerBounds.reduced(padding));
+    complexPlaneEditor.setBounds(complexPlaneEditorBounds.reduced(padding));
+    coefficients.setBounds(bounds.reduced(padding));
 }

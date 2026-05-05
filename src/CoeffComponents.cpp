@@ -46,11 +46,11 @@ void CoefficientsComponent::resized()
     // TODO adjust dims and position based on area or neighbor components --> should call something like getChildren() + getName() but seems fragile quering approach
     auto area = getLocalBounds();
     constexpr int button_height {30};
-    constexpr int button_width {150};
-    constexpr int width_besideExportButton {102};
-    titleButton.setBounds(width_besideExportButton, 0, button_width, button_height);
+    //constexpr int button_width {150};
+    //constexpr int width_besideExportButton {102};
+    titleButton.setBounds(0, 0, getWidth(), button_height);
     constexpr int offsetFromBottom {35};
-    coeffTable.setBounds(width_besideExportButton, button_height, button_width, area.getHeight()-offsetFromBottom);
+    coeffTable.setBounds(0, button_height, getWidth(), area.getHeight()-offsetFromBottom);
 }
 
 

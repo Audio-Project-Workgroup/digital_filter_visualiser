@@ -34,6 +34,7 @@ target_sources(
   RootsToCoefficients.cpp
   ProcessorChainModifier.cpp
   PhaseFrequencyResponseViewer.cpp
+  ButtonPanel.cpp
 )
 
 target_compile_definitions(
