@@ -1,5 +1,6 @@
 #pragma once
 
+class AudioPluginAudioProcessor;
 
 class ComplexPlaneEditor final
   :public juce::Component
@@ -17,6 +18,8 @@ class ComplexPlaneEditor final
 public:
   ComplexPlaneEditor(AudioPluginAudioProcessor *p);
   ~ComplexPlaneEditor();
+
+  FilterState *filterState(void) { return filterStateFromProcessor(processor); }
 
   class RootPoint final
     : public juce::Component,
@@ -43,7 +46,7 @@ public:
      */
     void moveToWorldSpace(c128 newRootValue);
 
-    c128 moveRoot(c128 newRootValue) { return(editor->processor->filterState->moveRoot(root, newRootValue)); }
+    c128 moveRoot(c128 newRootValue) { return(editor->filterState()->moveRoot(root, newRootValue)); }
     c128 moveRoot(r64 newRootValueRe, r64 newRootValueIm) { return(moveRoot(c128(newRootValueRe, newRootValueIm))); }
 
     void mouseEnter(const juce::MouseEvent &e) override;

@@ -12,6 +12,8 @@ public:
     void resized() override;
     void paint(juce::Graphics& g) override;
 
+	FilterState *filterState(void) { return filterStateFromProcessor(processor); }
+
 private:
     void changePlotsSet();
     void paintPlot(

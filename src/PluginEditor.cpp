@@ -4,14 +4,27 @@
 #include "PhaseFrequencyResponseCalculator.cpp"
 #include "PhaseFrequencyResponseViewer.cpp"
 #include "CoeffComponents.cpp"
-#include "StateSerializer.cpp"
 #include "PlayerComponent.cpp"
 #include "ButtonPanel.cpp"
 #include "EquationViewer.cpp"
 
+// NOTE(ry): shared implementations
+AudioPluginAudioProcessorEditor*
+makeEditor(AudioPluginAudioProcessor *p)
+{
+  return new AudioPluginAudioProcessorEditor(*p);
+}
+
+juce::AudioProcessorEditor*
+downcastEditor(AudioPluginAudioProcessorEditor *e)
+{
+  return e;
+}
+
 //==============================================================================
-AudioPluginAudioProcessorEditor::AudioPluginAudioProcessorEditor (AudioPluginAudioProcessor& p)
-  :AudioProcessorEditor (&p)
+AudioPluginAudioProcessorEditor::
+AudioPluginAudioProcessorEditor(AudioPluginAudioProcessor& p)
+  :AudioProcessorEditor (downcastProcessor(&p))
   ,complexPlaneEditor(&p)
   ,phaseFrequencyResponseViewer(&p)
   ,coefficients(&p)

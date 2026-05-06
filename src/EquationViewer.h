@@ -9,6 +9,8 @@ public:
   void resized(void) override;
   void paint(juce::Graphics &g) override;
 
+  FilterState* filterState(void) { return(filterStateFromProcessor(processor)); }
+
 private:
   void valueTreeChildAdded(juce::ValueTree &parent, juce::ValueTree &child) override;
   void valueTreeChildRemoved(juce::ValueTree &parent, juce::ValueTree &child, int index) override;

@@ -13,5 +13,6 @@ using b32 = s32;
 using r32 = float;
 using r64 = double;
 
-using c64  = juce::dsp::Complex<float>;
-using c128 = juce::dsp::Complex<double>;
+#include <complex>
+using c64  = std::complex<float>;
+using c128 = std::complex<double>;

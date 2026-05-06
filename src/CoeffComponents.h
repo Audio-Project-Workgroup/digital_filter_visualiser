@@ -18,6 +18,8 @@ class CoefficientsComponent final
 
         void resized() override;
 
+    FilterState *filterState(void) { return filterStateFromProcessor(processor); }
+
     private:
         std::vector<double> ffcoeffs;
         std::vector<double> fbcoeffs;

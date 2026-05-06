@@ -34,5 +34,5 @@ struct ProcessorChain
     }
 };
 
-template<typename SampleType>
-using FullState = juce::OwnedArray<ProcessorChain<SampleType>>;
+// template<typename SampleType>
+// using FullState = juce::OwnedArray<ProcessorChain<SampleType>>;

@@ -15,15 +15,15 @@ RootTooltip(ComplexPlaneEditor *e)
   addMouseListener(editor, true);
 
   destroy.onClick = [this](){
-    editor->processor->filterState->um->beginNewTransaction();
-    editor->processor->filterState->remove(root);
+    editor->filterState()->um->beginNewTransaction();
+    editor->filterState()->remove(root);
   };
   orderInc.onClick = [this](){
-    editor->processor->filterState->um->beginNewTransaction();
+    editor->filterState()->um->beginNewTransaction();
     if(auto *r = root.get()) r->order += r->isPole() ? -1 : 1;
   };
   orderDec.onClick = [this](){
-    editor->processor->filterState->um->beginNewTransaction();
+    editor->filterState()->um->beginNewTransaction();
     if(auto *r = root.get()) r->order += r->isPole() ? 1 : -1;
   };
 
@@ -113,7 +113,7 @@ mouseEnter(const juce::MouseEvent &e)
 
   DBG("enter root point");
   editor->tooltip.setPointAndShow(this);
-  editor->processor->filterState->beginWeakInteraction(root);
+  editor->filterState()->beginWeakInteraction(root);
 }
 
 void ComplexPlaneEditor::RootPoint::
@@ -123,7 +123,7 @@ mouseExit(const juce::MouseEvent &e)
 
   DBG("exit root point");
   editor->tooltip.hide() ;
-  editor->processor->filterState->endWeakInteraction();
+  editor->filterState()->endWeakInteraction();
 }
 
 void ComplexPlaneEditor::RootPoint::
@@ -131,7 +131,7 @@ mouseDown(const juce::MouseEvent &e)
 {
   if(e.mods.isLeftButtonDown())
   {
-    editor->processor->filterState->beginStrongInteraction(root);
+    editor->filterState()->beginStrongInteraction(root);
 
     isDragging(true);
     startTimerHz(timerFreq);
@@ -141,7 +141,7 @@ mouseDown(const juce::MouseEvent &e)
     setInterceptsMouseClicks(false, false);
     conjugate->setInterceptsMouseClicks(false, false);
 
-    editor->processor->filterState->um->beginNewTransaction();
+    editor->filterState()->um->beginNewTransaction();
     if(auto *rootPtr = root.get())
     {
       valueAtDragStart = rootPtr->value;
@@ -169,7 +169,7 @@ mouseUp(const juce::MouseEvent &e)
     }
 
     // NOTE(ry): merge roots
-    auto mergedRoot = editor->processor->filterState->mergeRoots();
+    auto mergedRoot = editor->filterState()->mergeRoots();
     // NOTE(ry): the merging operation may potentially destroy the object the
     // implicit `this` pointer points to, so we have to be careful to check that
     // the object was not destroyed before we access any of its member
@@ -192,9 +192,9 @@ mouseUp(const juce::MouseEvent &e)
     else
     {
       // NOTE(ry): both roots we destroyed
-      editor->processor->filterState->endWeakInteraction();
+      editor->filterState()->endWeakInteraction();
     }
-    editor->processor->filterState->endStrongInteraction();
+    editor->filterState()->endStrongInteraction();
   }
 }
 
@@ -290,7 +290,7 @@ moveToEditorSpace(juce::Point<double> editorPositionScreen)
 void ComplexPlaneEditor::RootPoint::
 moveToWorldSpace(c128 newRootValue)
 {
-  newRootValue = editor->processor->filterState->moveRoot(root, newRootValue);
+  newRootValue = editor->filterState()->moveRoot(root, newRootValue);
 
   // NOTE(ry): set hovering over axis
   auto const snapThresholdWorld = editor->unitsPerPixel * ComplexPlaneEditor::snapThresholdPixels;
@@ -331,7 +331,7 @@ timerCallback(void)
     if(isRightButtonDown && !wasRightButtonDown())
     {
       DBG("right click while dragging");
-      editor->processor->filterState->splitRoot(root, 1, valueAtDragStart);
+      editor->filterState()->splitRoot(root, 1, valueAtDragStart);
     }
 
     wasRightButtonDown(isRightButtonDown);
@@ -400,7 +400,7 @@ ComplexPlaneEditor(AudioPluginAudioProcessor *p)
   ,constantMagnitudeInteractionButton("mag")
   ,constantAngleInteractionButton("arg")
 {
-  processor->filterState->addListener(this);
+  filterState()->addListener(this);
 
   RootPoint::editor = this;
 
@@ -448,13 +448,13 @@ ComplexPlaneEditor(AudioPluginAudioProcessor *p)
 
   defaultInteractionButton.setToggleState(true, juce::sendNotification);
 
-  processor->filterState->syncListener(this);
+  filterState()->syncListener(this);
 }
 
 ComplexPlaneEditor::
 ~ComplexPlaneEditor()
 {
-  processor->filterState->removeListener(this);
+  filterState()->removeListener(this);
 }
 
 void ComplexPlaneEditor::
@@ -548,8 +548,8 @@ mouseDown(const juce::MouseEvent &e)
       }
 
       auto const newVal = c128(mouseWorldX, mouseWorldY);
-      processor->filterState->um->beginNewTransaction();
-      processor->filterState->add(newOrder, newVal);
+      filterState()->um->beginNewTransaction();
+      filterState()->add(newOrder, newVal);
     }
   }
 }
@@ -820,7 +820,7 @@ valueTreeChildAdded(juce::ValueTree &parent, juce::ValueTree &child)
 {
   juce::ignoreUnused(parent);
 
-  auto root = processor->filterState->getRootFromTreeNode(child);
+  auto root = filterState()->getRootFromTreeNode(child);
   auto *point = points.add(new RootPoint(false, root));
   auto *conjugate = points.add(new RootPoint(true, root));
   point->conjugate = conjugate;

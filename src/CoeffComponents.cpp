@@ -22,8 +22,8 @@ CoefficientsComponent::CoefficientsComponent(AudioPluginAudioProcessor* p)
     tbComp.setStretchToFitActive(true); // expand columns to fill the entire width of the component
     coeffTable.setVisible(isExpanded);
 
-    processor->filterState->addListener(this);
-    processor->filterState->syncListener(this);
+    filterState()->addListener(this);
+    filterState()->syncListener(this);
 }
 
 // Note:    Apart from any other reasons that may occur throughout future dev updates,..
@@ -168,7 +168,7 @@ void CoefficientsComponent::valueTreeChildRemoved (juce::ValueTree& node, juce::
 	juce::ignoreUnused(child);
 	juce::ignoreUnused(idx);
 
-    if (processor->filterState->totalOrder==0) // if filter is cleaned out by erasing the last root
+    if (filterState()->totalOrder==0) // if filter is cleaned out by erasing the last root
     {
         ffcoeffs.clear();
         fbcoeffs.clear();
@@ -181,9 +181,9 @@ void CoefficientsComponent::valueTreeChildRemoved (juce::ValueTree& node, juce::
 void CoefficientsComponent::updateCoeffTable()
 {
     fbcoeffs = RootsToCoefficients::CalculatePolynomialCoefficientsFrom(
-        processor->filterState->poles);
+        filterState()->poles);
     ffcoeffs = RootsToCoefficients::CalculatePolynomialCoefficientsFrom(
-		processor->filterState->zeros, fbcoeffs.size());
+		filterState()->zeros, fbcoeffs.size());
     coeffTable.updateContent();
 }
 

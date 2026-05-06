@@ -26,25 +26,25 @@ ButtonPanel::ButtonPanel(AudioPluginAudioProcessor& p)
 
     exportPopupMenu.addItem("Filter coefficients", [this]
         {
-            chooseFileAndSave(StateSerializer::exportCoefficients(this->processorRef.filterState.get()));
+	    chooseFileAndSave(StateSerializer::exportCoefficients(filterState()));
         });
     exportPopupMenu.addItem("Processor chain parameters", [this]
         {
-            chooseFileAndSave(StateSerializer::exportProcessorChainParameters(this->processorRef.activeState.load()));
+	    chooseFileAndSave(StateSerializer::exportProcessorChainParameters(activeStateFromProcessor(&processorRef).load()));
         });
     exportButton.onClick = [this] { exportPopupMenu.showMenuAsync({}); };
 
     undoButton.onClick = [this]{
-      processorRef.filterState->um->undo();
-      jassert(processorRef.filterState->totalOrder >= processorRef.filterState->finiteZerosOrder);
+      filterState()->um->undo();
+      jassert(filterState()->totalOrder >= filterState()->finiteZerosOrder);
     };
     redoButton.onClick = [this]{
-      processorRef.filterState->um->redo();
-      jassert(processorRef.filterState->totalOrder >= processorRef.filterState->finiteZerosOrder);
+      filterState()->um->redo();
+      jassert(filterState()->totalOrder >= filterState()->finiteZerosOrder);
     };
     addRootButton.onClick = [this]{
-      processorRef.filterState->um->beginNewTransaction();
-      processorRef.filterState->add(1);
+      filterState()->um->beginNewTransaction();
+      filterState()->add(1);
     };
 
     // NOTE(ry): gain slider setup
@@ -56,7 +56,7 @@ ButtonPanel::ButtonPanel(AudioPluginAudioProcessor& p)
     gainSlider.onValueChange = [this]{
       auto const dB = gainSlider.getValue();
       auto const amp = juce::Decibels::decibelsToGain(dB);
-      processorRef.filterState->gain = amp;
+      filterState()->gain = amp;
     };
 
     addAndMakeVisible(exportButton);
@@ -66,16 +66,16 @@ ButtonPanel::ButtonPanel(AudioPluginAudioProcessor& p)
     addAndMakeVisible(delRootButton);
     addAndMakeVisible(gainSlider);
 
-    if (processorRef.wrapperType == juce::AudioProcessor::WrapperType::wrapperType_Standalone)
-        addAndMakeVisible(player);
+    if(isProcessorStandalone(&processorRef))
+      addAndMakeVisible(player);
 
-    processorRef.filterState->addListener(this);
-    processorRef.filterState->syncListener(this);
+    filterState()->addListener(this);
+    filterState()->syncListener(this);
 }
 
 ButtonPanel::~ButtonPanel()
 {
-    processorRef.filterState->removeListener(this);
+    filterState()->removeListener(this);
 }
 
 void ButtonPanel::resized()
@@ -90,7 +90,7 @@ void ButtonPanel::resized()
   exportButton.setBounds(area.removeFromLeft(height).reduced(padding));
   addRootButton.setBounds(area.removeFromLeft(height).reduced(padding));
   delRootButton.setBounds(area.removeFromLeft(height).reduced(padding));
-  if (processorRef.wrapperType == juce::AudioProcessor::WrapperType::wrapperType_Standalone)
+  if(isProcessorStandalone(&processorRef))
   {
     area.removeFromLeft(height);
     player.setBounds(area.removeFromLeft(player.buttonsCount * (height - padding) + padding).reduced(padding));

@@ -28,13 +28,13 @@ PlayerComponent::PlayerComponent(AudioPluginAudioProcessor& p)
     loopButton.setClickingTogglesState(true);
     loopButton.onClick = [this] { updateLoopStatus(); };
 
-    this->processor.playerState.addChangeListener(this);
-    changeListenerCallback(&this->processor.playerState);
+    playerState().addChangeListener(this);
+    changeListenerCallback(&playerState());
 }
 
 PlayerComponent::~PlayerComponent()
 {
-    this->processor.playerState.removeChangeListener(this);
+    playerState().removeChangeListener(this);
 }
 
 void PlayerComponent::resized()
@@ -59,14 +59,14 @@ void PlayerComponent::updateButtons(PlayerState playerState)
 
 void PlayerComponent::changeListenerCallback(juce::ChangeBroadcaster* source)
 {
-    if (source == &processor.playerState)
-        updateButtons(processor.playerState.get());
+    if (source == &playerState())
+        updateButtons(playerState().get());
 }
 
 void PlayerComponent::openFile()
 {
     chooser = std::make_unique<juce::FileChooser>("Open", juce::File{}, filePatterns);
-    auto chooserFlags = 
+    auto chooserFlags =
         juce::FileBrowserComponent::FileChooserFlags::openMode |
         juce::FileBrowserComponent::FileChooserFlags::canSelectFiles;
     chooser->launchAsync(
@@ -75,7 +75,7 @@ void PlayerComponent::openFile()
             auto file = fc.getResult();
             if (file.exists())
             {
-                processor.setTransportSourceFromFile(file);
+	        setProcessorTransportSourceFromFile(&processor, file);
                 updateLoopStatus();
             }
         });
@@ -83,28 +83,32 @@ void PlayerComponent::openFile()
 
 void PlayerComponent::playPause()
 {
-    if (processor.playerState.get() == PlayerState::Playing)
+    if (playerState().get() == PlayerState::Playing)
     {
-        processor.transportSource.stop();
-        processor.playerState.set(PlayerState::Paused);
+        // processor.transportSource.stop();
+        // processor.playerState.set(PlayerState::Paused);
+        stopProcessorTransportSource(&processor, false);
     }
     else
     {
-        processor.transportSource.start();
-        processor.playerState.set(PlayerState::Playing);
+        // processor.transportSource.start();
+        // processor.playerState.set(PlayerState::Playing);
+        startProcessorTransportSource(&processor);
     }
 }
 
 void PlayerComponent::stop()
 {
-    processor.transportSource.stop();
-    processor.transportSource.setPosition(0);
-    processor.playerState.set(PlayerState::Stopped);
+    // processor.transportSource.stop();
+    // processor.transportSource.setPosition(0);
+    // processor.playerState.set(PlayerState::Stopped);
+    stopProcessorTransportSource(&processor, true);
 }
 
 void PlayerComponent::updateLoopStatus()
 {
-    auto* src = processor.readerSource.get();
-    if (src != nullptr)
-        src->setLooping(loopButton.getToggleState());
+  //auto* src = processor.readerSource.get();
+    // if (src != nullptr)
+    //     src->setLooping(loopButton.getToggleState());
+  setProcessorReaderSourceLooping(&processor, loopButton.getToggleState());
 }

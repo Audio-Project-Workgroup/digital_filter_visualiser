@@ -1,9 +1,8 @@
 #pragma once
 #include <juce_core/system/juce_PlatformDefs.h>
 #include <juce_events/juce_events.h>
-#include "PluginProcessor.h"
 
-class PlayerComponent 
+class PlayerComponent
 	: public juce::Component
 	, public juce::ChangeListener
 {
@@ -13,9 +12,11 @@ public:
 	void resized() override;
 	void updateButtons(PlayerState playerState);
 	void changeListenerCallback(juce::ChangeBroadcaster* source) override;
-	
+
+        ValueChangeBroadcaster<PlayerState>& playerState() { return(playerStateFromProcessor(&processor)); }
+
 	const int buttonsCount = 4;
-	
+
 private:
 
 #if JUCE_WINDOWS

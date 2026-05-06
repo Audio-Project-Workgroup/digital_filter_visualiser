@@ -4,7 +4,7 @@
 PhaseFrequencyResponseViewer::PhaseFrequencyResponseViewer(AudioPluginAudioProcessor* p) :
 	processor(p),
     ampDb(minAmpDb * 4),
-    sampleRate(processor->getSampleRate()),
+    sampleRate(sampleRateFromProcessor(p)),
     zoomInButton("+"),
     zoomOutButton("-"),
     linearScaleButton("Linear"),
@@ -13,8 +13,8 @@ PhaseFrequencyResponseViewer::PhaseFrequencyResponseViewer(AudioPluginAudioProce
     phaseButton("Phase"),
     bothButton("Both")
 {
-    this->processor->addChangeListener(this);
-    this->processor->filterState->um->addChangeListener(this);
+	downcastProcessorBroadcaster(processor)->addChangeListener(this);
+    filterState()->um->addChangeListener(this);
 
     freqButton.onClick = [this] { changePlotsSet(); };
     freqButton.setClickingTogglesState(true);
@@ -76,17 +76,17 @@ PhaseFrequencyResponseViewer::PhaseFrequencyResponseViewer(AudioPluginAudioProce
 
 PhaseFrequencyResponseViewer::~PhaseFrequencyResponseViewer()
 {
-    processor->filterState->um->removeChangeListener(this);
-    processor->removeChangeListener(this);
+    filterState()->um->removeChangeListener(this);
+    downcastProcessorBroadcaster(processor)->removeChangeListener(this);
 }
 
 void PhaseFrequencyResponseViewer::changeListenerCallback(juce::ChangeBroadcaster* source)
 {
-    if (source == processor->filterState->um)
+    if (source == filterState()->um)
         repaint();
-    else if (source == processor)
+    else if (source == downcastProcessorBroadcaster(processor))
     {
-        sampleRate = processor->getSampleRate();
+        sampleRate = sampleRateFromProcessor(processor);
         logScaleButton.setEnabled(sampleRate > 0);
         repaint();
     }
@@ -135,7 +135,7 @@ void PhaseFrequencyResponseViewer::paint(juce::Graphics& g)
     const bool isLogScale = logScaleButton.getToggleState();
     std::vector<double> angles, amplitudes, phases;
     PhaseFrequencyResponseCalculator::calculate(
-        processor->filterState.get(), 
+        filterState(),
         minFreq,
         sampleRate,
         isLogScale, true, width, angles, amplitudes, phases);

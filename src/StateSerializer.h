@@ -1,6 +1,4 @@
 #pragma once
-#include "FilterState.h"
-#include "ProcessorChain.h"
 
 class StateSerializer
 {

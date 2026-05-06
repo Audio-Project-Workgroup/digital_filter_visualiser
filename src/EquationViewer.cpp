@@ -17,14 +17,14 @@ EquationViewer(AudioPluginAudioProcessor *p)
   addAndMakeVisible(numeratorView);
   addAndMakeVisible(denominatorView);
 
-  processor->filterState->addListener(this);
-  processor->filterState->syncListener(this);
+  filterState()->addListener(this);
+  filterState()->syncListener(this);
 }
 
 EquationViewer::
 ~EquationViewer()
 {
-  processor->filterState->removeListener(this);
+  filterState()->removeListener(this);
 }
 
 void EquationViewer::
@@ -95,14 +95,14 @@ void EquationViewer::
 updateCoeffs(void)
 {
   auto fbCoeffs =
-    RootsToCoefficients::CalculatePolynomialCoefficientsFrom(processor->filterState->poles);
+    RootsToCoefficients::CalculatePolynomialCoefficientsFrom(filterState()->poles);
   auto ffCoeffs =
-    RootsToCoefficients::CalculatePolynomialCoefficientsFrom(processor->filterState->zeros,
+    RootsToCoefficients::CalculatePolynomialCoefficientsFrom(filterState()->zeros,
 							     fbCoeffs.size());
 
   denominatorText.setTextFromCoeffs(fbCoeffs);
   numeratorText.setTextFromCoeffs(ffCoeffs,
-				  processor->filterState->totalOrder - processor->filterState->finiteZerosOrder);
+				  filterState()->totalOrder - filterState()->finiteZerosOrder);
 
   repaint();
 }

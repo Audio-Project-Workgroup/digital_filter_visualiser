@@ -1,5 +1,4 @@
 #pragma once
-#include "PluginProcessor.h"
 #include "PlayerComponent.h"
 
 class ButtonPanel final
@@ -10,6 +9,8 @@ public:
     ButtonPanel(AudioPluginAudioProcessor& p);
     ~ButtonPanel();
     void resized() override;
+
+    FilterState *filterState(void) { return filterStateFromProcessor(&processorRef); }
 
 private:
     void valueTreePropertyChanged(juce::ValueTree &node, juce::Identifier const &property) override;

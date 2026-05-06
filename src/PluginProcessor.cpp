@@ -1,10 +1,83 @@
 #define IMPLEMENTOR_UNIT
 #include "PluginProcessor.h"
-#include "PluginEditor.h"
 
 #include "FilterState.cpp"
 #include "RootsToCoefficients.cpp"
 #include "ProcessorChainModifier.cpp"
+#include "StateSerializer.cpp"
+
+// NOTE(ry): shared implemenations
+FilterState*
+filterStateFromProcessor(AudioPluginAudioProcessor *p)
+{
+	return p->filterState.get();
+}
+
+double
+sampleRateFromProcessor(AudioPluginAudioProcessor *p)
+{
+	return p->getSampleRate();
+}
+
+std::atomic<juce::OwnedArray<ProcessorChain<float>>*>&
+activeStateFromProcessor(AudioPluginAudioProcessor *p)
+{
+	return p->activeState;
+}
+
+ValueChangeBroadcaster<PlayerState>&
+playerStateFromProcessor(AudioPluginAudioProcessor *p)
+{
+	return p->playerState;
+}
+
+void
+setProcessorTransportSourceFromFile(AudioPluginAudioProcessor *p, juce::File const &file)
+{
+	p->setTransportSourceFromFile(file);
+}
+
+void
+startProcessorTransportSource(AudioPluginAudioProcessor *p)
+{
+	p->transportSource.start();
+	p->playerState.set(PlayerState::Playing);
+}
+
+void
+stopProcessorTransportSource(AudioPluginAudioProcessor *p, bool resetPosition)
+{
+	p->transportSource.stop();
+	if(resetPosition) p->transportSource.setPosition(0);
+	p->playerState.set(PlayerState::Stopped);
+}
+
+void
+setProcessorReaderSourceLooping(AudioPluginAudioProcessor *p, bool loop)
+{
+	if(auto *src = p->readerSource.get())
+	{
+		src->setLooping(loop);
+	}
+}
+
+bool
+isProcessorStandalone(AudioPluginAudioProcessor *p)
+{
+	return p->wrapperType == juce::AudioProcessor::WrapperType::wrapperType_Standalone;
+}
+
+juce::AudioProcessor*
+downcastProcessor(AudioPluginAudioProcessor *p)
+{
+	return p;
+}
+
+juce::ChangeBroadcaster*
+downcastProcessorBroadcaster(AudioPluginAudioProcessor *p)
+{
+	return p;
+}
 
 //==============================================================================
 AudioPluginAudioProcessor::AudioPluginAudioProcessor()
@@ -19,8 +92,8 @@ AudioPluginAudioProcessor::AudioPluginAudioProcessor()
     apvts(*this, &um),
     activeState(new FullState<SampleType>),
     pendingState(new FullState<SampleType>),
-    lastProcessTime(0),
-	playerState(PlayerState::Empty)
+	lastProcessTime(0),
+    playerState(PlayerState::Empty)
 {
     if (!apvts.state.isValid())
     {
@@ -290,7 +363,7 @@ bool AudioPluginAudioProcessor::hasEditor() const
 
 juce::AudioProcessorEditor* AudioPluginAudioProcessor::createEditor()
 {
-  return new AudioPluginAudioProcessorEditor (*this);
+	return downcastEditor(makeEditor(this));
 }
 
 //==============================================================================
@@ -338,7 +411,7 @@ void AudioPluginAudioProcessor::changeListenerCallback(juce::ChangeBroadcaster* 
     }
 }
 
-void AudioPluginAudioProcessor::setTransportSourceFromFile(juce::File file)
+void AudioPluginAudioProcessor::setTransportSourceFromFile(const juce::File& file)
 {
     auto* reader = formatManager.createReaderFor(file);
     if (reader != nullptr)

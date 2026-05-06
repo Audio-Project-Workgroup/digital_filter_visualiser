@@ -5,21 +5,15 @@
 #include <juce_audio_processors/juce_audio_processors.h>
 #include <juce_dsp/juce_dsp.h>
 
-#include "FilterState.h"
-#include "ValueChangeBroadcaster.h"
+#include "shared.h"
 
+#include "ValueChangeBroadcaster.h"
 #include "RootsToCoefficients.h"
 #include "ProcessorChain.h"
 #include "ProcessorChainModifier.h"
+#include "StateSerializer.h"
 
 //==============================================================================
-enum class PlayerState
-{
-	Empty,
-	Stopped,
-	Playing,
-	Paused
-};
 
 class AudioPluginAudioProcessor final :
 	public juce::AudioProcessor,
@@ -68,7 +62,7 @@ public:
 
   //==============================================================================
   void changeListenerCallback(juce::ChangeBroadcaster* source) override;
-  void setTransportSourceFromFile(juce::File file);
+  void setTransportSourceFromFile(const juce::File& file);
 
   juce::UndoManager um;
   juce::AudioProcessorValueTreeState apvts;
