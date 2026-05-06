@@ -1,7 +1,5 @@
 #pragma once
 
-#include "PluginProcessor.h"
-
 class PhaseFrequencyResponseViewer final :
     public juce::Component,
     juce::ChangeListener
@@ -11,10 +9,6 @@ public:
     ~PhaseFrequencyResponseViewer();
     void changeListenerCallback(juce::ChangeBroadcaster* source) override;
 
-	// NOTE(ry): I'd like to profile these functions, but adding the hooks here
-	// causes an error, probably due to the functions being defined inside a
-	// class definition. maybe moving them to their own cpp file (included in
-	// PluginEditor.cpp of course :P) will make the problem magically go away
     void resized() override;
     void paint(juce::Graphics& g) override;
 

@@ -1,8 +1,10 @@
 #include "PluginEditor.h"
 
-// NOTE(ry): Don't delete this. I know what I'm doing
 #include "ComplexPlaneEditor.cpp"
+#include "PhaseFrequencyResponseViewer.cpp"
 #include "CoeffComponents.cpp"
+#include "StateSerializer.cpp"
+#include "ButtonPanel.cpp"
 
 //==============================================================================
 AudioPluginAudioProcessorEditor::AudioPluginAudioProcessorEditor (AudioPluginAudioProcessor& p)

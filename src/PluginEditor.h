@@ -1,11 +1,15 @@
 #pragma once
 
+#include <juce_gui_basics/juce_gui_basics.h>
+
 #include "PluginProcessor.h"
+#include "FilterState.h"
 
 #include "ComplexPlaneEditor.h"
 #include "PhaseFrequencyResponseViewer.h"
 #include "CoeffComponents.h"
 #include "ButtonPanel.h"
+#include "StateSerializer.h"
 
 //==============================================================================
 class AudioPluginAudioProcessorEditor final : public juce::AudioProcessorEditor

@@ -1,10 +1,10 @@
 #define IMPLEMENTOR_UNIT
 #include "PluginProcessor.h"
 #include "PluginEditor.h"
-#include "ProcessorChainModifier.h"
 
-// NOTE(ry): don't delete this. I know what I'm doing
 #include "FilterState.cpp"
+#include "RootsToCoefficients.cpp"
+#include "ProcessorChainModifier.cpp"
 
 //==============================================================================
 AudioPluginAudioProcessor::AudioPluginAudioProcessor()

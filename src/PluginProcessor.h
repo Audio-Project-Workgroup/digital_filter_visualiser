@@ -4,11 +4,14 @@
 #include <juce_dsp/juce_dsp.h>
 
 #include "FilterState.h"
+
+#include "RootsToCoefficients.h"
 #include "ProcessorChain.h"
+#include "ProcessorChainModifier.h"
 
 //==============================================================================
-class AudioPluginAudioProcessor final : 
-	public juce::AudioProcessor, 
+class AudioPluginAudioProcessor final :
+	public juce::AudioProcessor,
 	public juce::ChangeBroadcaster,
 	juce::ChangeListener
 {
