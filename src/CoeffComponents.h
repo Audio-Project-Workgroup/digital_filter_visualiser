@@ -2,12 +2,11 @@
 
 #include "FilterState.h"
 #include "RootsToCoefficients.h"
-#include <juce_gui_basics/juce_gui_basics.h>
 #include <vector>
 #include <string>
 
 #define TABLE_TITLE "Coefficients"
-#define DEFAULT_IS_EXPANDED 0
+#define DEFAULT_IS_EXPANDED 1
 
 class CoefficientsComponent final
     : public juce::Component

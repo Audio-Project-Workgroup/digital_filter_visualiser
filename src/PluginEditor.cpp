@@ -8,11 +8,11 @@
 
 //==============================================================================
 AudioPluginAudioProcessorEditor::AudioPluginAudioProcessorEditor (AudioPluginAudioProcessor& p)
-  : AudioProcessorEditor (&p)
-  , complexPlaneEditor(&p)
-  , phaseFrequencyResponseViewer(&p)
-  , coefficients(&p)
-  , buttonPanel(p)
+  :AudioProcessorEditor (&p)
+  ,complexPlaneEditor(&p)
+  ,phaseFrequencyResponseViewer(&p)
+  ,coefficients(&p)
+  ,buttonPanel(p)
 {
   addAndMakeVisible(complexPlaneEditor);
   addAndMakeVisible(coefficients);
@@ -23,12 +23,14 @@ AudioPluginAudioProcessorEditor::AudioPluginAudioProcessorEditor (AudioPluginAud
   setResizable(true, true);
 }
 
-AudioPluginAudioProcessorEditor::~AudioPluginAudioProcessorEditor()
+AudioPluginAudioProcessorEditor::
+~AudioPluginAudioProcessorEditor()
 {
 }
 
 //==============================================================================
-void AudioPluginAudioProcessorEditor::paint (juce::Graphics& g)
+void AudioPluginAudioProcessorEditor::
+paint(juce::Graphics& g)
 {
   juce::ignoreUnused(g);
   // (Our component is opaque, so we must completely fill the background with a solid colour)
@@ -39,14 +41,15 @@ void AudioPluginAudioProcessorEditor::paint (juce::Graphics& g)
   // g.drawFittedText ("Hello World!", getLocalBounds(), juce::Justification::centred, 1);
 }
 
-void AudioPluginAudioProcessorEditor::resized()
+void AudioPluginAudioProcessorEditor::
+resized()
 {
     constexpr int padding = 5;
-    auto bounds = getBounds();
+    auto bounds = getLocalBounds();
     auto buttonPanelBounds = bounds.removeFromTop(40);
     auto phaseFrequencyResponseViewerBounds = bounds.removeFromRight(bounds.getWidth() / 3);
     auto complexPlaneEditorBounds = bounds.removeFromRight(bounds.getWidth() / 2);
-    buttonPanel.setBounds(buttonPanelBounds.reduced(padding));
+    buttonPanel.setBounds(buttonPanelBounds);
     phaseFrequencyResponseViewer.setBounds(phaseFrequencyResponseViewerBounds.reduced(padding));
     complexPlaneEditor.setBounds(complexPlaneEditorBounds.reduced(padding));
     coefficients.setBounds(bounds.reduced(padding));

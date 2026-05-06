@@ -412,44 +412,44 @@ ComplexPlaneEditor(AudioPluginAudioProcessor *p)
   unitsPerLine = 1;
 
   // NOTE(ry): gain slider setup
-  gainSlider.setSliderStyle(juce::Slider::LinearHorizontal);
-  gainSlider.setColour(juce::Slider::thumbColourId, juce::Colours::orange);
-  gainSlider.setColour(juce::Slider::trackColourId, juce::Colours::white);
-  gainSlider.setRange(-90.f, 6.f);
-  gainSlider.setTextValueSuffix(" dB");
-  gainSlider.setValue(juce::Decibels::gainToDecibels(r64(processor->filterState->gain)), juce::dontSendNotification);
-  gainSlider.addListener(this);
-  addAndMakeVisible(gainSlider);
+  // gainSlider.setSliderStyle(juce::Slider::LinearHorizontal);
+  // gainSlider.setColour(juce::Slider::thumbColourId, juce::Colours::orange);
+  // gainSlider.setColour(juce::Slider::trackColourId, juce::Colours::white);
+  // gainSlider.setRange(-90.f, 6.f);
+  // gainSlider.setTextValueSuffix(" dB");
+  // gainSlider.setValue(juce::Decibels::gainToDecibels(r64(processor->filterState->gain)), juce::dontSendNotification);
+  // gainSlider.addListener(this);
+  // addAndMakeVisible(gainSlider);
 
   // NOTE(ry): debug ui setup
   // TODO(ry): better add/remove interface & logic (add poles, remove particular roots)
-  addRoot.onClick = [this]{
-    processor->filterState->um->beginNewTransaction();
-    processor->filterState->add(1);
-  };
-  delRoot.onClick = [this]{
-    // NOTE(ry): guard against when points array is empty
-    if(auto *point = points.getLast())  // TODO(ry): remove a paritcular root
-    {
-      processor->filterState->remove(point->root);
-    }
-  };
+  // addRoot.onClick = [this]{
+  //   processor->filterState->um->beginNewTransaction();
+  //   processor->filterState->add(1);
+  // };
+  // delRoot.onClick = [this]{
+  //   // NOTE(ry): guard against when points array is empty
+  //   if(auto *point = points.getLast())  // TODO(ry): remove a paritcular root
+  //   {
+  //     processor->filterState->remove(point->root);
+  //   }
+  // };
 
-  undo.onClick = [this]{
-    processor->filterState->um->undo();
-    jassert(processor->filterState->totalOrder >= processor->filterState->finiteZerosOrder);
-  };
-  redo.onClick = [this]{
-    processor->filterState->um->redo();
-    jassert(processor->filterState->totalOrder >= processor->filterState->finiteZerosOrder);
-  };
+  // undo.onClick = [this]{
+  //   processor->filterState->um->undo();
+  //   jassert(processor->filterState->totalOrder >= processor->filterState->finiteZerosOrder);
+  // };
+  // redo.onClick = [this]{
+  //   processor->filterState->um->redo();
+  //   jassert(processor->filterState->totalOrder >= processor->filterState->finiteZerosOrder);
+  // };
 
   addChildComponent(&tooltip);
 
-  addAndMakeVisible(addRoot);
-  addAndMakeVisible(delRoot);
-  addAndMakeVisible(undo);
-  addAndMakeVisible(redo);
+  // addAndMakeVisible(addRoot);
+  // addAndMakeVisible(delRoot);
+  // addAndMakeVisible(undo);
+  // addAndMakeVisible(redo);
 
   processor->filterState->syncListener(this);
 }
