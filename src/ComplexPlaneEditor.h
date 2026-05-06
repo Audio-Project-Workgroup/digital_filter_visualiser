@@ -1,10 +1,9 @@
 #pragma once
 
 
-class ComplexPlaneEditor final :
-    public juce::Component,
-    private juce::Slider::Listener,
-    private juce::ValueTree::Listener
+class ComplexPlaneEditor final
+  :public juce::Component
+  ,private juce::ValueTree::Listener
 {
   /** TODO(ry):
    * better root creation interface (ability to create poles, increase/decrease root order)
@@ -60,12 +59,6 @@ public:
   {
   public:
     explicit RootTooltip(ComplexPlaneEditor *e);
-
-    enum VisibilityFlags : u32
-    {
-      hint = (1 << 0),
-      require = (1 << 1),
-    };
 
     void mouseEnter(const juce::MouseEvent&) override;
     void mouseExit(const juce::MouseEvent&) override;
@@ -171,11 +164,8 @@ private:
   void updateTransforms(void);
   void updateTransformsAndChildBounds(void);
 
-  void sliderValueChanged(juce::Slider *slider) override;
-
   void valueTreeChildAdded(juce::ValueTree &parent, juce::ValueTree &child) override;
   void valueTreeChildRemoved(juce::ValueTree &parent, juce::ValueTree &child, int index) override;
-  void valueTreePropertyChanged(juce::ValueTree &node, const juce::Identifier &property) override;
 
   double pixelsPerUnit;
   double unitsPerPixel;
@@ -191,12 +181,4 @@ private:
   FilterRoot::Ptr targetRoot; // NOTE(ry): the root the active root is hovering over
 
   RootTooltip tooltip;
-
-  juce::Slider gainSlider;
-
-  // NOTE(ry): debug ui
-  juce::TextButton addRoot;
-  juce::TextButton delRoot;
-  juce::TextButton undo;
-  juce::TextButton redo;
 };

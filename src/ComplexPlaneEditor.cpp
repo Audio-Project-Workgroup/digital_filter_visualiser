@@ -401,7 +401,8 @@ valueTreePropertyChanged(juce::ValueTree &node, const juce::Identifier &property
 
 ComplexPlaneEditor::
 ComplexPlaneEditor(AudioPluginAudioProcessor *p)
-  : processor(p), tooltip(this), addRoot("+"), delRoot("-"), undo("undo"), redo("redo")
+  :processor(p)
+  ,tooltip(this)
 {
   processor->filterState->addListener(this);
 
@@ -411,45 +412,7 @@ ComplexPlaneEditor(AudioPluginAudioProcessor *p)
   unitsPerPixel = 1.0 / pixelsPerUnit;
   unitsPerLine = 1;
 
-  // NOTE(ry): gain slider setup
-  // gainSlider.setSliderStyle(juce::Slider::LinearHorizontal);
-  // gainSlider.setColour(juce::Slider::thumbColourId, juce::Colours::orange);
-  // gainSlider.setColour(juce::Slider::trackColourId, juce::Colours::white);
-  // gainSlider.setRange(-90.f, 6.f);
-  // gainSlider.setTextValueSuffix(" dB");
-  // gainSlider.setValue(juce::Decibels::gainToDecibels(r64(processor->filterState->gain)), juce::dontSendNotification);
-  // gainSlider.addListener(this);
-  // addAndMakeVisible(gainSlider);
-
-  // NOTE(ry): debug ui setup
-  // TODO(ry): better add/remove interface & logic (add poles, remove particular roots)
-  // addRoot.onClick = [this]{
-  //   processor->filterState->um->beginNewTransaction();
-  //   processor->filterState->add(1);
-  // };
-  // delRoot.onClick = [this]{
-  //   // NOTE(ry): guard against when points array is empty
-  //   if(auto *point = points.getLast())  // TODO(ry): remove a paritcular root
-  //   {
-  //     processor->filterState->remove(point->root);
-  //   }
-  // };
-
-  // undo.onClick = [this]{
-  //   processor->filterState->um->undo();
-  //   jassert(processor->filterState->totalOrder >= processor->filterState->finiteZerosOrder);
-  // };
-  // redo.onClick = [this]{
-  //   processor->filterState->um->redo();
-  //   jassert(processor->filterState->totalOrder >= processor->filterState->finiteZerosOrder);
-  // };
-
   addChildComponent(&tooltip);
-
-  // addAndMakeVisible(addRoot);
-  // addAndMakeVisible(delRoot);
-  // addAndMakeVisible(undo);
-  // addAndMakeVisible(redo);
 
   processor->filterState->syncListener(this);
 }
@@ -553,24 +516,6 @@ resized()
 {
   PROFILE_FUNCTION();
 
-  auto area = getLocalBounds();
-
-  auto const gainSliderHeight = 100;
-  gainSlider.setBounds(area.removeFromTop(gainSliderHeight));
-
-  auto const buttonHeight = 50;
-  auto const buttonWidth = 100;
-  auto const buttonHMargin = 20;
-  area.removeFromLeft(buttonHMargin);
-
-  auto addDelCol = area.removeFromLeft(buttonWidth);
-  addRoot.setBounds(addDelCol.removeFromTop(buttonHeight));
-  delRoot.setBounds(addDelCol.removeFromTop(buttonHeight));
-
-  auto undoRedoCol = area.removeFromLeft(buttonWidth);
-  undo.setBounds(undoRedoCol.removeFromTop(buttonHeight));
-  redo.setBounds(undoRedoCol.removeFromTop(buttonHeight));
-
   updateTransformsAndChildBounds();
 }
 
@@ -585,8 +530,8 @@ paint(juce::Graphics &g)
   auto const circleColor = juce::Colours::goldenrod;
   auto const textColor = juce::Colours::white;
 
-  auto const axisLabelFontHeightPixels = 32.0;
-  auto const gridLineLabelFontHeightPixels = 24.0;
+  auto constexpr axisLabelFontHeightPixels = 32.0;
+  auto constexpr gridLineLabelFontHeightPixels = 24.0;
 
   auto const axisThicknessPixels = 3;
   auto const circleThicknessPixels = 3;
@@ -627,7 +572,7 @@ paint(juce::Graphics &g)
     {
       g.setColour(lineColor);
 
-      for(auto lineX = std::floor(leftWorld) + 1;
+      for(auto lineX = std::floor(leftWorld/unitsPerLine)*unitsPerLine;
           lineX < rightWorld;
           lineX += unitsPerLine)
       {
@@ -636,7 +581,7 @@ paint(juce::Graphics &g)
         { g.drawLine(lineX, bottomWorld, lineX, topWorld, lineThicknessPixels * unitsPerPixel); }
       }
 
-      for(auto lineY = std::floor(bottomWorld) + 1;
+      for(auto lineY = std::floor(bottomWorld/unitsPerLine)*unitsPerLine;
           lineY < topWorld;
           lineY += unitsPerLine)
       {
@@ -654,6 +599,9 @@ paint(juce::Graphics &g)
     g.setColour(textColor);
     g.setFont(juce::Font(juce::FontOptions(axisLabelFontHeightPixels)));
 
+    auto constexpr textAxisSpacingX = 8.0;
+    auto constexpr textAxisSpacingY = 5.0 + gridLineLabelFontHeightPixels;
+
     // NOTE(ry): draw axis labels
     {
       PROFILE_SCOPE("draw axis labels");
@@ -666,11 +614,11 @@ paint(juce::Graphics &g)
       pixelsFromWorldUnits.transformPoint(imLabelX, imLabelY);
 
       reLabelX -= textRightOffsetPixels;
-      reLabelY = std::clamp(reLabelY,
+      reLabelY = std::clamp(reLabelY - (textAxisSpacingY - gridLineLabelFontHeightPixels),
 			    localBounds.getY() + std::min(axisLabelFontHeightPixels,
 							  localBounds.getHeight()),
 			    localBounds.getBottom());
-      imLabelX = std::clamp(imLabelX,
+      imLabelX = std::clamp(imLabelX - 1.1*axisLabelFontHeightPixels,
 			    localBounds.getX(),
 			    localBounds.getRight() - std::min(textRightOffsetPixels,
 							      localBounds.getWidth()));
@@ -685,7 +633,7 @@ paint(juce::Graphics &g)
 
       g.setFont(juce::Font(juce::FontOptions(gridLineLabelFontHeightPixels)));
 
-      for(auto labelX = std::floor(leftWorld) + 1;
+      for(auto labelX = std::floor(leftWorld/unitsPerLine)*unitsPerLine;
           labelX < rightWorld;
           labelX += unitsPerLine)
       {
@@ -694,17 +642,17 @@ paint(juce::Graphics &g)
         auto drawX = labelX;
         auto drawY = 0.0;
         pixelsFromWorldUnits.transformPoint(drawX, drawY);
-        drawY = std::clamp(drawY,
+        drawY = std::clamp(drawY + textAxisSpacingY,
 			   localBounds.getY() + std::min(gridLineLabelFontHeightPixels,
 							 localBounds.getHeight()),
 			   localBounds.getBottom());
         if(eps <= labelX || labelX <= -eps)
-        { g.drawSingleLineText(juce::String(labelX), drawX, drawY); }
+        { g.drawSingleLineText(juce::String(labelX), drawX + textAxisSpacingX, drawY); }
         else
-        { g.drawSingleLineText(juce::String(0), drawX, drawY); }
+        { g.drawSingleLineText(juce::String(0), drawX + textAxisSpacingX, drawY); }
       }
 
-      for(auto labelY = std::floor(bottomWorld) + 1;
+      for(auto labelY = std::floor(bottomWorld/unitsPerLine)*unitsPerLine;
           labelY < topWorld;
           labelY += unitsPerLine)
       {
@@ -713,15 +661,15 @@ paint(juce::Graphics &g)
         auto drawX = 0.0;
         auto drawY = labelY;
         pixelsFromWorldUnits.transformPoint(drawX, drawY);
-        drawX = std::clamp(drawX,
+        drawX = std::clamp(drawX + textAxisSpacingX,
 			   localBounds.getX(),
 			   localBounds.getRight() - std::min(textRightOffsetPixels,
 							     localBounds.getWidth()));
 
         if(eps <= labelY || labelY <= -eps)
-        { g.drawSingleLineText(juce::String(labelY), drawX, drawY); }
+        { g.drawSingleLineText(juce::String(labelY), drawX, drawY + textAxisSpacingY); }
         else
-        { g.drawSingleLineText(juce::String(0), drawX, drawY); }
+        { g.drawSingleLineText(juce::String(0), drawX, drawY + textAxisSpacingY); }
       }
     }
   }
@@ -752,17 +700,6 @@ updateTransformsAndChildBounds(void)
     {
       p->updateBounds(root->value);
     }
-  }
-}
-
-void ComplexPlaneEditor::
-sliderValueChanged(juce::Slider *slider)
-{
-  if(slider == &gainSlider)
-  {
-    auto const dB = slider->getValue();
-    auto const amp = juce::Decibels::decibelsToGain(dB);
-    processor->filterState->gain = amp;
   }
 }
 
@@ -818,15 +755,4 @@ valueTreeChildRemoved(juce::ValueTree &parent, juce::ValueTree &child, int index
   }
 
   repaint();
-}
-
-void ComplexPlaneEditor::
-valueTreePropertyChanged(juce::ValueTree &node, const juce::Identifier &property)
-{
-  if(property == IDs::Gain)
-  {
-    auto const amp = r64(node.getProperty(IDs::Gain));
-    auto const dB = juce::Decibels::gainToDecibels(amp);
-    gainSlider.setValue(dB, juce::dontSendNotification);
-  }
 }
