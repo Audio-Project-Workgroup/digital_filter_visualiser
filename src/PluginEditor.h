@@ -9,6 +9,7 @@
 #include "PhaseFrequencyResponseViewer.h"
 #include "CoeffComponents.h"
 #include "ButtonPanel.h"
+#include "EquationViewer.h"
 #include "StateSerializer.h"
 
 //==============================================================================
@@ -27,6 +28,7 @@ private:
   PhaseFrequencyResponseViewer phaseFrequencyResponseViewer;
   CoefficientsComponent coefficients;
   ButtonPanel buttonPanel;
+  EquationViewer equationViewer;
 
   JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (AudioPluginAudioProcessorEditor)
 };

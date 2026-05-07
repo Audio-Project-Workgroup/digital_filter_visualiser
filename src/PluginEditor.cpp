@@ -5,6 +5,7 @@
 #include "CoeffComponents.cpp"
 #include "StateSerializer.cpp"
 #include "ButtonPanel.cpp"
+#include "EquationViewer.cpp"
 
 //==============================================================================
 AudioPluginAudioProcessorEditor::AudioPluginAudioProcessorEditor (AudioPluginAudioProcessor& p)
@@ -13,11 +14,13 @@ AudioPluginAudioProcessorEditor::AudioPluginAudioProcessorEditor (AudioPluginAud
   ,phaseFrequencyResponseViewer(&p)
   ,coefficients(&p)
   ,buttonPanel(p)
+  ,equationViewer(&p)
 {
   addAndMakeVisible(complexPlaneEditor);
   addAndMakeVisible(coefficients);
   addAndMakeVisible(phaseFrequencyResponseViewer);
   addAndMakeVisible(buttonPanel);
+  addAndMakeVisible(equationViewer);
 
   setSize(960, 520);
   setResizable(true, true);
@@ -47,9 +50,11 @@ resized()
     constexpr int padding = 5;
     auto bounds = getLocalBounds();
     auto buttonPanelBounds = bounds.removeFromTop(40);
+    auto equationViewerBounds = bounds.removeFromTop(120);
     auto phaseFrequencyResponseViewerBounds = bounds.removeFromRight(bounds.getWidth() / 3);
     auto complexPlaneEditorBounds = bounds.removeFromRight(bounds.getWidth() / 2);
     buttonPanel.setBounds(buttonPanelBounds);
+    equationViewer.setBounds(equationViewerBounds.reduced(padding));
     phaseFrequencyResponseViewer.setBounds(phaseFrequencyResponseViewerBounds.reduced(padding));
     complexPlaneEditor.setBounds(complexPlaneEditorBounds.reduced(padding));
     coefficients.setBounds(bounds.reduced(padding));
