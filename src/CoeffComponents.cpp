@@ -53,7 +53,6 @@ void CoefficientsComponent::resized()
     coeffTable.setBounds(0, button_height, getWidth(), area.getHeight()-offsetFromBottom);
 }
 
-
 int CoefficientsComponent::getNumRows()
 {
     return fbcoeffs.size();
@@ -105,6 +104,7 @@ juce::Component* CoefficientsComponent::refreshComponentForCell(int row, int col
 
         label = new juce::Label();
         label->setEditable(true, true, false);
+		label->setColour(juce::Label::outlineColourId, juce::Colours::white);
 
         label->onEditorShow = [label] {
             // restrict input when editor apears

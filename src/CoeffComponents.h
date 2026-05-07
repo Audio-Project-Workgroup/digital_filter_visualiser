@@ -58,6 +58,10 @@ class CoefficientsComponent final
                     const auto idx = static_cast<size_t>(getColumnIdAtX(pos.x));
                     return (idx > 0 && idx <= tooltips.size()) ? tooltips[idx-1] : "";
                 }
+
+	        // NOTE(ry): columns are not clickable
+	        // TODO(ry): make columns not highlight on mouse hover, since they are not clickable
+	        void columnClicked(int, juce::ModifierKeys const &) override {}
             private:
                 std::array<juce::String, 3> tooltips{"Delay", "FeedForward", "FeedBack"};
         };
