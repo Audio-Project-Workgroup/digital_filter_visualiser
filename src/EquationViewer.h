@@ -18,7 +18,6 @@ private:
   class EquationText : public juce::Component
   {
   public:
-    void resized(void) override;
     void paint(juce::Graphics &g) override;
 
   private:

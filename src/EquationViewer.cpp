@@ -101,20 +101,60 @@ updateCoeffs(void)
 }
 
 void EquationViewer::EquationText::
-resized(void)
-{
-  // TODO(ry): adjust size based on text width
-}
-
-void EquationViewer::EquationText::
 paint(juce::Graphics &g)
 {
-  auto constexpr fontHeightPixels = 24;
+  auto constexpr fontHeightPixels = 24.0;
   g.setColour(juce::Colours::white);
   g.setFont(fontHeightPixels);
+  auto font = g.getCurrentFont();
 
+  // NOTE(ry): create glyph arrangement and add non-escaped text to it
+  juce::GlyphArrangement arr{};
   auto const bottomLeft = getLocalBounds().getBottomLeft();
-  g.drawSingleLineText(text, bottomLeft.x, bottomLeft.y);
+  arr.addLineOfText(font, text.removeCharacters("^v"), bottomLeft.x, bottomLeft.y);
+
+  // NOTE(ry): find exponent escape characters to determine which glyphs to shift
+  struct ExpRun {
+    int start, count;
+  };
+  std::vector<ExpRun> expRuns;
+  {
+    auto parseText = text;
+    int parsed = 0;
+    while(parseText.length())
+    {
+      auto expStart = parseText.indexOfChar('^');
+      auto expEnd = parseText.indexOfChar('v');
+      if(expStart == -1) break;
+      if(expEnd == -1) expEnd = text.length();
+      auto expCount = expEnd - expStart;
+
+      auto glyphStartIdx = parsed + expStart;
+      auto glyphCount = expCount - 1;
+      expRuns.push_back({glyphStartIdx, glyphCount});
+
+      parseText = parseText.substring(expEnd+1);
+      parsed += expEnd - 1;
+    }
+  }
+
+  // NOTE(ry): shift exponent glyphs
+  auto constexpr deltaY = -fontHeightPixels/3.0;
+  for(auto run : expRuns)
+  {
+    arr.moveRangeOfGlyphs(run.start, run.count, 0, deltaY);
+  }
+
+  // NOTE(ry): resize component according to new text size
+  auto const bb = arr.getBoundingBox(0, arr.getNumGlyphs(), true);
+  setBounds(getBounds().withWidth(std::max(getParentWidth(),
+					   bb.getSmallestIntegerContainer().getWidth())));
+
+  // NOTE(ry): center and draw text
+  arr.justifyGlyphs(0, arr.getNumGlyphs(),
+		    bb.getX(), bb.getY(), getBounds().getWidth(), bb.getHeight(),
+		    juce::Justification(juce::Justification::horizontallyCentred));
+  arr.draw(g);
 }
 
 void EquationViewer::EquationText::
@@ -126,7 +166,7 @@ setTextFromCoeffs(std::vector<double> const &coeffs)
   for(size_t idx = 0; idx < coeffs.size(); ++idx)
   {
     auto const coeff = coeffs[idx];
-    auto const order = coeffs.size() - 1 - idx;
+    auto const order = -int(idx);
     if(!juce::approximatelyEqual(coeff, 0.0))
     {
       if(coeff > 0.0 && idx > 0)
@@ -134,9 +174,9 @@ setTextFromCoeffs(std::vector<double> const &coeffs)
 	text << "+";
       }
       text << juce::String(coeff, numDecimalPlaces);
-      if(order > 0)
+      if(order != 0)
       {
-	text << "z^" << juce::String(order);
+	text << "z^" << juce::String(order) << "v";
       }
     }
   }
