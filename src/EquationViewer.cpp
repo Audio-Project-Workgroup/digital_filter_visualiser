@@ -6,8 +6,11 @@ EquationViewer(AudioPluginAudioProcessor *p)
   addAndMakeVisible(numeratorText);
   addAndMakeVisible(denominatorText);
 
-  numeratorView.setViewedComponent(&numeratorText, false);
-  denominatorView.setViewedComponent(&denominatorText, false);
+  numeratorText.setViewport(&numeratorView);
+  denominatorText.setViewport(&denominatorView);
+
+  // numeratorView.setViewedComponent(&numeratorText, false);
+  // denominatorView.setViewedComponent(&denominatorText, false);
   numeratorView.setScrollBarThickness(scrollBarHeightPixels);
   denominatorView.setScrollBarThickness(scrollBarHeightPixels);
 
@@ -101,6 +104,18 @@ updateCoeffs(void)
 }
 
 void EquationViewer::EquationText::
+mouseWheelMove(juce::MouseEvent const &e, juce::MouseWheelDetails const &w)
+{
+  juce::ignoreUnused(e);
+
+  auto constexpr scrollAmp = 50;
+  auto const viewPosition = viewport->getViewPosition();
+  auto const newX = viewPosition.x + scrollAmp*w.deltaY;
+  auto const newY = viewPosition.y;
+  viewport->setViewPosition(newX, newY);
+}
+
+void EquationViewer::EquationText::
 paint(juce::Graphics &g)
 {
   auto constexpr fontHeightPixels = 24.0;
@@ -158,6 +173,13 @@ paint(juce::Graphics &g)
 }
 
 void EquationViewer::EquationText::
+setViewport(juce::Viewport *v)
+{
+  viewport = v;
+  viewport->setViewedComponent(this, false);
+}
+
+void EquationViewer::EquationText::
 setTextFromCoeffs(std::vector<double> const &coeffs)
 {
   auto constexpr numDecimalPlaces = 2;
@@ -169,6 +191,7 @@ setTextFromCoeffs(std::vector<double> const &coeffs)
     auto const order = -int(idx);
     if(!juce::approximatelyEqual(coeff, 0.0))
     {
+      // TODO(ry): add whitespace, truncate nearly-integer coeffs, omit if coeff ~= 1
       if(coeff > 0.0 && idx > 0)
       {
 	text << "+";
@@ -176,6 +199,9 @@ setTextFromCoeffs(std::vector<double> const &coeffs)
       text << juce::String(coeff, numDecimalPlaces);
       if(order != 0)
       {
+	// NOTE(ry): the exponent is between the '^' and 'v' characters. the
+	// escape characters are only used to find the range of exponent
+	// glyphs. they are removed when drawing the text
 	text << "z^" << juce::String(order) << "v";
       }
     }

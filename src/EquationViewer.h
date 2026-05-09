@@ -3,7 +3,7 @@ class EquationViewer
   ,private juce::ValueTree::Listener
 {
 public:
-  EquationViewer(AudioPluginAudioProcessor *p);
+  explicit EquationViewer(AudioPluginAudioProcessor *p);
   ~EquationViewer();
 
   void resized(void) override;
@@ -18,11 +18,15 @@ private:
   class EquationText : public juce::Component
   {
   public:
+    void mouseWheelMove(juce::MouseEvent const &e, juce::MouseWheelDetails const &w) override;
     void paint(juce::Graphics &g) override;
+    void setViewport(juce::Viewport *v);
 
   private:
     void setTextFromCoeffs(std::vector<double> const &coeffs);
-    friend class EquationViewer;
+
+    friend EquationViewer;
+    juce::Viewport *viewport;
     juce::String text;
   };
 
