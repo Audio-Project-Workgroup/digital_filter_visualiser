@@ -15,12 +15,13 @@ private:
     // This reference is provided as a quick way for your editor to
     // access the processor object that created it.
     AudioPluginAudioProcessor& processorRef;
-    juce::TextButton exportButton;
     juce::PopupMenu exportPopupMenu;
     std::unique_ptr<juce::FileChooser> chooser;
 
-    juce::TextButton undoButton;
-    juce::TextButton redoButton;
+    juce::Image saveImage, undoImage, redoImage;
+    juce::ImageButton exportButton;
+    juce::ImageButton undoButton;
+    juce::ImageButton redoButton;
     juce::TextButton addRootButton;
     juce::TextButton delRootButton;
     juce::Slider gainSlider;

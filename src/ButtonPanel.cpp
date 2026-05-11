@@ -1,14 +1,28 @@
 #include "ButtonPanel.h"
+#include <juce_graphics/juce_graphics.h>
+#include <BinaryData.h>
+#include "Utilities.h"
 #include "StateSerializer.h"
 
 ButtonPanel::ButtonPanel(AudioPluginAudioProcessor& p)
   :processorRef(p)
-  ,exportButton("Export...")
-  ,undoButton("undo")
-  ,redoButton("redo")
   ,addRootButton("+")
   ,delRootButton("-")
 {
+    saveImage = juce::ImageCache::getFromMemory(BinaryData::Save_png, BinaryData::Save_pngSize);
+    undoImage = juce::ImageCache::getFromMemory(BinaryData::Undo_png, BinaryData::Undo_pngSize);
+    redoImage = juce::ImageCache::getFromMemory(BinaryData::Redo_png, BinaryData::Redo_pngSize);
+
+    Utilities::setButtonImage(&exportButton, saveImage);
+    Utilities::setButtonImage(&undoButton, undoImage);
+    Utilities::setButtonImage(&redoButton, redoImage);
+
+    exportButton.setTooltip("Export");
+    undoButton.setTooltip("Undo");
+    redoButton.setTooltip("Redo");
+    addRootButton.setTooltip("Add root");
+    delRootButton.setTooltip("Delete root");
+
     exportPopupMenu.addItem("Filter coefficients", [this]
         {
             chooseFileAndSave(StateSerializer::exportCoefficients(this->processorRef.filterState.get()));
@@ -63,16 +77,16 @@ ButtonPanel::~ButtonPanel()
 void ButtonPanel::resized()
 {
   auto area = getLocalBounds();
+  auto const height = area.getHeight();
   auto constexpr padding = 5;
-  auto constexpr buttonWidth_PercentOfParent = 0.1;
-  auto const buttonWidth = getWidth() * buttonWidth_PercentOfParent;
-  exportButton.setBounds(area.removeFromLeft(buttonWidth).reduced(padding));
-  undoButton.setBounds(area.removeFromLeft(buttonWidth).reduced(padding));
-  redoButton.setBounds(area.removeFromLeft(buttonWidth).reduced(padding));
-  addRootButton.setBounds(area.removeFromLeft(buttonWidth).reduced(padding));
-  delRootButton.setBounds(area.removeFromLeft(buttonWidth).reduced(padding));
+  //auto constexpr buttonWidth_PercentOfParent = 0.1;
+  //auto const buttonWidth = getWidth() * buttonWidth_PercentOfParent;
+  undoButton.setBounds(area.removeFromLeft(height).reduced(padding));
+  redoButton.setBounds(area.removeFromLeft(height).reduced(padding));
+  exportButton.setBounds(area.removeFromLeft(height).reduced(padding));
+  addRootButton.setBounds(area.removeFromLeft(height).reduced(padding));
+  delRootButton.setBounds(area.removeFromLeft(height).reduced(padding));
   gainSlider.setBounds(area.reduced(padding));
-  //exportButton.setBounds(0, 0, 100, getHeight());
 }
 
 void ButtonPanel::chooseFileAndSave(std::shared_ptr<juce::XmlElement> xml)

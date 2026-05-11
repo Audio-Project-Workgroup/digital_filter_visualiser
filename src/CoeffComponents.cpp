@@ -6,7 +6,6 @@
 CoefficientsComponent::CoefficientsComponent(AudioPluginAudioProcessor* p)
     : isExpanded(bool(DEFAULT_IS_EXPANDED))
     , processor(p)
-    , tooltipWindow(this)
 {
     titleButton.setButtonText(TABLE_TITLE);
     titleButton.onClick = [this]{ toggleCollapseExpand(); };

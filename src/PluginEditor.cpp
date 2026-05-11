@@ -15,6 +15,7 @@ AudioPluginAudioProcessorEditor::AudioPluginAudioProcessorEditor (AudioPluginAud
   ,coefficients(&p)
   ,buttonPanel(p)
   ,equationViewer(&p)
+  ,tooltipWindow(this)
 {
   addAndMakeVisible(complexPlaneEditor);
   addAndMakeVisible(coefficients);

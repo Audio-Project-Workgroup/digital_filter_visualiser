@@ -25,7 +25,6 @@ class CoefficientsComponent final
         juce::TableListBox coeffTable;
         bool isExpanded;
         AudioPluginAudioProcessor *processor;
-        juce::TooltipWindow tooltipWindow;
 
         void toggleCollapseExpand();
         void updateCoeffTable();

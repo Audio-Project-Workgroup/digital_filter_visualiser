@@ -39,11 +39,18 @@ target_compile_definitions(
   JUCE_VST3_CAN_REPLACE_VST2=0
 )
 
-# juce_add_binary_data(AudioPluginData SOURCES ...)
+juce_add_binary_data(
+  ${PROJECT_NAME}_BinaryData
+  SOURCES
+    "Assets/Save.png"
+    "Assets/Undo.png"
+    "Assets/Redo.png"
+)
 
 target_link_libraries(
   ${PROJECT_NAME}
   PRIVATE
+  ${PROJECT_NAME}_BinaryData
   juce::juce_audio_utils
   juce::juce_dsp
   PUBLIC
