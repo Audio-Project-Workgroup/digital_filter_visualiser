@@ -285,16 +285,24 @@ valueTreePropertyChanged(juce::ValueTree &node, const juce::Identifier &property
       int const newOrder = node.getProperty(IDs::Order);
       if(newOrder == 0)
       {
-	// NOTE(ry): we remove the root if it has zero order.
+	// NOTE(ry): we remove the root if it has zero order. we also have to
+	// decrement the filter order here since removing the root will not do
+	// that (the order is now zero!)
 	auto parent = node.getParent();
-	parent.removeChild(node, getCurrentUndoManager());
-
-	// NOTE(ry): we also have to decrement the filter order here since
-	// removing the root will not do that (the order is now zero!)
 	auto const delta = -root->lastKnownOrder;
 	auto const decrement = root->isReal() ? delta : 2*delta;
 	auto const wasPole = root->lastKnownOrder < 0;
+	parent.removeChild(node, getCurrentUndoManager());
 	incrementFilterOrder(wasPole ? -decrement : decrement, wasPole);
+
+	// NOTE(ry): it's very important that we don't access any properties of
+	// the root now that it's been removed, or else risk
+	// use-after-free-flavor bugs. instead all root properties needed after
+	// root removal should be copied into the stack frame/registers before
+	// removal
+
+	DBG("filter order: " << int(totalOrder));
+	DBG("filter zeros order: " << int(finiteZerosOrder));
       }
       else
       {
