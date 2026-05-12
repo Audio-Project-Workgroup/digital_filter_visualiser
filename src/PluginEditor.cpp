@@ -4,6 +4,7 @@
 #include "PhaseFrequencyResponseViewer.cpp"
 #include "CoeffComponents.cpp"
 #include "StateSerializer.cpp"
+#include "PlayerComponent.cpp""
 #include "ButtonPanel.cpp"
 #include "EquationViewer.cpp"
 

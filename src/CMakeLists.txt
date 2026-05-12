@@ -45,6 +45,11 @@ juce_add_binary_data(
     "Assets/Save.png"
     "Assets/Undo.png"
     "Assets/Redo.png"
+    "Assets/Load.png"
+    "Assets/Play.png"
+    "Assets/Pause.png"
+    "Assets/Stop.png"
+    "Assets/Loop.png"
 )
 
 target_link_libraries(

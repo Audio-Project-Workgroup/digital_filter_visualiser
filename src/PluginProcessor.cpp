@@ -19,6 +19,7 @@ AudioPluginAudioProcessor::AudioPluginAudioProcessor()
     apvts(*this, &um),
     activeState(new FullState<SampleType>),
     pendingState(new FullState<SampleType>),
+    playerState(PlayerState::Empty),
     lastProcessTime(0)
 {
     if (!apvts.state.isValid())
@@ -27,6 +28,8 @@ AudioPluginAudioProcessor::AudioPluginAudioProcessor()
     }
     filterState = std::make_unique<FilterState>(apvts.state, &um);
     um.addChangeListener(this);
+    transportSource.addChangeListener(this);
+    formatManager.registerBasicFormats();
 }
 
 
@@ -154,14 +157,24 @@ void AudioPluginAudioProcessor::prepareToPlay (double sampleRate, int samplesPer
 
             ProcessorChainModifier::rootsToJuceCoeffs(filterState.get(), activeState.load(), spec);
         }
+
+    transportSource.prepareToPlay(samplesPerBlock, sampleRate);
+    if (resamplerSource != nullptr && readerSource != nullptr)
+    {
+        double ratio = readerSource->getAudioFormatReader()->sampleRate / sampleRate;
+        resamplerSource->setResamplingRatio(ratio);
+        resamplerSource->prepareToPlay(samplesPerBlock, sampleRate);
+    }
+
     isPrepared = true;
     sendChangeMessage();
 }
 
 void AudioPluginAudioProcessor::releaseResources()
 {
-  // When playback stops, you can use this as an opportunity to free up any
-  // spare memory, etc.
+  transportSource.releaseResources();
+  if (resamplerSource != nullptr)
+    resamplerSource->releaseResources();
 }
 
 bool AudioPluginAudioProcessor::isBusesLayoutSupported (const BusesLayout& layouts) const
@@ -194,6 +207,19 @@ void AudioPluginAudioProcessor::processBlock (juce::AudioBuffer<SampleType>& buf
 	PROFILE_FUNCTION();
     juce::ignoreUnused(midiMessages);
     juce::ScopedNoDenormals noDenormals;
+
+    if (wrapperType == wrapperType_Standalone)
+    {
+        buffer.clear();
+        juce::AudioSourceChannelInfo info(buffer);
+        if (transportSource.isPlaying())
+        {
+            if (resamplerSource->getResamplingRatio() == 1.0)
+                transportSource.getNextAudioBlock(info);
+            else
+                resamplerSource->getNextAudioBlock(info);
+        }
+    }
 
     const auto totalNumInputChannels = static_cast<size_t>(getTotalNumInputChannels());
     const auto totalNumOutputChannels = static_cast<size_t>(getTotalNumOutputChannels());
@@ -301,6 +327,35 @@ void AudioPluginAudioProcessor::changeListenerCallback(juce::ChangeBroadcaster* 
     if (source == &um)
     {
         ProcessorChainModifier::process(*this);
+    }
+    else if (source == &transportSource)
+    {
+        if (transportSource.hasStreamFinished())
+        {
+            transportSource.setPosition(0); 
+            playerState.set(PlayerState::Stopped);
+        }
+    }
+}
+
+void AudioPluginAudioProcessor::setTransportSourceFromFile(juce::File file)
+{
+    auto* reader = formatManager.createReaderFor(file);
+    if (reader != nullptr)
+    {
+        transportSource.stop();
+
+        readerSource.reset(new juce::AudioFormatReaderSource(reader, true));
+        readerSource->prepareToPlay(getBlockSize(), getSampleRate());
+
+        transportSource.setSource(readerSource.get(), 0, nullptr, reader->sampleRate);
+        
+        double ratio = reader->sampleRate / getSampleRate();
+        resamplerSource.reset(new juce::ResamplingAudioSource(&transportSource, false, getNumOutputChannels()));
+        resamplerSource->setResamplingRatio(ratio);
+        resamplerSource->prepareToPlay(getBlockSize(), getSampleRate());
+
+        playerState.set(PlayerState::Stopped);
     }
 }
 

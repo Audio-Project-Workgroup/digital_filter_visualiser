@@ -1,5 +1,6 @@
 #pragma once
 #include "PluginProcessor.h"
+#include "PlayerComponent.h"
 
 class ButtonPanel final
   :public juce::Component
@@ -24,6 +25,7 @@ private:
     juce::ImageButton redoButton;
     juce::TextButton addRootButton;
     juce::TextButton delRootButton;
+    PlayerComponent player;
     juce::Slider gainSlider;
 
     void chooseFileAndSave(std::shared_ptr<juce::XmlElement> xml);

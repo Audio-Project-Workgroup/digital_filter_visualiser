@@ -6,6 +6,7 @@
 
 ButtonPanel::ButtonPanel(AudioPluginAudioProcessor& p)
   :processorRef(p)
+  ,player(p)
   ,addRootButton("+")
   ,delRootButton("-")
 {
@@ -65,6 +66,9 @@ ButtonPanel::ButtonPanel(AudioPluginAudioProcessor& p)
     addAndMakeVisible(delRootButton);
     addAndMakeVisible(gainSlider);
 
+    if (processorRef.wrapperType == juce::AudioProcessor::WrapperType::wrapperType_Standalone)
+        addAndMakeVisible(player);
+
     processorRef.filterState->addListener(this);
     processorRef.filterState->syncListener(this);
 }
@@ -86,6 +90,12 @@ void ButtonPanel::resized()
   exportButton.setBounds(area.removeFromLeft(height).reduced(padding));
   addRootButton.setBounds(area.removeFromLeft(height).reduced(padding));
   delRootButton.setBounds(area.removeFromLeft(height).reduced(padding));
+  if (processorRef.wrapperType == juce::AudioProcessor::WrapperType::wrapperType_Standalone)
+  {
+    area.removeFromLeft(height);
+    player.setBounds(area.removeFromLeft(player.buttonsCount * (height - padding) + padding).reduced(padding));
+    area.removeFromLeft(height);
+  }
   gainSlider.setBounds(area.reduced(padding));
 }
 

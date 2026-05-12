@@ -1,15 +1,26 @@
 #pragma once
 
+#include <juce_audio_formats/juce_audio_formats.h>
+#include <juce_audio_devices/juce_audio_devices.h>
 #include <juce_audio_processors/juce_audio_processors.h>
 #include <juce_dsp/juce_dsp.h>
 
 #include "FilterState.h"
+#include "ValueChangeBroadcaster.h"
 
 #include "RootsToCoefficients.h"
 #include "ProcessorChain.h"
 #include "ProcessorChainModifier.h"
 
 //==============================================================================
+enum class PlayerState
+{
+	Empty,
+	Stopped,
+	Playing,
+	Paused
+};
+
 class AudioPluginAudioProcessor final :
 	public juce::AudioProcessor,
 	public juce::ChangeBroadcaster,
@@ -56,7 +67,8 @@ public:
   void setStateInformation (const void* data, int sizeInBytes) override;
 
   //==============================================================================
-  void 	changeListenerCallback(juce::ChangeBroadcaster* source) override;
+  void changeListenerCallback(juce::ChangeBroadcaster* source) override;
+  void setTransportSourceFromFile(juce::File file);
 
   juce::UndoManager um;
   juce::AudioProcessorValueTreeState apvts;
@@ -70,6 +82,13 @@ public:
 
   bool isPrepared = false;
   juce::dsp::ProcessSpec spec;
+
+  // for standalone version
+  juce::AudioFormatManager formatManager;
+  std::unique_ptr<juce::AudioFormatReaderSource> readerSource;
+  std::unique_ptr<juce::ResamplingAudioSource> resamplerSource;   // for the case when DAW or audio card sampling rate doesn't match file sampling rate
+  juce::AudioTransportSource transportSource;
+  ValueChangeBroadcaster<PlayerState> playerState;
 
 private:
 	juce::AudioBuffer<SampleType> crossFadeBuffer;
