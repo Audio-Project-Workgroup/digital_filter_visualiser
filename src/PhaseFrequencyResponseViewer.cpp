@@ -1,16 +1,36 @@
 #include "PhaseFrequencyResponseViewer.h"
 #include <cmath>
 
-PhaseFrequencyResponseViewer::PhaseFrequencyResponseViewer(AudioPluginAudioProcessor* _processor) :
-    ampDb(minAmpDb),
-    sampleRate(_processor->getSampleRate()),
-    processor(_processor),
+PhaseFrequencyResponseViewer::PhaseFrequencyResponseViewer(AudioPluginAudioProcessor* processor) :
+    processor(processor),
+    ampDb(minAmpDb * 4),
+    sampleRate(processor->getSampleRate()),
+    freqButton("Freq."),
+    phaseButton("Phase"),
+    bothButton("Both"),
     zoomInButton("+"),
     zoomOutButton("-"),
-    logScaleButton("Hz log scale")
+    linearScaleButton("Linear"),
+    logScaleButton("Log")
 {
-    processor->addChangeListener(this);
-    processor->filterState->um->addChangeListener(this);
+    this->processor->addChangeListener(this);
+    this->processor->filterState->um->addChangeListener(this);
+
+    freqButton.onClick = [this] { changePlotsSet(); };
+    freqButton.setClickingTogglesState(true);
+    freqButton.setRadioGroupId(1);
+    freqButton.setTooltip("Show only frequency response plot");
+
+    phaseButton.onClick = [this] { changePlotsSet(); };
+    phaseButton.setClickingTogglesState(true);
+    phaseButton.setRadioGroupId(1);
+    phaseButton.setTooltip("Show only phase response plot");
+
+    bothButton.onClick = [this] { changePlotsSet(); };
+    bothButton.setClickingTogglesState(true);
+    bothButton.setRadioGroupId(1);
+    bothButton.setToggleState(true, false);
+    bothButton.setTooltip("Show frequency and phase response plots");
 
     zoomInButton.onClick = [this]
         {
@@ -20,6 +40,8 @@ PhaseFrequencyResponseViewer::PhaseFrequencyResponseViewer(AudioPluginAudioProce
                 repaint();
             }
         };
+    zoomInButton.setTooltip("Zoom in");
+
     zoomOutButton.onClick = [this]
         {
             if (ampDb < maxAmpDb)
@@ -28,15 +50,27 @@ PhaseFrequencyResponseViewer::PhaseFrequencyResponseViewer(AudioPluginAudioProce
                 repaint();
             }
         };
-    logScaleButton.onClick = [this]
-        {
-            repaint();
-        };
-    logScaleButton.setClickingTogglesState(true);
-    logScaleButton.setEnabled(sampleRate > 0);
+    zoomOutButton.setTooltip("Zoom out");
 
+    logScaleButton.onClick = [this] { repaint(); };
+    logScaleButton.setClickingTogglesState(true);
+    logScaleButton.setRadioGroupId(2);
+    logScaleButton.setEnabled(sampleRate > 0);
+    logScaleButton.setTooltip("Logarithmic X scale");
+
+    linearScaleButton.onClick = [this] { repaint(); };
+    linearScaleButton.setClickingTogglesState(true);
+    linearScaleButton.setRadioGroupId(2);
+    linearScaleButton.setEnabled(sampleRate > 0);
+    linearScaleButton.setTooltip("Linear X scale");
+    linearScaleButton.setToggleState(true, true);
+
+    addAndMakeVisible(freqButton);
+    addAndMakeVisible(phaseButton);
+    addAndMakeVisible(bothButton);
     addAndMakeVisible(zoomInButton);
     addAndMakeVisible(zoomOutButton);
+    addAndMakeVisible(linearScaleButton);
     addAndMakeVisible(logScaleButton);
 }
 
@@ -61,10 +95,16 @@ void PhaseFrequencyResponseViewer::changeListenerCallback(juce::ChangeBroadcaste
 void PhaseFrequencyResponseViewer::resized()
 {
     //PROFILE_FUNCTION();
+    freqButton.setBounds(padding, padding, plotButtonsWidth, zoomButtonsSize);
+    phaseButton.setBounds(freqButton.getRight() + padding, padding, plotButtonsWidth, zoomButtonsSize);
+    bothButton.setBounds(phaseButton.getRight() + padding, padding, plotButtonsWidth, zoomButtonsSize);
 
-    zoomOutButton.setBounds(padding, padding, zoomButtonsSize, zoomButtonsSize);
-    zoomInButton.setBounds(2 * padding + zoomButtonsSize, padding, zoomButtonsSize, zoomButtonsSize);
-    logScaleButton.setBounds(getWidth() - plotPaddingRight - logScaleButtonWidth, padding, logScaleButtonWidth, zoomButtonsSize);
+    logScaleButton.setBounds(getWidth() - padding - scaleButtonsWidth, padding, scaleButtonsWidth, zoomButtonsSize);
+    linearScaleButton.setBounds(logScaleButton.getX() - padding - scaleButtonsWidth, padding, scaleButtonsWidth, zoomButtonsSize);
+
+    zoomOutButton.setBounds(padding, logScaleButton.getBottom() + padding, zoomButtonsSize, zoomButtonsSize);
+    zoomInButton.setBounds(2 * padding + zoomButtonsSize, logScaleButton.getBottom() + padding, zoomButtonsSize, zoomButtonsSize);
+
     repaint();
 }
 
@@ -72,47 +112,84 @@ void PhaseFrequencyResponseViewer::paint(juce::Graphics& g)
 {
     //PROFILE_FUNCTION();
 
-    const auto bounds = getBounds();
-    const auto width = bounds.getWidth() - plotPaddingLeft - plotPaddingRight;
-    const auto height = bounds.getHeight() - plotPaddingTop - plotPaddingBottom;
-    const float xLeft = static_cast<float>(plotPaddingLeft);
-    const float xRight = static_cast<float>(xLeft + width);
-    const float yTop = static_cast<float>(plotPaddingTop);
-    const float yBottom = static_cast<float>(yTop + height);
-
-    if (width < 2 || height < 2)
-        return;
-
-    juce::Rectangle<int> rect(plotPaddingLeft, plotPaddingTop, width, height);
     g.fillAll(backgroundColor);
-    g.setColour(gridColour);
-    g.drawRect(rect, 1);
+
+    const auto width = getWidth() - plotPaddingLeft - plotPaddingRight;
+    const auto height = getHeight() - plotPaddingTop - plotPaddingBottom;
+ 
+    int topFreq = plotPaddingTop;
+    int topPhase = topFreq;
+    int bottomFreq = plotPaddingTop + height;
+    int bottomPhase = bottomFreq;
+
+    if (bothButton.getToggleState())
+    {
+        bottomFreq = plotPaddingTop + (height - distanceBetweenPlots) / 2;
+        topPhase = plotPaddingTop + (height + distanceBetweenPlots) / 2;
+    }
+
+    if (width <= 0 || bottomFreq <= topFreq || bottomPhase <= topPhase)
+        return;
 
     // angles, amplitudes & phases
     const bool isLogScale = logScaleButton.getToggleState();
     std::vector<double> angles, amplitudes, phases;
-    calculate(isLogScale, width, angles, amplitudes, phases);
+    calculate(isLogScale, true, width, angles, amplitudes, phases);
+
+    if (!phaseButton.getToggleState())
+        paintPlot(g, amplitudes, isLogScale, ampDb, " dB", topFreq, bottomFreq);
+    if (!freqButton.getToggleState())
+        paintPlot(g, phases, isLogScale, 180., " deg.", topPhase, bottomPhase);
+}
+
+void PhaseFrequencyResponseViewer::changePlotsSet()
+{
+    zoomInButton.setVisible(!phaseButton.getToggleState());
+    zoomOutButton.setVisible(!phaseButton.getToggleState());
+    repaint();
+}
+
+void PhaseFrequencyResponseViewer::paintPlot(
+    juce::Graphics& g,
+    std::vector<double>& yValues, 
+    bool isLogScale, 
+    float yAmplitude,
+    juce::String unitText, 
+    int top, 
+    int bottom)
+{
+    const auto width = getWidth() - plotPaddingLeft - plotPaddingRight;
+    const auto height = bottom - top;
+
+    const float xLeft = static_cast<float>(plotPaddingLeft);
+    const float xRight = static_cast<float>(xLeft + width);
+    const float yTop = static_cast<float>(top);
+    const float yBottom = static_cast<float>(yTop + height);
+
+    juce::Rectangle<int> rect(plotPaddingLeft, top, width, height);
+    g.setColour(gridColour);
+    g.drawRect(rect, 1);
 
     // Y grid
     g.setColour(lineColour);
     g.drawText(
-        juce::String(static_cast<int>(ampDb)) + " dB",
+        juce::String(static_cast<int>(yAmplitude)) + unitText,
         padding,
-        plotPaddingTop - textHeight / 2,
+        top - textHeight / 2,
         plotPaddingLeft - 3 * padding,
         textHeight,
         juce::Justification::centredRight);
     g.drawText(
         "0",
         padding,
-        plotPaddingTop + (height - textHeight) / 2,
+        top + (height - textHeight) / 2,
         plotPaddingLeft - 3 * padding,
         textHeight,
         juce::Justification::centredRight);
     g.drawText(
-        juce::String(static_cast<int>(-ampDb)) + " dB",
+        juce::String(static_cast<int>(-yAmplitude)) + unitText,
         padding,
-        plotPaddingTop + height - textHeight / 2,
+        top + height - textHeight / 2,
         plotPaddingLeft - 3 * padding,
         textHeight,
         juce::Justification::centredRight);
@@ -222,13 +299,13 @@ void PhaseFrequencyResponseViewer::paint(juce::Graphics& g)
 
         juce::Path path;
         auto x = xLeft;
-        auto y = juce::jmap(static_cast<float>(amplitudes[0]), -ampDb, ampDb, yBottom, yTop);
+        auto y = juce::jmap(static_cast<float>(yValues[0]), -yAmplitude, yAmplitude, yBottom, yTop);
         g.drawLine(x, rect.getCentreY(), x, y);
         path.startNewSubPath(x, y);
         for (int i = 1; i < width; i++)
         {
             x++;
-            y = juce::jmap(static_cast<float>(amplitudes[static_cast<size_t>(i)]), -ampDb, ampDb, yBottom, yTop);
+            y = juce::jmap(static_cast<float>(yValues[static_cast<size_t>(i)]), -yAmplitude, yAmplitude, yBottom, yTop);
             g.drawLine(x, rect.getCentreY(), x, y);
             path.lineTo(x, y);
         }
@@ -241,6 +318,7 @@ void PhaseFrequencyResponseViewer::paint(juce::Graphics& g)
 
 void PhaseFrequencyResponseViewer::calculate(
     bool isLogScale,
+    bool isDegrees,
     int intWidth,
     std::vector<double>& angles,
     std::vector<double>& amplitudes,
@@ -252,14 +330,18 @@ void PhaseFrequencyResponseViewer::calculate(
     phases.resize(width, 0.);
 
     const double eps = std::numeric_limits<double>::epsilon();
-    const double maxAngle = juce::MathConstants<double>::pi;
-    const double minAngle = maxAngle * minFreq / (sampleRate / 2);
+    const double pi = juce::MathConstants<double>::pi;
+    const double maxAngle = pi;
+    const double minAngle = pi * minFreq / (sampleRate / 2);
     const double logMaxAngle = std::log10(maxAngle);
     const double logMinAngle = std::log10(minAngle);
     const double angleCoeff =
         isLogScale ?
         (logMaxAngle - logMinAngle) / width :
         maxAngle / width;
+    const double phaseUnitCoeff = isDegrees ? 180.0 / pi : 1.0;
+    const double phaseAmplitude = isDegrees ? 180.0 : pi;
+    const double phaseAmplitude2 = phaseAmplitude * 2;
 
     double ampCoeff, phaseCoeff;
     for (std::size_t i = 0; i < width; i++)
@@ -288,6 +370,11 @@ void PhaseFrequencyResponseViewer::calculate(
         }
 
         amplitudes[i] = juce::Decibels::gainToDecibels(amplitudes[i]);
+        
+        double ph = phases[i] * phaseUnitCoeff;
+        ph = std::fmod(ph + phaseAmplitude, phaseAmplitude2);
+        ph += ph >= 0 ? 0 : phaseAmplitude2;
+        phases[i] = ph - phaseAmplitude;
     }
 }
 

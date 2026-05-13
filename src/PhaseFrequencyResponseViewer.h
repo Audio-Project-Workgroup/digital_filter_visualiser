@@ -5,7 +5,7 @@ class PhaseFrequencyResponseViewer final :
     juce::ChangeListener
 {
 public:
-    PhaseFrequencyResponseViewer(AudioPluginAudioProcessor* _processor);
+    PhaseFrequencyResponseViewer(AudioPluginAudioProcessor* processor);
     ~PhaseFrequencyResponseViewer();
     void changeListenerCallback(juce::ChangeBroadcaster* source) override;
 
@@ -13,8 +13,19 @@ public:
     void paint(juce::Graphics& g) override;
 
 private:
+    void changePlotsSet();
+    void paintPlot(
+        juce::Graphics& g,
+        std::vector<double>& yValues,
+        bool isLogScale,
+        float yAmplitude,
+        juce::String unitText,
+        int top,
+        int bottom);
+
     void calculate(
         bool isLogScale,
+        bool isDegrees,
         int intWidth,
         std::vector<double>& angles,
         std::vector<double>& amplitudes,
@@ -32,13 +43,15 @@ private:
     const juce::PathStrokeType strokeType{ 3.f };
     const int
         padding = 5,
-        plotPaddingLeft = 55,
+        distanceBetweenPlots = 30,
+        plotPaddingLeft = 72,
         plotPaddingRight = 45,
-        plotPaddingTop = 40,
+        plotPaddingTop = 65,
         plotPaddingBottom = 20;
     const int
         zoomButtonsSize = 20,
-        logScaleButtonWidth = 60,
+        plotButtonsWidth = 45,
+        scaleButtonsWidth = 45,
         textWidth = 40,
         textHeight = 10;
     const float
@@ -51,7 +64,10 @@ private:
 
     AudioPluginAudioProcessor* processor;
 
-    juce::TextButton zoomInButton, zoomOutButton, logScaleButton;
+    juce::TextButton 
+        zoomInButton, zoomOutButton, 
+        linearScaleButton, logScaleButton, 
+        freqButton, phaseButton, bothButton;
 };
 
 // NOTE(ry): I need to put this here so my editor doesn't screw with the style of this file
