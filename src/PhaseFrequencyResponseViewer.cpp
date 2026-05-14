@@ -1,17 +1,17 @@
 #include "PhaseFrequencyResponseViewer.h"
 #include <cmath>
 
-PhaseFrequencyResponseViewer::PhaseFrequencyResponseViewer(AudioPluginAudioProcessor* processor) :
-    processor(processor),
+PhaseFrequencyResponseViewer::PhaseFrequencyResponseViewer(AudioPluginAudioProcessor* p) :
+	processor(p),
     ampDb(minAmpDb * 4),
     sampleRate(processor->getSampleRate()),
-    freqButton("Freq."),
-    phaseButton("Phase"),
-    bothButton("Both"),
     zoomInButton("+"),
     zoomOutButton("-"),
     linearScaleButton("Linear"),
-    logScaleButton("Log")
+    logScaleButton("Log"),
+	freqButton("Freq."),
+    phaseButton("Phase"),
+    bothButton("Both")
 {
     this->processor->addChangeListener(this);
     this->processor->filterState->um->addChangeListener(this);
@@ -29,7 +29,7 @@ PhaseFrequencyResponseViewer::PhaseFrequencyResponseViewer(AudioPluginAudioProce
     bothButton.onClick = [this] { changePlotsSet(); };
     bothButton.setClickingTogglesState(true);
     bothButton.setRadioGroupId(1);
-    bothButton.setToggleState(true, false);
+    bothButton.setToggleState(true, juce::dontSendNotification);
     bothButton.setTooltip("Show frequency and phase response plots");
 
     zoomInButton.onClick = [this]
@@ -63,7 +63,7 @@ PhaseFrequencyResponseViewer::PhaseFrequencyResponseViewer(AudioPluginAudioProce
     linearScaleButton.setRadioGroupId(2);
     linearScaleButton.setEnabled(sampleRate > 0);
     linearScaleButton.setTooltip("Linear X scale");
-    linearScaleButton.setToggleState(true, true);
+    linearScaleButton.setToggleState(true, juce::sendNotificationSync);
 
     addAndMakeVisible(freqButton);
     addAndMakeVisible(phaseButton);
@@ -116,7 +116,7 @@ void PhaseFrequencyResponseViewer::paint(juce::Graphics& g)
 
     const auto width = getWidth() - plotPaddingLeft - plotPaddingRight;
     const auto height = getHeight() - plotPaddingTop - plotPaddingBottom;
- 
+
     int topFreq = plotPaddingTop;
     int topPhase = topFreq;
     int bottomFreq = plotPaddingTop + height;
@@ -151,11 +151,11 @@ void PhaseFrequencyResponseViewer::changePlotsSet()
 
 void PhaseFrequencyResponseViewer::paintPlot(
     juce::Graphics& g,
-    std::vector<double>& yValues, 
-    bool isLogScale, 
+    std::vector<double>& yValues,
+    bool isLogScale,
     float yAmplitude,
-    juce::String unitText, 
-    int top, 
+    juce::String unitText,
+    int top,
     int bottom)
 {
     const auto width = getWidth() - plotPaddingLeft - plotPaddingRight;
@@ -370,7 +370,7 @@ void PhaseFrequencyResponseViewer::calculate(
         }
 
         amplitudes[i] = juce::Decibels::gainToDecibels(amplitudes[i]);
-        
+
         double ph = phases[i] * phaseUnitCoeff;
         ph = std::fmod(ph + phaseAmplitude, phaseAmplitude2);
         ph += ph >= 0 ? 0 : phaseAmplitude2;
@@ -379,9 +379,9 @@ void PhaseFrequencyResponseViewer::calculate(
 }
 
 void PhaseFrequencyResponseViewer::calculateCoefficients(
-    double angle, 
-    FilterRoot* root, 
-    double& ampCoeff, 
+    double angle,
+    FilterRoot* root,
+    double& ampCoeff,
     double& phaseCoeff)
 {
     std::complex<double> point(std::cos(angle), std::sin(angle));

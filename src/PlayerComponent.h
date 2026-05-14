@@ -8,7 +8,7 @@ class PlayerComponent
 	, public juce::ChangeListener
 {
 public:
-	PlayerComponent(AudioPluginAudioProcessor& processor);
+	PlayerComponent(AudioPluginAudioProcessor& p);
 	~PlayerComponent();
 	void resized() override;
 	void updateButtons(PlayerState playerState);

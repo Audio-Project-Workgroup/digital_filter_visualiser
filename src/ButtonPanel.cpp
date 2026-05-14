@@ -6,9 +6,9 @@
 
 ButtonPanel::ButtonPanel(AudioPluginAudioProcessor& p)
   :processorRef(p)
-  ,player(p)
   ,addRootButton("+")
   ,delRootButton("-")
+  ,player(p)
 {
     saveImage = juce::ImageCache::getFromMemory(BinaryData::Save_png, BinaryData::Save_pngSize);
     undoImage = juce::ImageCache::getFromMemory(BinaryData::Undo_png, BinaryData::Undo_pngSize);

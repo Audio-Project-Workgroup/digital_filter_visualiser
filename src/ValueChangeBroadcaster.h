@@ -5,8 +5,8 @@ template <typename Type>
 class ValueChangeBroadcaster: public juce::ChangeBroadcaster
 {
 public:
-    ValueChangeBroadcaster(Type value)
-        : value(value)
+    ValueChangeBroadcaster(Type v)
+        : value(v)
     {
     }
 
@@ -15,11 +15,11 @@ public:
         return value;
     }
 
-    void set(Type value)
+    void set(Type v)
     {
-        if (this->value != value)
+        if (this->value != v)
         {
-            this->value = value;
+            this->value = v;
             sendChangeMessage();
         }
     }

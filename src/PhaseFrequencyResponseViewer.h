@@ -5,7 +5,7 @@ class PhaseFrequencyResponseViewer final :
     juce::ChangeListener
 {
 public:
-    PhaseFrequencyResponseViewer(AudioPluginAudioProcessor* processor);
+    PhaseFrequencyResponseViewer(AudioPluginAudioProcessor* p);
     ~PhaseFrequencyResponseViewer();
     void changeListenerCallback(juce::ChangeBroadcaster* source) override;
 
@@ -31,9 +31,9 @@ private:
         std::vector<double>& amplitudes,
         std::vector<double>& phases);
     inline void calculateCoefficients(
-        double angle, 
-        FilterRoot* root, 
-        double& ampCoeff, 
+        double angle,
+        FilterRoot* root,
+        double& ampCoeff,
         double& phaseCoeff);
 
     const juce::Colour
@@ -59,14 +59,14 @@ private:
         maxAmpDb = 96.f,
         minFreq = 20.f;
 
+	AudioPluginAudioProcessor* processor;
+
     float ampDb;
     double sampleRate;
 
-    AudioPluginAudioProcessor* processor;
-
-    juce::TextButton 
-        zoomInButton, zoomOutButton, 
-        linearScaleButton, logScaleButton, 
+    juce::TextButton
+        zoomInButton, zoomOutButton,
+        linearScaleButton, logScaleButton,
         freqButton, phaseButton, bothButton;
 };
 

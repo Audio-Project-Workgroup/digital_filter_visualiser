@@ -19,8 +19,8 @@ AudioPluginAudioProcessor::AudioPluginAudioProcessor()
     apvts(*this, &um),
     activeState(new FullState<SampleType>),
     pendingState(new FullState<SampleType>),
-    playerState(PlayerState::Empty),
-    lastProcessTime(0)
+    lastProcessTime(0),
+	playerState(PlayerState::Empty)
 {
     if (!apvts.state.isValid())
     {
@@ -214,7 +214,7 @@ void AudioPluginAudioProcessor::processBlock (juce::AudioBuffer<SampleType>& buf
         juce::AudioSourceChannelInfo info(buffer);
         if (transportSource.isPlaying())
         {
-            if (resamplerSource->getResamplingRatio() == 1.0)
+            if (juce::approximatelyEqual(resamplerSource->getResamplingRatio(), 1.0))
                 transportSource.getNextAudioBlock(info);
             else
                 resamplerSource->getNextAudioBlock(info);
@@ -332,7 +332,7 @@ void AudioPluginAudioProcessor::changeListenerCallback(juce::ChangeBroadcaster* 
     {
         if (transportSource.hasStreamFinished())
         {
-            transportSource.setPosition(0); 
+            transportSource.setPosition(0);
             playerState.set(PlayerState::Stopped);
         }
     }
@@ -349,9 +349,9 @@ void AudioPluginAudioProcessor::setTransportSourceFromFile(juce::File file)
         readerSource->prepareToPlay(getBlockSize(), getSampleRate());
 
         transportSource.setSource(readerSource.get(), 0, nullptr, reader->sampleRate);
-        
+
         double ratio = reader->sampleRate / getSampleRate();
-        resamplerSource.reset(new juce::ResamplingAudioSource(&transportSource, false, getNumOutputChannels()));
+        resamplerSource.reset(new juce::ResamplingAudioSource(&transportSource, false, getTotalNumOutputChannels()));
         resamplerSource->setResamplingRatio(ratio);
         resamplerSource->prepareToPlay(getBlockSize(), getSampleRate());
 

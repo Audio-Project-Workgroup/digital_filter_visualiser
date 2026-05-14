@@ -3,9 +3,9 @@
 #include <BinaryData.h>
 #include "Utilities.h"
 
-PlayerComponent::PlayerComponent(AudioPluginAudioProcessor& processor)
-    : processor(processor)
-{  
+PlayerComponent::PlayerComponent(AudioPluginAudioProcessor& p)
+    : processor(p)
+{
     openImage = juce::ImageCache::getFromMemory(BinaryData::Load_png, BinaryData::Load_pngSize);
     playImage = juce::ImageCache::getFromMemory(BinaryData::Play_png, BinaryData::Play_pngSize);
     pauseImage = juce::ImageCache::getFromMemory(BinaryData::Pause_png, BinaryData::Pause_pngSize);
