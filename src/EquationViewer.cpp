@@ -94,11 +94,15 @@ valueTreePropertyChanged(juce::ValueTree &node, juce::Identifier const &property
 void EquationViewer::
 updateCoeffs(void)
 {
-  auto ffCoeffs = RootsToCoefficients::CalculatePolynomialCoefficientsFrom(processor->filterState->zeros);
-  auto fbCoeffs = RootsToCoefficients::CalculatePolynomialCoefficientsFrom(processor->filterState->poles);
+  auto fbCoeffs =
+    RootsToCoefficients::CalculatePolynomialCoefficientsFrom(processor->filterState->poles);
+  auto ffCoeffs =
+    RootsToCoefficients::CalculatePolynomialCoefficientsFrom(processor->filterState->zeros,
+							     fbCoeffs.size());
 
-  numeratorText.setTextFromCoeffs(ffCoeffs);
   denominatorText.setTextFromCoeffs(fbCoeffs);
+  numeratorText.setTextFromCoeffs(ffCoeffs,
+				  processor->filterState->totalOrder - processor->filterState->finiteZerosOrder);
 
   repaint();
 }
@@ -180,19 +184,19 @@ setViewport(juce::Viewport *v)
 }
 
 void EquationViewer::EquationText::
-setTextFromCoeffs(std::vector<double> const &coeffs)
+setTextFromCoeffs(std::vector<double> const &coeffs, size_t firstNonzeroIndex)
 {
   auto constexpr numDecimalPlaces = 2;
 
   text.clear();
-  for(size_t idx = 0; idx < coeffs.size(); ++idx)
+  for(size_t idx = firstNonzeroIndex; idx < coeffs.size(); ++idx)
   {
     auto const coeff = coeffs[idx];
     auto const order = -int(idx);
     if(!juce::approximatelyEqual(coeff, 0.0))
     {
       // TODO(ry): add whitespace, truncate nearly-integer coeffs, omit if coeff ~= 1
-      if(coeff > 0.0 && idx > 0)
+      if(coeff > 0.0 && idx > firstNonzeroIndex)
       {
 	text << "+";
       }

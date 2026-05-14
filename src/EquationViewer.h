@@ -23,7 +23,7 @@ private:
     void setViewport(juce::Viewport *v);
 
   private:
-    void setTextFromCoeffs(std::vector<double> const &coeffs);
+    void setTextFromCoeffs(std::vector<double> const &coeffs, size_t firstNonzeroIndex = 0);
 
     friend EquationViewer;
     juce::Viewport *viewport;
