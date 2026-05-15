@@ -17,7 +17,15 @@ public:
 	const int buttonsCount = 4;
 	
 private:
-	const juce::String filePatterns = "*.aif;*.aiff;*.flac;*.ogg;*.wav;*.wma";
+
+#if JUCE_WINDOWS
+	const juce::String filePatterns = "*.wav;*.aif;*.aiff;*.flac;*.ogg;*.mp3;*.wma";
+#elif JUCE_MAC
+	const juce::String filePatterns = "*.wav;*.aif;*.aiff;*.flac;*.ogg;*.mp3;*.m4a";
+#else 
+	const juce::String filePatterns = "*.wav;*.aif;*.aiff;*.flac;*.ogg";
+#endif
+
 	void openFile();
 	void playPause();
 	void stop();

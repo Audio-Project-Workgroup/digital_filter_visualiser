@@ -344,6 +344,8 @@ void AudioPluginAudioProcessor::setTransportSourceFromFile(juce::File file)
     if (reader != nullptr)
     {
         transportSource.stop();
+        transportSource.setSource(nullptr);
+        resamplerSource.reset();
 
         readerSource.reset(new juce::AudioFormatReaderSource(reader, true));
         readerSource->prepareToPlay(getBlockSize(), getSampleRate());
