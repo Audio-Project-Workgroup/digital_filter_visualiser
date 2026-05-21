@@ -589,11 +589,19 @@ paint(juce::Graphics &g)
     g.addTransform(pixelsFromWorldUnits);
 
     // NOTE(ry): draw axes
-    g.setColour(axisColor);
-    auto const axisThicknessWorld = axisThicknessPixels * unitsPerPixel;
-    g.drawLine(0, bottomWorld, 0, topWorld, axisThicknessWorld);
-    if(pointHoveringOverAxis) g.setColour(axisHighlightColor);
-    g.drawLine(leftWorld, 0, rightWorld, 0, axisThicknessWorld);
+    {
+      g.setColour(axisColor);
+      auto const axisThicknessWorld = axisThicknessPixels * unitsPerPixel;
+
+      g.fillRect(juce::Rectangle<float>()
+		 .withSize(axisThicknessWorld, topWorld - bottomWorld)
+		 .withCentre(juce::Point<float>(0.f, 0.5f*(topWorld + bottomWorld))));
+
+      if(pointHoveringOverAxis) g.setColour(axisHighlightColor);
+      g.fillRect(juce::Rectangle<float>()
+		 .withSize(rightWorld - leftWorld, axisThicknessWorld)
+		 .withCentre(juce::Point<float>(0.5f*(rightWorld + leftWorld), 0.f)));
+    }
 
     // NOTE(ry): draw unit circle
     g.setColour(circleColor);
@@ -602,6 +610,7 @@ paint(juce::Graphics &g)
     // NOTE(ry): draw lines
     {
       g.setColour(lineColor);
+      auto const lineThicknessWorld = lineThicknessPixels * unitsPerPixel;
 
       for(auto lineX = std::floor(leftWorld/unitsPerLine)*unitsPerLine;
           lineX < rightWorld;
@@ -609,7 +618,11 @@ paint(juce::Graphics &g)
       {
 	PROFILE_SCOPE("draw x lines");
         if(-eps >= lineX || lineX >= eps)
-        { g.drawLine(lineX, bottomWorld, lineX, topWorld, lineThicknessPixels * unitsPerPixel); }
+        {
+	  g.fillRect(juce::Rectangle<float>()
+		     .withSize(lineThicknessWorld, topWorld - bottomWorld)
+		     .withCentre(juce::Point<float>(lineX, 0.5f*(topWorld + bottomWorld))));
+	}
       }
 
       for(auto lineY = std::floor(bottomWorld/unitsPerLine)*unitsPerLine;
@@ -618,7 +631,11 @@ paint(juce::Graphics &g)
       {
         PROFILE_SCOPE("draw y lines");
         if(-eps >= lineY || lineY >= eps)
-        { g.drawLine(leftWorld, lineY, rightWorld, lineY, lineThicknessPixels * unitsPerPixel); }
+        {
+	  g.fillRect(juce::Rectangle<float>()
+		     .withSize(rightWorld - leftWorld, lineThicknessWorld)
+		     .withCentre(juce::Point<float>(0.5f*(rightWorld + leftWorld), lineY)));
+	}
       }
     }
   }
