@@ -156,6 +156,13 @@ mouseUp(const juce::MouseEvent &e)
     stopTimer();
     isDragging = false;
 
+    // NOTE(ry): snap to axis
+    if(editor->isPointHoveringOverAxis())
+    {
+      root->value = c128(root->value.re, 0.0);
+      editor->setPointHoveringOverAxis(false);
+    }
+
     if(auto *targetRoot = editor->targetRoot.get())
     {
       // NOTE(ry): merge the active root into the target root
@@ -261,50 +268,71 @@ mouseUp(const juce::MouseEvent &e)
 }
 
 void ComplexPlaneEditor::RootPoint::
+moveToLocalSpace(juce::Point<float> localPositionScreen)
+{
+  auto const editorPosition = editor->getLocalPoint(this, localPositionScreen).toDouble();
+  moveToEditorSpace(editorPosition);
+}
+
+void ComplexPlaneEditor::RootPoint::
+moveToEditorSpace(juce::Point<double> editorPositionScreen)
+{
+  auto editorPositionWorldX = editorPositionScreen.toDouble().getX();
+  auto editorPositionWorldY = editorPositionScreen.toDouble().getY();
+  editor->worldUnitsFromPixels.transformPoint(editorPositionWorldX, editorPositionWorldY);
+  auto newRootValue = c128(editorPositionWorldX, editorPositionWorldY);
+
+  moveToWorldSpace(newRootValue);
+}
+
+void ComplexPlaneEditor::RootPoint::
+moveToWorldSpace(c128 newRootValue)
+{
+  // NOTE(ry): set hovering over axis
+  auto const snapThresholdWorld = editor->unitsPerPixel * ComplexPlaneEditor::snapThresholdPixels;
+  auto const isHoveringOverAxis = std::abs(newRootValue.imag()) < snapThresholdWorld;
+  editor->setPointHoveringOverAxis(isHoveringOverAxis);
+
+  // NOTE(ry): clamp pole magnitude so filter remains stable
+  if(root->order < 0)
+  {
+    // TODO(ry): better stability clamp!
+    if(std::abs(newRootValue) >= FilterState::maxPoleMagnitude)
+    {
+      newRootValue /= std::abs(newRootValue);
+      newRootValue *= FilterState::maxPoleMagnitude;
+    }
+  }
+
+  // NOTE:(ry): transform new value to screen space to detect if we are on top
+  // of another point, taking axis snapping into account
+  auto editorPositionScreenX = newRootValue.real();
+  auto editorPositionScreenY = isHoveringOverAxis ? 0.0 : newRootValue.imag();
+  editor->pixelsFromWorldUnits.transformPoint(editorPositionScreenX, editorPositionScreenY);
+
+  // NOTE(ry): this is maybe the shittiest way I can imagine finding where another component is
+  auto *targetComponent = editor->getComponentAt(editorPositionScreenX, editorPositionScreenY);
+  if(auto *targetPoint = dynamic_cast<RootPoint*>(targetComponent))
+  {
+    editor->targetRoot = targetPoint->root;
+  }
+  else
+  {
+    editor->targetRoot = nullptr;
+  }
+
+  root->value = newRootValue;
+}
+
+void ComplexPlaneEditor::RootPoint::
 mouseDrag(const juce::MouseEvent &e)
 {
   if(e.mods.isLeftButtonDown())
   {
-    if(auto *rootPtr = root.get())
+    if(root.get())
     {
-      auto worldUnitsFromPixels = juce::Point<double>(editor->unitsPerPixel, -editor->unitsPerPixel);
-      auto dragOffsetPixels = e.getOffsetFromDragStart().toDouble();
-      auto dragOffsetWorld = worldUnitsFromPixels * dragOffsetPixels;
-      auto newRootValue = valueAtDragStart + c128(dragOffsetWorld.getX(), dragOffsetWorld.getY());
-
-      // NOTE(ry): snap to axis
-      auto snapThresholdWorld = editor->unitsPerPixel * ComplexPlaneEditor::snapThresholdPixels;
-      if(std::abs(newRootValue.imag()) < snapThresholdWorld)
-      {
-	newRootValue = c128(newRootValue.real(), 0.0);
-      }
-
-      if(rootPtr->order < 0)
-      {
-	// TODO(ry): better stability clamp!
-	// NOTE(ry): stability clamp
-	if(std::abs(newRootValue) >= FilterState::maxPoleMagnitude)
-	{
-	  newRootValue /= std::abs(newRootValue);
-	  newRootValue *= FilterState::maxPoleMagnitude;
-	}
-      }
-
-      // NOTE(ry): this is maybe the shittiest way I can imagine finding where another component is
-      // TODO(ry): use world pos because mouse can be off axis while point is on (or change tolerance)
-      auto parentEvent = e.getEventRelativeTo(editor);
-      auto *targetComponent = editor->getComponentAt(parentEvent.x, parentEvent.y);
-      if(auto *targetPoint = dynamic_cast<RootPoint*>(targetComponent))
-      {
-	editor->targetRoot = targetPoint->root;
-      }
-      else
-      {
-	editor->targetRoot = nullptr;
-      }
-
-      // NOTE(ry): update all properties related to this root
-      rootPtr->value = newRootValue;
+      auto const localPosition = e.mouseDownPosition + e.getOffsetFromDragStart().toFloat();
+      moveToLocalSpace(localPosition);
     }
   }
 }
@@ -526,6 +554,7 @@ paint(juce::Graphics &g)
 
   auto const backgroundColor = juce::Colour(0x08, 0x0C, 0x1C);
   auto const axisColor = juce::Colours::navajowhite;
+  auto const axisHighlightColor = juce::Colours::cadetblue;
   auto const lineColor = juce::Colours::snow;
   auto const circleColor = juce::Colours::goldenrod;
   auto const textColor = juce::Colours::white;
@@ -561,8 +590,10 @@ paint(juce::Graphics &g)
 
     // NOTE(ry): draw axes
     g.setColour(axisColor);
-    g.drawLine(0, bottomWorld, 0, topWorld, axisThicknessPixels * unitsPerPixel);
-    g.drawLine(leftWorld, 0, rightWorld, 0, axisThicknessPixels * unitsPerPixel);
+    auto const axisThicknessWorld = axisThicknessPixels * unitsPerPixel;
+    g.drawLine(0, bottomWorld, 0, topWorld, axisThicknessWorld);
+    if(pointHoveringOverAxis) g.setColour(axisHighlightColor);
+    g.drawLine(leftWorld, 0, rightWorld, 0, axisThicknessWorld);
 
     // NOTE(ry): draw unit circle
     g.setColour(circleColor);
@@ -673,6 +704,20 @@ paint(juce::Graphics &g)
       }
     }
   }
+}
+
+void ComplexPlaneEditor::
+setPointHoveringOverAxis(bool hovering)
+{
+  auto const oldHovering = pointHoveringOverAxis;
+  pointHoveringOverAxis = hovering;
+  if(oldHovering != hovering) repaint();
+}
+
+bool ComplexPlaneEditor::
+isPointHoveringOverAxis(void)
+{
+  return(pointHoveringOverAxis);
 }
 
 void ComplexPlaneEditor::

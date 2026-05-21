@@ -27,6 +27,22 @@ public:
     RootPoint(bool c, FilterRoot::Ptr r);
     ~RootPoint();
 
+    /**
+     * move point to a new value determined by a screen-space position relative
+     * to this component.
+     */
+    void moveToLocalSpace(juce::Point<float> localPositionScreen);
+    /**
+     * move point to a new value determined by a screen-space position relative
+     * to the editor component.
+     */
+    void moveToEditorSpace(juce::Point<double> editorPositionScreen);
+    /**
+     * move point to new value, preserving filter stability and handling
+     * snapping to axis, and set the target point for merging.
+     */
+    void moveToWorldSpace(c128 newRootValue);
+
     void mouseEnter(const juce::MouseEvent &e) override;
     void mouseExit(const juce::MouseEvent &e) override;
     void mouseDown(const juce::MouseEvent &e) override;
@@ -155,6 +171,9 @@ public:
 
   void paint(juce::Graphics &g) override;
 
+  void setPointHoveringOverAxis(bool hovering);
+  bool isPointHoveringOverAxis(void);
+
   juce::AffineTransform pixelsFromWorldUnits;
   juce::AffineTransform worldUnitsFromPixels;
 
@@ -181,4 +200,6 @@ private:
   FilterRoot::Ptr targetRoot; // NOTE(ry): the root the active root is hovering over
 
   RootTooltip tooltip;
+
+  bool pointHoveringOverAxis;
 };
