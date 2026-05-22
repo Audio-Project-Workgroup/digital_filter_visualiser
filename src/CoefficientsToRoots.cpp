@@ -160,37 +160,56 @@ void CoefficientsToRoots::printCheck(const std::vector<std::vector<double>> &mat
 
 std::vector<c128> CoefficientsToRoots::extractRoots(const std::vector<std::vector<double>>& M, int degree)
 {
-    // https://www.mosismath.com/Eigenvalues/EigenvalsBasics.html --> public void CalcEigenvals()
+
+    std::cout<<"// Check Roots"<<std::endl;
+    CoefficientsToRoots::printCheck(M);
+    
+    // TODO : Consider making this a map of root key and count index. 
+    // requires defining a resolution thresshold that unites keys of close values
     std::vector<c128> roots;
- 
     int i = 0;
     while (i < degree)
     {
-        double a, b, c;
-        a = 1.0;
-        b = -M[i][i] - M[i+1][i+1];
-        c = M[i][i] * M[i+1][i+1] - M[i][i+1] * M[i+1][i];
-
-        if ((b * b) >= (4.0 * a * c))
+        
+        if ( i == degree - 1 || std::abs(M[i+1][i] < Epsilon) )
         {
-            roots.emplace_back(
-                (-b + std::sqrt((b * b) - (4.0 * a * c))) / 2.0 / a, 
-                0.0);
-            roots.emplace_back(
-                (-b - std::sqrt((b * b) - (4.0 * a * c))) / 2.0 / a,
-                0.0);
+            // Real eigenvalue on diagonal
+            roots.emplace_back(M[i][i], 0.0);
             ++i;
         }
         else
         {
-            double realPart = -b / 2.0 / a;
-            double imagPart =
-                std::sqrt((4.0 * a * c) - (b * b))
-                / 2.0 / a;
+            // check if conjugate by solving the equation which instantiates by the 2x2 cell:
+            // https://www.physicsforums.com/threads/how-do-i-estimate-complex-eigenvalues.170108/post-1330547
+            // https://www.mosismath.com/Eigenvalues/EigenvalsQR.html
+            // det(A - λI) = 0
+            // =>  det| a-λ    b |  
+            //        |   c  d-λ | = 0 
+            // => (a-λ)(d-λ) - bc = 0
+            // => λ^2 - (a+d)λ + (ad-bc) = 0
+            // => λ^2 - (a+d)λ + detA = 0 --> solve with discriminant
+            const double a = M[i][i];
+            const double b = M[i][i+1];
+            const double c = M[i+1][i];
+            const double d = M[i+1][i+1];
+            const double det  = a*d - b*c;
+            // solve with discriminant
+            const double discriminant = (a+d)*(a+d) - 4.0*det;
 
-            roots.emplace_back(realPart,  imagPart);
-            roots.emplace_back(realPart, -imagPart);
-
+            if ( discriminant >= 0.0)
+            {
+                // tow real roots
+                roots.emplace_back(((a+d) + std::sqrt(discriminant)) / 2.0, 0.0);
+                roots.emplace_back(((a+d) - std::sqrt(discriminant)) / 2.0, 0.0);
+            }
+            else
+            {
+                // Complex conjugate pair
+                const double re = (a+d) / 2.0;
+                const double im = std::sqrt(-discriminant) / 2.0;
+                roots.emplace_back(re,  im);
+                roots.emplace_back(re, -im);
+            }
             i += 2;
         }
     }
@@ -201,5 +220,4 @@ std::vector<c128> CoefficientsToRoots::extractRoots(const std::vector<std::vecto
     std::cout<<std::endl;
 
     return roots;
-
 }
