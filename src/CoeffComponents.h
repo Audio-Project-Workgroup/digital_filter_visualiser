@@ -1,7 +1,6 @@
 #pragma once
 
 #include "FilterState.h"
-#include "RootsToCoefficients.h"
 #include <vector>
 #include <string>
 
