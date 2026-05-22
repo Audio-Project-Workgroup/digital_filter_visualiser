@@ -1,4 +1,6 @@
 #include "CoeffComponents.h"
+#include "RootsToCoefficients.h"
+#include "CoefficientsToRoots.cpp"
 
 #include <iostream>
 #define COL_WIDTH 100 // TODO make this value relate to the global UI.
@@ -118,9 +120,50 @@ juce::Component* CoefficientsComponent::refreshComponentForCell(int row, int col
                 ffcoeffs[static_cast<size_t>(row)] = value;
             else if (col == 3)
                 fbcoeffs[static_cast<size_t>(row)] = value;
-
+            
             // TODO: calculate roots through the coefficient2roots function.
             // TODO: notify other listeners about this change
+            if (col == 2)
+            {
+
+                auto zeros = CoefficientsToRoots::GramSchmidt(this->ffcoeffs);
+
+                std::cout<<"Existing Zeros"<<std::endl;
+                for (int i=0 ; i< processor->filterState->zeros.size(); i++)
+                {
+                    auto *r = processor->filterState->zeros[i];
+                    std::cout<<"("<<r->value.re.get()<<","<< r->value.im.get()<<") ";
+                    // processor->filterState->remove(r);
+                }
+                std::cout<<std::endl;
+
+                // for (int i=0 ; i< zeros.size(); i++)
+                // {
+                //     auto &r = zeros[i];
+                //     processor->filterState->add(i, r);
+                // }
+
+            }
+            else if (col == 3)
+            {
+                auto poles =  CoefficientsToRoots::GramSchmidt(this->fbcoeffs);
+
+                std::cout<<"Existing Poles"<<std::endl;
+                for (int i=0 ; i< processor->filterState->poles.size(); i++)
+                {
+                    auto *r = processor->filterState->poles[i];
+                    std::cout<<"("<<r->value.re.get()<<","<< r->value.im.get()<<") ";
+                    // processor->filterState->remove(r);
+                }
+                std::cout<<std::endl;
+
+                // for (int i=0 ; i< poles.size(); i++)
+                // {
+                //     auto &r = poles[i];
+                //     processor->filterState->add(i, r);
+                // }
+            }
+            
         };
     }
 
