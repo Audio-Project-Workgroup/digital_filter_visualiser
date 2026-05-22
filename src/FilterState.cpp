@@ -143,6 +143,65 @@ remove(FilterRoot::Ptr rootRef)
   }
 }
 
+FilterRoot::Ptr FilterState::
+mergeRoots(FilterRoot::Ptr r1, FilterRoot::Ptr r2)
+{
+  if(auto *activeRoot = r1.get(), *targetRoot = r2.get(); activeRoot && targetRoot)
+  {
+    auto const newOrder = activeRoot->order + targetRoot->order;
+    if((targetRoot->order < 0) != (activeRoot->order < 0))
+    {
+      // NOTE(ry): we are merging a zero and a pole. we keep one and remove the
+      // other, depending on the sign of the result. the order of the root we
+      // keep will decrease.
+      auto const resultIsPole = newOrder < 0;
+      auto pole = targetRoot->isPole() ? targetRoot : activeRoot;
+      auto zero = targetRoot->isPole() ? activeRoot : targetRoot;
+
+      // NOTE(ry): we must decrement the zero order before we decrement the pole
+      // order so we don't add a slack pole
+      if(resultIsPole)
+      {
+	remove(zero);
+	pole->order = newOrder;
+	return pole;
+      }
+      else
+      {
+	zero->order = newOrder;
+	remove(pole);
+	// NOTE(ry): it is possible that the new order is zero here, in which
+	// case both roots will be removed and we will return null
+	return newOrder ? zero : nullptr;
+      }
+    }
+    else
+    {
+      // NOTE(ry): we are merging two roots of the same kind (zero & zero or
+      // pole & pole). the order of the root we keep will increase.
+
+      // NOTE(ry): we must increase the order of the pole we keep before
+      // removing the other one, or remove a zero before increasing the order of
+      // the one we keep so we don't add a slack pole.
+      if(targetRoot->isPole())
+      {
+	targetRoot->order = newOrder;
+	remove(activeRoot);
+      }
+      else
+      {
+	remove(activeRoot);
+	targetRoot->order = newOrder;
+      }
+      return targetRoot;
+    }
+  }
+
+  // NOTE(ry): we were not passed two non-null roots. we do nothing and return
+  // r1 (which will be null if we were passed two null pointers)
+  return(r1);
+}
+
 void FilterState::
 addListener(juce::ValueTree::Listener *listener)
 {

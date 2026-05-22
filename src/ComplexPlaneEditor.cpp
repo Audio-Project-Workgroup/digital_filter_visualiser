@@ -163,106 +163,32 @@ mouseUp(const juce::MouseEvent &e)
       editor->setPointHoveringOverAxis(false);
     }
 
-    if(auto *targetRoot = editor->targetRoot.get())
+    // NOTE(ry): merge roots
+    jassert(editor->activeRoot.get());
+    auto mergedRoot = editor->processor->filterState->mergeRoots(editor->activeRoot, editor->targetRoot);
+    // NOTE(ry): the merging operation may potentially destroy the object the
+    // implicit `this` pointer points to, so we have to be careful to check that
+    // the object was not destroyed before we access any of its member
+    // variables. any data we need related to the object after it's been
+    // destroyed should be saved to this function's stack frame (before the
+    // merge) or should reside in a global section (eg static members)
+    if(auto *mergedRootPtr = mergedRoot.get())
     {
-      // NOTE(ry): merge the active root into the target root
-      auto *activeRoot = editor->activeRoot.get();
-      jassert(activeRoot != nullptr);
-
-      // NOTE(ry): it is possible that in the process of merging roots that this
-      // object will be destroyed. it is important not to access variables or
-      // methods on this after a potentially destructive modification, or else
-      // risk use-after-free crashes. if you need data stored in this object
-      // after it may have been destroyed, put it on this stack frame or use the
-      // static `editor` variable.
-
-      int newOrder = targetRoot->order + activeRoot->order;
-      if((targetRoot->order < 0) != (activeRoot->order < 0))
+      if(mergedRootPtr == editor->activeRoot.get())
       {
-	// NOTE(ry): we are merging a zero with a pole. we keep one and remove
-	// the other, depending on the sign of the result. the order of the root
-	// we keep will decrease
-	auto const resultIsPole = newOrder < 0;
-	auto zero = targetRoot->order < 0 ? editor->activeRoot : editor->targetRoot;
-	auto pole = targetRoot->order < 0 ? editor->targetRoot : editor->activeRoot;
-
-	// NOTE(ry): we must decrement the zero order before we decrement the
-	// pole order so we don't add a slack pole
-	if(resultIsPole)
-	{
-	  editor->processor->filterState->remove(zero);
-	  pole->order = newOrder;
-	  if(auto *polePtr = pole.get())
-	  {
-	    if(polePtr == activeRoot)
-	    {
-	      // NOTE(ry): the pole is this, so we need to show the tooltip
-	      editor->tooltip.setRootAndShow(pole);
-	    }
-	    // NOTE(ry): since the pole is the target, after this is destroyed a
-	    // mouseEnter callback will fire, calling setRootAndShow on the
-	    // desired root
-	  }
-	}
-	else
-	{
-	  zero->order = newOrder;
-	  editor->processor->filterState->remove(pole);
-	  if(auto *zeroPtr = zero.get())
-	  {
-	    if(zeroPtr == activeRoot)
-	    {
-	      // NOTE(ry): the zero is this, so we need to show the tooltip
-	      editor->tooltip.setRootAndShow(zero);
-	    }
-	    // NOTE(ry): since the zero is the target, after this is destroyed a
-	    // mouseEnter callback will fire, calling setRootAndShow on the
-	    // desired root
-	  }
-	}
+	// NOTE(ry): we were not destroyed. restore dragging state and show tooltip
+	setInterceptsMouseClicks(true, true);
+	conjugate->setInterceptsMouseClicks(true, true);
+	editor->tooltip.setPointAndShow(this);
       }
-      else
-      {
-	// NOTE(ry): we are merging two roots of the same kind (zero & zero or
-	// pole & pole). the order of the root we keep will increase
-
-	// NOTE(ry): we must increase the order of the pole we keep before
-	// removing the other one, or remove a zero before we increase the order
-	// of the other one.
-	if(targetRoot->isPole())
-	{
-	  targetRoot->order = newOrder;
-	  editor->processor->filterState->remove(editor->activeRoot);
-	}
-	else
-	{
-	  editor->processor->filterState->remove(editor->activeRoot);
-	  targetRoot->order = newOrder;
-	}
-	// NOTE(ry): we don't need to set the root since after this is destroyed
-	// a mouseEnter callback will fire, calling setRootAndShow on the
-	// desired root
-      }
+      // NOTE(ry): we were destroyed. the other root's mouseEnter callback will
+      // fire and set the active root and show the tooltip
     }
     else
     {
-      editor->tooltip.setPointAndShow(this);
-    }
-
-    // NOTE(ry): it's possible the object on which this member function has been
-    // called gets destroyed during its execution, so we only reset its input
-    // state (and the state of its conjugate) if it still exists. we can check
-    // if it still exists by checking if the root it corresponds to still exists
-    if(editor->activeRoot.get())
-    {
-      setInterceptsMouseClicks(true, true);
-      conjugate->setInterceptsMouseClicks(true, true);
-    }
-    else
-    {
+      // NOTE(ry): both roots we destroyed
       editor->activeRoot = nullptr;
     }
-
     editor->targetRoot = nullptr;
   }
 }

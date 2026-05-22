@@ -194,6 +194,16 @@ struct FilterState : private juce::ValueTree::Listener
    */
   void remove(FilterRoot::Ptr rootRef);
 
+  /** Merges given roots.
+   * Destroys one root and increments the other root's order to be a sum of the
+   * orders of both roots.
+   * Returns a pointer to the root whose order was incremented.
+   * If the sum of orders is 0, both are destroyed and nullptr is returned.
+   * If one or more of the given roots is null, does nothing and returns the
+   * first root.
+   */
+  FilterRoot::Ptr mergeRoots(FilterRoot::Ptr r1, FilterRoot::Ptr r2);
+
   /** Let listeners add or remove themselves to the underlying value tree
    */
   void addListener(juce::ValueTree::Listener *listener);
