@@ -108,8 +108,8 @@ mouseEnter(const juce::MouseEvent &e)
   juce::ignoreUnused(e);
 
   DBG("enter root point");
-  editor->activeRoot = root;
   editor->tooltip.setPointAndShow(this);
+  editor->processor->filterState->beginWeakInteraction(root);
 }
 
 void ComplexPlaneEditor::RootPoint::
@@ -119,7 +119,7 @@ mouseExit(const juce::MouseEvent &e)
 
   DBG("exit root point");
   editor->tooltip.hide() ;
-  editor->activeRoot = nullptr;
+  editor->processor->filterState->endWeakInteraction();
 }
 
 void ComplexPlaneEditor::RootPoint::
@@ -127,12 +127,13 @@ mouseDown(const juce::MouseEvent &e)
 {
   if(e.mods.isLeftButtonDown())
   {
+    editor->processor->filterState->beginStrongInteraction(root);
+
     isDragging = true;
     startTimerHz(timerFreq);
 
     editor->tooltip.hide();
 
-    jassert(root.get() == editor->activeRoot.get());
     setInterceptsMouseClicks(false, false);
     conjugate->setInterceptsMouseClicks(false, false);
 
@@ -159,13 +160,12 @@ mouseUp(const juce::MouseEvent &e)
     // NOTE(ry): snap to axis
     if(editor->isPointHoveringOverAxis())
     {
-      root->value = c128(root->value.re, 0.0);
+      moveRoot(root->value.re, 0.0);
       editor->setPointHoveringOverAxis(false);
     }
 
     // NOTE(ry): merge roots
-    jassert(editor->activeRoot.get());
-    auto mergedRoot = editor->processor->filterState->mergeRoots(editor->activeRoot, editor->targetRoot);
+    auto mergedRoot = editor->processor->filterState->mergeRoots();
     // NOTE(ry): the merging operation may potentially destroy the object the
     // implicit `this` pointer points to, so we have to be careful to check that
     // the object was not destroyed before we access any of its member
@@ -174,7 +174,8 @@ mouseUp(const juce::MouseEvent &e)
     // merge) or should reside in a global section (eg static members)
     if(auto *mergedRootPtr = mergedRoot.get())
     {
-      if(mergedRootPtr == editor->activeRoot.get())
+      // NOTE(ry): "isActive" means "started the interaction"
+      if(mergedRootPtr->isActive())
       {
 	// NOTE(ry): we were not destroyed. restore dragging state and show tooltip
 	setInterceptsMouseClicks(true, true);
@@ -187,9 +188,9 @@ mouseUp(const juce::MouseEvent &e)
     else
     {
       // NOTE(ry): both roots we destroyed
-      editor->activeRoot = nullptr;
+      editor->processor->filterState->endWeakInteraction();
     }
-    editor->targetRoot = nullptr;
+    editor->processor->filterState->endStrongInteraction();
   }
 }
 
@@ -203,6 +204,9 @@ moveToLocalSpace(juce::Point<float> localPositionScreen)
 void ComplexPlaneEditor::RootPoint::
 moveToEditorSpace(juce::Point<double> editorPositionScreen)
 {
+  // TODO(ry): keep the real axis "sticky"; points starting on the axis should
+  // have to be dragged some amount before they actually move off-axis (and a
+  // conjugate point appears and the filter order updates)
   auto editorPositionWorldX = editorPositionScreen.toDouble().getX();
   auto editorPositionWorldY = editorPositionScreen.toDouble().getY();
   editor->worldUnitsFromPixels.transformPoint(editorPositionWorldX, editorPositionWorldY);
@@ -214,40 +218,12 @@ moveToEditorSpace(juce::Point<double> editorPositionScreen)
 void ComplexPlaneEditor::RootPoint::
 moveToWorldSpace(c128 newRootValue)
 {
+  newRootValue = editor->processor->filterState->moveRoot(root, newRootValue);
+
   // NOTE(ry): set hovering over axis
   auto const snapThresholdWorld = editor->unitsPerPixel * ComplexPlaneEditor::snapThresholdPixels;
   auto const isHoveringOverAxis = std::abs(newRootValue.imag()) < snapThresholdWorld;
   editor->setPointHoveringOverAxis(isHoveringOverAxis);
-
-  // NOTE(ry): clamp pole magnitude so filter remains stable
-  if(root->order < 0)
-  {
-    // TODO(ry): better stability clamp!
-    if(std::abs(newRootValue) >= FilterState::maxPoleMagnitude)
-    {
-      newRootValue /= std::abs(newRootValue);
-      newRootValue *= FilterState::maxPoleMagnitude;
-    }
-  }
-
-  // NOTE:(ry): transform new value to screen space to detect if we are on top
-  // of another point, taking axis snapping into account
-  auto editorPositionScreenX = newRootValue.real();
-  auto editorPositionScreenY = isHoveringOverAxis ? 0.0 : newRootValue.imag();
-  editor->pixelsFromWorldUnits.transformPoint(editorPositionScreenX, editorPositionScreenY);
-
-  // NOTE(ry): this is maybe the shittiest way I can imagine finding where another component is
-  auto *targetComponent = editor->getComponentAt(editorPositionScreenX, editorPositionScreenY);
-  if(auto *targetPoint = dynamic_cast<RootPoint*>(targetComponent))
-  {
-    editor->targetRoot = targetPoint->root;
-  }
-  else
-  {
-    editor->targetRoot = nullptr;
-  }
-
-  root->value = newRootValue;
 }
 
 void ComplexPlaneEditor::RootPoint::
@@ -272,6 +248,7 @@ timerCallback(void)
     auto const isRightButtonDown = m.isRightButtonDown();
 
     // NOTE(ry): right click while dragging to split higher-order root
+    // TODO(ry): move this logic to the filter state as well
     if(isRightButtonDown && !wasRightButtonDown)
     {
       DBG("right click while dragging");

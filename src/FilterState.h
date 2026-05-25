@@ -17,6 +17,12 @@ namespace IDs
   const juce::Identifier Order("Order");
 }
 
+enum RootInteractionFlags : u32
+{
+  RootInteractionFlags_isPrimed = 1 << 0,
+  RootInteractionFlags_isActive = 1 << 1,
+};
+
 struct FilterRoot
 {
   // NOTE(ry): This structure is meant to be used as a fast proxy object for
@@ -102,6 +108,7 @@ struct FilterRoot
     value.re.referTo(node, IDs::ValueRe, um);
     value.im.referTo(node, IDs::ValueIm, um);
     order.referTo(node, IDs::Order, um);
+    flags = 0;
   }
 
   /** returns true if the root is on the real axis */
@@ -170,6 +177,18 @@ struct FilterRoot
    */
   bool wasOnAxis;
 
+  // NOTE(ry): interaction state
+  c128 valueAtInteractionStart;
+  u32 flags;
+
+  // NOTE(ry): flag getters
+  bool isPrimed(void) { return(flags & RootInteractionFlags_isPrimed); }
+  bool isActive(void) { return(flags & RootInteractionFlags_isActive); }
+
+  // NOTE(ry): flag setters
+  void isPrimed(bool set) { set ? flags |= RootInteractionFlags_isPrimed : flags &= ~RootInteractionFlags_isPrimed; }
+  void isActive(bool set) { set ? flags |= RootInteractionFlags_isActive : flags &= ~RootInteractionFlags_isActive; }
+
 private:
   JUCE_DECLARE_WEAK_REFERENCEABLE(FilterRoot);
 };
@@ -203,6 +222,35 @@ struct FilterState : private juce::ValueTree::Listener
    * first root.
    */
   FilterRoot::Ptr mergeRoots(FilterRoot::Ptr r1, FilterRoot::Ptr r2);
+  /** Defaults to mergeRoots(activeRoot, targetRoot);
+   */
+  FilterRoot::Ptr mergeRoots(void);
+
+  /** Mark the start of a weak interaction with a root (eg hovering).
+   * Sets the given root as primed.
+   */
+  void beginWeakInteraction(FilterRoot::Ptr root);
+  /** Mark the end of a weak interaction.
+   * Sets the primed root as inactive.
+   */
+  void endWeakInteraction(void);
+
+  /** Mark the start of a strong interaction with a root (eg dragging).
+   * Sets the given root as active.
+   */
+  void beginStrongInteraction(FilterRoot::Ptr root);
+  /** Mark the end of a strong interaction.
+   * Sets the active root as inactive.
+   */
+  void endStrongInteraction(void);
+
+  /** Move the given root to a new value.
+   * Returns the actual value the root has been moved to, which may differ from
+   * the passed value because of the need to normalize pole magnitude, snap to
+   * axis, etc.
+   * Updates interaction state.
+   */
+  c128 moveRoot(FilterRoot::Ptr root, c128 newValue);
 
   /** Let listeners add or remove themselves to the underlying value tree
    */
@@ -244,6 +292,7 @@ struct FilterState : private juce::ValueTree::Listener
   juce::UndoManager *um;
 
   static constexpr r64 maxPoleMagnitude = 1.0 - 1e-3; // TODO(ry): tune
+  static constexpr r64 rootMergeSeparationTolerance = 5e-2; // TODO(ry): tune
 
 private:
 
@@ -258,6 +307,14 @@ private:
    * which we do not want the action to be undoable and this returns nullptr.
    */
   juce::UndoManager* getCurrentUndoManager(void);
+
+  // NOTE(ry): interaction state
+  /** the root that is being weakly interacted with (eg mouse hovering) */
+  FilterRoot::Ptr primedRoot;
+  /** the root that is being strongly interacted with (eg mouse dragging) */
+  FilterRoot::Ptr activeRoot;
+  /** the root that the hot root will be merged into when the hot interaction ends */
+  FilterRoot::Ptr targetRoot;
 
   static juce::ListenerList<juce::ValueTree::Listener> listeners; // NOTE(ry): death to encapsulation
   friend class AudioPluginAudioProcessor;

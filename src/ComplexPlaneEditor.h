@@ -43,6 +43,9 @@ public:
      */
     void moveToWorldSpace(c128 newRootValue);
 
+    c128 moveRoot(c128 newRootValue) { return(editor->processor->filterState->moveRoot(root, newRootValue)); }
+    c128 moveRoot(r64 newRootValueRe, r64 newRootValueIm) { return(moveRoot(c128(newRootValueRe, newRootValueIm))); }
+
     void mouseEnter(const juce::MouseEvent &e) override;
     void mouseExit(const juce::MouseEvent &e) override;
     void mouseDown(const juce::MouseEvent &e) override;
@@ -196,8 +199,6 @@ private:
   juce::Point<double> worldCenterAtDragStart;
 
   juce::OwnedArray<RootPoint> points;
-  FilterRoot::Ptr activeRoot; // NOTE(ry): the root the mouse is hovering over or being dragged
-  FilterRoot::Ptr targetRoot; // NOTE(ry): the root the active root is hovering over
 
   RootTooltip tooltip;
 

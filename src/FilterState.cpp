@@ -146,17 +146,17 @@ remove(FilterRoot::Ptr rootRef)
 FilterRoot::Ptr FilterState::
 mergeRoots(FilterRoot::Ptr r1, FilterRoot::Ptr r2)
 {
-  if(auto *activeRoot = r1.get(), *targetRoot = r2.get(); activeRoot && targetRoot)
+  if(auto *active = r1.get(), *target = r2.get(); active && target)
   {
-    auto const newOrder = activeRoot->order + targetRoot->order;
-    if((targetRoot->order < 0) != (activeRoot->order < 0))
+    auto const newOrder = active->order + target->order;
+    if((target->order < 0) != (active->order < 0))
     {
       // NOTE(ry): we are merging a zero and a pole. we keep one and remove the
       // other, depending on the sign of the result. the order of the root we
       // keep will decrease.
       auto const resultIsPole = newOrder < 0;
-      auto pole = targetRoot->isPole() ? targetRoot : activeRoot;
-      auto zero = targetRoot->isPole() ? activeRoot : targetRoot;
+      auto pole = target->isPole() ? target : active;
+      auto zero = target->isPole() ? active : target;
 
       // NOTE(ry): we must decrement the zero order before we decrement the pole
       // order so we don't add a slack pole
@@ -183,23 +183,109 @@ mergeRoots(FilterRoot::Ptr r1, FilterRoot::Ptr r2)
       // NOTE(ry): we must increase the order of the pole we keep before
       // removing the other one, or remove a zero before increasing the order of
       // the one we keep so we don't add a slack pole.
-      if(targetRoot->isPole())
+      if(target->isPole())
       {
-	targetRoot->order = newOrder;
-	remove(activeRoot);
+	target->order = newOrder;
+	remove(active);
       }
       else
       {
-	remove(activeRoot);
-	targetRoot->order = newOrder;
+	remove(active);
+	target->order = newOrder;
       }
-      return targetRoot;
+      return target;
     }
   }
 
   // NOTE(ry): we were not passed two non-null roots. we do nothing and return
   // r1 (which will be null if we were passed two null pointers)
   return(r1);
+}
+
+FilterRoot::Ptr FilterState::
+mergeRoots(void)
+{
+  return(mergeRoots(activeRoot, targetRoot));
+}
+
+c128 FilterState::
+moveRoot(FilterRoot::Ptr root, c128 newValue)
+{
+  jassert(root == activeRoot);
+  jassert(root->isActive());
+
+  if(root->isPole())
+  {
+    // NOTE(ry): clamp pole magnitude so filter remains stable
+    if(std::abs(newValue) >= maxPoleMagnitude)
+    {
+      // TODO(ry): better stability clamp!
+      newValue /= std::abs(newValue);
+      newValue *= maxPoleMagnitude;
+    }
+  }
+  root->value = newValue;
+
+  // TODO(ry): it would be great if we could accelerate spatial queries to
+  // sub-linear time (at least it's no worse than juce's methods for finding
+  // components at a given position :P)
+  for(auto *pole : poles)
+  {
+    if(pole == root) continue;
+
+    if(std::abs(newValue - c128(pole->value)) < rootMergeSeparationTolerance)
+    {
+      targetRoot = pole;
+      return(newValue);
+    }
+  }
+  for(auto *zero : zeros)
+  {
+    if(zero == root) continue;
+
+    if(std::abs(newValue - c128(zero->value)) < rootMergeSeparationTolerance)
+    {
+      targetRoot = zero;
+      return(newValue);
+    }
+  }
+
+  targetRoot = nullptr;
+  return(newValue);
+}
+
+void FilterState::
+beginWeakInteraction(FilterRoot::Ptr root)
+{
+  primedRoot = root;
+  if(primedRoot.get()) primedRoot->isPrimed(true);
+}
+
+void FilterState::
+endWeakInteraction(void)
+{
+  endStrongInteraction();
+  if(primedRoot.get()) primedRoot->isPrimed(false);
+  primedRoot = nullptr;
+}
+
+void FilterState::
+beginStrongInteraction(FilterRoot::Ptr root)
+{
+  activeRoot = root;
+  if(activeRoot.get())
+  {
+    activeRoot->isActive(true);
+    activeRoot->valueAtInteractionStart = activeRoot->value;
+  }
+}
+
+void FilterState::
+endStrongInteraction(void)
+{
+  if(activeRoot.get()) activeRoot->isActive(false);
+  activeRoot = nullptr;
+  targetRoot = nullptr;
 }
 
 void FilterState::
