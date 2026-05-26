@@ -171,7 +171,7 @@ std::vector<c128> CoefficientsToRoots::extractRoots(const std::vector<std::vecto
     while (i < degree)
     {
         
-        if ( i == degree - 1 || std::abs(M[i+1][i] < Epsilon) )
+        if ( i == degree - 1 || std::abs(M[i+1][i]) < Epsilon )
         {
             // Real eigenvalue on diagonal
             roots.emplace_back(M[i][i], 0.0);
