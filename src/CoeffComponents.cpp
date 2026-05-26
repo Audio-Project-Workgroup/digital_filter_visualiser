@@ -214,12 +214,32 @@ void CoefficientsComponent::updateFilterStateOnCoefEdit(int row, int col, double
         std::cout<<std::endl;
 
         std::cout<<"Removing Poles"<<std::endl;
+
+        auto isNewPole = [&](c128 val) -> std::pair<bool, int> {
+            for (auto& [r, order] : poles) 
+            {
+                if (val.real() == r.real() && val.imag() == r.imag())
+                    return {true, order};
+            }
+            return {false, 0};
+        };
+        
         size_t sz = processor->filterState->poles.size() - poles.size();
         for (int i=0 ; i< sz; i++)
         {
             auto *r = processor->filterState->poles.getFirst();
             std::cout<<"\t("<<r->value.re.get()<<","<< r->value.im.get()<<") ";
-            processor->filterState->remove(r);
+            c128 key(c128(r->value.re.get(),r->value.im.get()));
+            auto [found, order] = isNewPole(key);
+
+            if ( found )
+            {
+                r->order= order;
+            }
+            else
+            {
+                processor->filterState->remove(r);
+            } 
         }
         std::cout<<std::endl;
 #ifdef DEBUG_C2R
