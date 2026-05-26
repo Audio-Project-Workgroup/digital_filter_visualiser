@@ -20,7 +20,7 @@ std::vector<std::pair<c128, int>> CoefficientsToRoots::GramSchmidt(std::vector<d
     if (degree==1)
     {
         std::cout<<"Returing 1 root --> "<<coefs[degree]<<std::endl;
-        return {std::make_pair(static_cast<c128>(coefs[degree]), 1)};
+        return {std::make_pair(static_cast<c128>(-coefs[coefs.size() - 1]), 1)};
     }
 
     // build companion Matrix
@@ -30,7 +30,7 @@ std::vector<std::pair<c128, int>> CoefficientsToRoots::GramSchmidt(std::vector<d
     for (int i=0; i< degree; i++)
     {
         int j = i+1;
-        int coef_idx = degree-i;
+        int coef_idx = coefs.size()-1-i;
         A[i][degree-1] = -coefs[coef_idx];  // fill last column with negative vals of coefs
         if (i!=degree-1)
         {
