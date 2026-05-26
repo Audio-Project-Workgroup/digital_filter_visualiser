@@ -8,7 +8,7 @@
 #include <iostream>
 #include <cmath>
 
-std::vector<c128> CoefficientsToRoots::GramSchmidt(std::vector<double> coefs)
+std::vector<std::pair<c128, int>> CoefficientsToRoots::GramSchmidt(std::vector<double> coefs)
 {
     // filter out leading zeros and leading 1.0
     int degree = 0;
@@ -20,7 +20,7 @@ std::vector<c128> CoefficientsToRoots::GramSchmidt(std::vector<double> coefs)
     if (degree==1)
     {
         std::cout<<"Returing 1 root --> "<<coefs[degree]<<std::endl;
-        return {static_cast<c128>(coefs[degree])};
+        return {std::make_pair(static_cast<c128>(coefs[degree]), 1)};
     }
 
     // build companion Matrix
@@ -157,16 +157,30 @@ void CoefficientsToRoots::printCheck(const std::vector<std::vector<double>> &mat
     }
 }
 
-
-std::vector<c128> CoefficientsToRoots::extractRoots(const std::vector<std::vector<double>>& M, int degree)
+std::vector<std::pair<c128, int>> CoefficientsToRoots::extractRoots(const std::vector<std::vector<double>>& M, int degree)
 {
 
     std::cout<<"// Check Roots"<<std::endl;
     CoefficientsToRoots::printCheck(M);
     
-    // TODO : Consider making this a map of root key and count index. 
-    // requires defining a resolution thresshold that unites keys of close values
-    std::vector<c128> roots;
+    std::vector<std::pair<c128, int>> roots;
+
+    auto addRoot = [&](c128 newVal) {
+        for (auto& [val, order] : roots)
+        {
+            double diff_re = std::abs(val.real() - newVal.real());
+            double diff_im = std::abs(val.imag() - newVal.imag());
+            double scale = std::abs(val) + std::abs(newVal) + 1e-7; // + 1e-7 to avoid division with zero
+
+            if (diff_re / scale < tolerance && diff_im / scale < tolerance)
+            {
+                order++;
+                return;
+            }
+        }
+        roots.emplace_back(newVal, 1);
+    };
+
     int i = 0;
     while (i < degree)
     {
@@ -174,7 +188,8 @@ std::vector<c128> CoefficientsToRoots::extractRoots(const std::vector<std::vecto
         if ( i == degree - 1 || std::abs(M[i+1][i]) < Epsilon )
         {
             // Real eigenvalue on diagonal
-            roots.emplace_back(M[i][i], 0.0);
+            c128 newRoot (M[i][i], 0.0);
+            addRoot(newRoot);
             ++i;
         }
         else
@@ -199,25 +214,26 @@ std::vector<c128> CoefficientsToRoots::extractRoots(const std::vector<std::vecto
             if ( discriminant >= 0.0)
             {
                 // tow real roots
-                roots.emplace_back(((a+d) + std::sqrt(discriminant)) / 2.0, 0.0);
-                roots.emplace_back(((a+d) - std::sqrt(discriminant)) / 2.0, 0.0);
+                addRoot(c128(((a+d) + std::sqrt(discriminant)) / 2.0, 0.0));
+                addRoot(c128(((a+d) - std::sqrt(discriminant)) / 2.0, 0.0));
             }
             else
             {
                 // Complex conjugate pair
                 const double re = (a+d) / 2.0;
                 const double im = std::sqrt(-discriminant) / 2.0;
-                roots.emplace_back(re,  im);
-                roots.emplace_back(re, -im);
+                addRoot(c128(re,im));
+                // addRoot(c128(re,-im)); // Note: this is added automatically using addRoot. Commenting this, removes the bug of overlapping roots.
             }
             i += 2;
         }
     }
 
+#ifdef DEBUG_C2R
     std::cout<<"Calculated Roots: ";
-    for (auto root : roots)
-        std::cout<<"("<<root.real()<<","<<root.imag()<<")  ";
+    for (auto [root,order] : roots)
+        std::cout<<"("<<root.real()<<","<<root.imag()<<") - "<<order<<", ";
     std::cout<<std::endl;
-
+#endif
     return roots;
 }

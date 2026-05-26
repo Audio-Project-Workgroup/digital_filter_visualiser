@@ -27,6 +27,7 @@ class CoefficientsComponent final
 
         void toggleCollapseExpand();
         void updateCoeffTable();
+        void updateFilterStateOnCoefEdit(int row, int col, double value);
 
         // override juce::Component
         // void paint(juce::Graphics &g) override; // TODO is this trully needed?
