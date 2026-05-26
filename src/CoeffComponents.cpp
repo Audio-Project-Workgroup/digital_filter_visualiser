@@ -116,54 +116,7 @@ juce::Component* CoefficientsComponent::refreshComponentForCell(int row, int col
         // update data when editing finishes
         label->onTextChange = [this, row, col, label]{
             double value = label->getText().getDoubleValue();
-            if (col == 2)
-                ffcoeffs[static_cast<size_t>(row)] = value;
-            else if (col == 3)
-                fbcoeffs[static_cast<size_t>(row)] = value;
-            
-            // TODO: calculate roots through the coefficient2roots function.
-            // TODO: notify other listeners about this change
-            if (col == 2)
-            {
-
-                auto zeros = CoefficientsToRoots::GramSchmidt(this->ffcoeffs);
-
-                std::cout<<"Existing Zeros"<<std::endl;
-                for (int i=0 ; i< processor->filterState->zeros.size(); i++)
-                {
-                    auto *r = processor->filterState->zeros[i];
-                    std::cout<<"("<<r->value.re.get()<<","<< r->value.im.get()<<") ";
-                    // processor->filterState->remove(r);
-                }
-                std::cout<<std::endl;
-
-                // for (int i=0 ; i< zeros.size(); i++)
-                // {
-                //     auto &r = zeros[i];
-                //     processor->filterState->add(i, r);
-                // }
-
-            }
-            else if (col == 3)
-            {
-                auto poles =  CoefficientsToRoots::GramSchmidt(this->fbcoeffs);
-
-                std::cout<<"Existing Poles"<<std::endl;
-                for (int i=0 ; i< processor->filterState->poles.size(); i++)
-                {
-                    auto *r = processor->filterState->poles[i];
-                    std::cout<<"("<<r->value.re.get()<<","<< r->value.im.get()<<") ";
-                    // processor->filterState->remove(r);
-                }
-                std::cout<<std::endl;
-
-                // for (int i=0 ; i< poles.size(); i++)
-                // {
-                //     auto &r = poles[i];
-                //     processor->filterState->add(i, r);
-                // }
-            }
-            
+            updateFilterStateOnCoefEdit(row, col, value);
         };
     }
 
@@ -179,6 +132,108 @@ juce::Component* CoefficientsComponent::refreshComponentForCell(int row, int col
     }
     label->setText(juce::String(value), juce::dontSendNotification );
     return label;
+}
+
+
+void CoefficientsComponent::updateFilterStateOnCoefEdit(int row, int col, double value)
+{
+    // calculate roots through the coefficient2roots function && notify other listeners about this change
+
+    // @TODO Clean print statements (after ensuring robust implementation)...
+
+    if (col == 2)
+        ffcoeffs[static_cast<size_t>(row)] = value;
+    else if (col == 3)
+        fbcoeffs[static_cast<size_t>(row)] = value;
+    
+    if (col == 2)
+    {
+
+        auto zeros = CoefficientsToRoots::GramSchmidt(this->ffcoeffs);
+
+#ifdef DEBUG_C2R
+        std::cout<<"Previous Zeros"<<std::endl;
+        for (int i=0 ; i< processor->filterState->zeros.size(); i++)
+        {
+            auto *r = processor->filterState->zeros[i];
+            std::cout<<"("<<r->value.re.get()<<","<< r->value.im.get()<<") ";
+        }std::cout<<std::endl;
+#endif
+
+        std::cout<<"Removing Zeroes"<<std::endl;
+        while (!processor->filterState->zeros.isEmpty())
+        {
+            auto *r = processor->filterState->zeros.getFirst();
+            std::cout<<"\t("<<r->value.re.get()<<","<< r->value.im.get()<<") ";
+            processor->filterState->remove(r);
+        }
+        std::cout<<std::endl;
+
+        std::cout<<"Adding Zeros"<<std::endl;
+        for (int i=0 ; i< zeros.size(); i++)
+        {
+            auto &r = zeros[i].first;
+            auto &order = zeros[i].second;
+            std::cout<<"\t("<<r.real()<<","<< r.imag()<<") ";
+            processor->filterState->add(order, r);
+        }
+        std::cout<<std::endl;
+
+#ifdef DEBUG_C2R
+        std::cout<<"Final Zeros"<<std::endl;
+        for (int i=0 ; i< processor->filterState->zeros.size(); i++)
+        {
+            auto *r = processor->filterState->zeros[i];
+
+            std::cout<<"("<<r->value.re.get()<<","<< r->value.im.get()<<") ";
+        }std::cout<<std::endl;
+#endif
+    }
+    else if (col == 3)
+    {
+        auto poles =  CoefficientsToRoots::GramSchmidt(this->fbcoeffs);
+
+#ifdef DEBUG_C2R
+        std::cout<<"Previous Poles"<<std::endl;
+        for (int i=0 ; i< processor->filterState->poles.size(); i++)
+        {
+            auto *r = processor->filterState->poles[i];
+            std::cout<<"\t("<<r->value.re.get()<<","<< r->value.im.get()<<") ";
+        }std::cout<<std::endl;
+#endif
+        std::cout<<"Adding Poles"<<std::endl;
+        for (int i=0 ; i< poles.size(); i++)
+        {
+            
+            auto &r = poles[i].first;
+            auto &order = poles[i].second;
+            processor->filterState->add(-order, r);
+            std::cout<<"\t("<<r.real()<<","<< r.imag()<<") ";
+        }
+        std::cout<<std::endl;
+
+        std::cout<<"Removing Poles"<<std::endl;
+        size_t sz = processor->filterState->poles.size() - poles.size();
+        for (int i=0 ; i< sz; i++)
+        {
+            auto *r = processor->filterState->poles.getFirst();
+            std::cout<<"\t("<<r->value.re.get()<<","<< r->value.im.get()<<") ";
+            processor->filterState->remove(r);
+        }
+        std::cout<<std::endl;
+#ifdef DEBUG_C2R
+        std::cout<<"Final Poles"<<std::endl;
+        for (int i=0 ; i< processor->filterState->poles.size(); i++)
+        {
+            auto *r = processor->filterState->poles[i];
+            std::cout<<"\t("<<r->value.re.get()<<","<< r->value.im.get()<<") ";
+        }std::cout<<std::endl;
+#endif
+    }
+#ifdef DEBUG_C2R
+    std::cout<<"Root order "<<processor->filterState->totalOrder <<" finiteZerosOrder "<< processor->filterState->finiteZerosOrder<<std::endl;
+#endif
+    
 }
 
 void CoefficientsComponent::valueTreePropertyChanged (juce::ValueTree& node, const juce::Identifier& property)
