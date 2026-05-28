@@ -115,7 +115,7 @@ std::vector<std::pair<c128, int>> CoefficientsToRoots::GramSchmidt(std::vector<d
             }
         }
 
-        // step 3 - A = Q R
+        // step 3 - A = R Q
         for (int row = 0; row < degree; row++)
         {
             for (int col = 0; col < degree; col++)
@@ -123,27 +123,31 @@ std::vector<std::pair<c128, int>> CoefficientsToRoots::GramSchmidt(std::vector<d
                 double sum {0.0};
                 for (int inner = 0; inner< degree; ++inner)
                 {
-                    sum += Q[inner][col] * R[row][inner];
+                    sum += R[row][inner] * Q[inner][col];
                 }
                 A[row][col] = sum; // resetting A[row][col]
             }
         }
         
-        // step 4 sum all sub-diagonal entries
-        double subdiag_sum {0.0};
+        // step 4 check all sub-diagonal entries
+        bool subdiag_low {true};
         for (int i = 1; i < degree; ++i)
         {
-            subdiag_sum += std::abs(A[i][i-1]);
+            if (std::abs(A[i][i-1]) > Epsilon)
+            {
+                subdiag_low = false;
+                break;
+            }
         }
 
-        if (subdiag_sum < Epsilon)
+        if (subdiag_low)
             break;
     }
-    
+
     // Extract roots — read diagonal
     return extractRoots(A, degree);
 }
- 
+
 void CoefficientsToRoots::printCheck(const std::vector<std::vector<double>> &matrix)
 {
     int n = matrix.size();
@@ -231,8 +235,8 @@ std::vector<std::pair<c128, int>> CoefficientsToRoots::extractRoots(const std::v
 
 #ifdef DEBUG_C2R
     std::cout<<"Calculated Roots: ";
-    for (auto [root,order] : roots)
-        std::cout<<"("<<root.real()<<","<<root.imag()<<") - "<<order<<", ";
+    for (auto root : roots)
+        std::cout<<"("<<root.first.real()<<","<<root.first.imag()<<") - "<<root.second<<", ";
     std::cout<<std::endl;
 #endif
     return roots;
