@@ -157,7 +157,7 @@ void CoefficientsComponent::updateFilterStateOnCoefEdit(int row, int col, double
         for (int i=0 ; i< processor->filterState->zeros.size(); i++)
         {
             auto *r = processor->filterState->zeros[i];
-            std::cout<<"("<<r->value.re.get()<<","<< r->value.im.get()<<") ";
+            std::cout<<"("<<r->value.re.get()<<","<< r->value.im.get()<<") - "<<r->order<<", ";
         }std::cout<<std::endl;
 #endif
 
@@ -165,7 +165,7 @@ void CoefficientsComponent::updateFilterStateOnCoefEdit(int row, int col, double
         while (!processor->filterState->zeros.isEmpty())
         {
             auto *r = processor->filterState->zeros.getFirst();
-            std::cout<<"\t("<<r->value.re.get()<<","<< r->value.im.get()<<") ";
+            std::cout<<"\t("<<r->value.re.get()<<","<< r->value.im.get()<<") - "<<r->order<<", ";
             processor->filterState->remove(r);
         }
         std::cout<<std::endl;
@@ -175,7 +175,7 @@ void CoefficientsComponent::updateFilterStateOnCoefEdit(int row, int col, double
         {
             auto &r = zeros[i].first;
             auto &order = zeros[i].second;
-            std::cout<<"\t("<<r.real()<<","<< r.imag()<<") ";
+            std::cout<<"\t("<<r.real()<<","<< r.imag()<<") - "<<order<<", ";
             processor->filterState->add(order, r);
         }
         std::cout<<std::endl;
@@ -186,7 +186,7 @@ void CoefficientsComponent::updateFilterStateOnCoefEdit(int row, int col, double
         {
             auto *r = processor->filterState->zeros[i];
 
-            std::cout<<"("<<r->value.re.get()<<","<< r->value.im.get()<<") ";
+            std::cout<<"("<<r->value.re.get()<<","<< r->value.im.get()<<") - "<<r->order<<", ";
         }std::cout<<std::endl;
 #endif
     }
@@ -199,7 +199,7 @@ void CoefficientsComponent::updateFilterStateOnCoefEdit(int row, int col, double
         for (int i=0 ; i< processor->filterState->poles.size(); i++)
         {
             auto *r = processor->filterState->poles[i];
-            std::cout<<"\t("<<r->value.re.get()<<","<< r->value.im.get()<<") ";
+            std::cout<<"\t("<<r->value.re.get()<<","<< r->value.im.get()<<") - "<<r->order<<", ";
         }std::cout<<std::endl;
 #endif
         std::cout<<"Adding Poles"<<std::endl;
@@ -209,7 +209,7 @@ void CoefficientsComponent::updateFilterStateOnCoefEdit(int row, int col, double
             auto &r = poles[i].first;
             auto &order = poles[i].second;
             processor->filterState->add(-order, r);
-            std::cout<<"\t("<<r.real()<<","<< r.imag()<<") ";
+            std::cout<<"\t("<<r.real()<<","<< r.imag()<<") - "<<order<<", ";
         }
         std::cout<<std::endl;
 
@@ -228,7 +228,7 @@ void CoefficientsComponent::updateFilterStateOnCoefEdit(int row, int col, double
         for (int i=0 ; i< sz; i++)
         {
             auto *r = processor->filterState->poles.getFirst();
-            std::cout<<"\t("<<r->value.re.get()<<","<< r->value.im.get()<<") ";
+            std::cout<<"\t("<<r->value.re.get()<<","<< r->value.im.get()<<") - "<<r->order<<", ";
             c128 key(c128(r->value.re.get(),r->value.im.get()));
             auto [found, order] = isNewPole(key);
 
@@ -247,7 +247,7 @@ void CoefficientsComponent::updateFilterStateOnCoefEdit(int row, int col, double
         for (int i=0 ; i< processor->filterState->poles.size(); i++)
         {
             auto *r = processor->filterState->poles[i];
-            std::cout<<"\t("<<r->value.re.get()<<","<< r->value.im.get()<<") ";
+            std::cout<<"\t("<<r->value.re.get()<<","<< r->value.im.get()<<") - "<<r->order<<", ";
         }std::cout<<std::endl;
 #endif
     }
