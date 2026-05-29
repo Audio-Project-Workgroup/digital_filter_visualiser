@@ -11,8 +11,8 @@
 std::vector<std::pair<c128, int>> CoefficientsToRoots::GramSchmidt(std::vector<double> coefs)
 {
     // filter out leading zeros and leading 1.0
-    int degree = 0;
-    while(coefs[degree] ==0 || coefs[degree] == 1.0)
+    size_t degree = 0;
+    while(coefs[degree] ==0.0 || coefs[degree] == 1.0)
         degree++;
     degree = coefs.size() - degree;
     jassert( degree!=0 );
@@ -27,10 +27,10 @@ std::vector<std::pair<c128, int>> CoefficientsToRoots::GramSchmidt(std::vector<d
     std::cout<<"Building companion matrix with degree "<<degree<<std::endl;
     std::vector<std::vector<double>> A(degree, std::vector<double>(degree, 0.0));
     // Build companion matrix (Hessenberg form)
-    for (int i=0; i< degree; i++)
+    for (size_t i=0; i< degree; i++)
     {
-        int j = i+1;
-        int coef_idx = coefs.size()-1-i;
+        size_t j = i+1;
+        size_t coef_idx = coefs.size()-1-i;
         A[i][degree-1] = -coefs[coef_idx];  // fill last column with negative vals of coefs
         if (i!=degree-1)
         {
@@ -47,7 +47,7 @@ std::vector<std::pair<c128, int>> CoefficientsToRoots::GramSchmidt(std::vector<d
     std::vector<std::vector<double>> Q(degree, std::vector<double>(degree));
     std::vector<std::vector<double>> R(degree, std::vector<double>(degree));
     
-    int iter = 0;
+    size_t iter = 0;
     while(true) // could alternatively check the convergence of the values of the sub-diagonal elements
     {
 
@@ -55,9 +55,9 @@ std::vector<std::pair<c128, int>> CoefficientsToRoots::GramSchmidt(std::vector<d
 
 
         // Reset R,Q
-        for (int r = 0; r < degree; ++r)
+        for (size_t r = 0; r < degree; ++r)
         {
-            for (int c = 0; c < degree; ++c)
+            for (size_t c = 0; c < degree; ++c)
             {
                 R[r][c] = 0.0;
                 Q[r][c] = 0.0;
@@ -65,25 +65,25 @@ std::vector<std::pair<c128, int>> CoefficientsToRoots::GramSchmidt(std::vector<d
         }
 
         // step 1 - calculate Q : Q = A[col] - projections onto the previous Q[col]
-        for (int col = 0 ; col < degree; col++)
+        for (size_t col = 0 ; col < degree; col++)
         {
             // set v with column A[col]
             std::vector<double> v(degree);
-            for (int row = 0 ; row< degree; row++)
+            for (size_t row = 0 ; row< degree; row++)
                 v[row] = A[row][col];
 
             // subtract projection : v[col] = A[col] - proj onto the previous (<col) orthonormal colums of Q.
-            for (int curr_col = 0; curr_col < col; curr_col++)
+            for (size_t curr_col = 0; curr_col < col; curr_col++)
             {
                 // compute dot product ...
                 double dot_product {0.0};
-                for (int curr_row = 0; curr_row < degree; ++curr_row)
+                for (size_t curr_row = 0; curr_row < degree; ++curr_row)
                 {
                     dot_product += Q[curr_row][curr_col] * A[curr_row][col];
                 }
 
                 // .. and subtract it from the current column vector
-                for (int curr_row=0; curr_row < degree; ++curr_row)
+                for (size_t curr_row=0; curr_row < degree; ++curr_row)
                 {
                     v[curr_row] -= dot_product * Q[curr_row][curr_col];
                 }
@@ -91,24 +91,24 @@ std::vector<std::pair<c128, int>> CoefficientsToRoots::GramSchmidt(std::vector<d
 
             // normalize column of q
             double norm = 0.0;
-            for (int k = 0; k < degree; ++k)
+            for (size_t k = 0; k < degree; ++k)
             {
                 norm += v[k] * v[k];
             }
             norm = std::sqrt(norm);
             
-            for (int k = 0; k < degree; ++k)
+            for (size_t k = 0; k < degree; ++k)
             {
                 Q[k][col] = v[k] / norm;
             }
         }
 
         // step 2 - calculate R :  R = Q A
-        for (int row = 0; row < degree; row++)
+        for (size_t row = 0; row < degree; row++)
         {
-            for (int col = 0; col < degree; col++)
+            for (size_t col = 0; col < degree; col++)
             {
-                for (int inner = 0; inner < degree; inner++)
+                for (size_t inner = 0; inner < degree; inner++)
                 {
                     R[row][col] += (Q[inner][row] * A[inner][col]);     // Q transposed
                 }
@@ -116,12 +116,12 @@ std::vector<std::pair<c128, int>> CoefficientsToRoots::GramSchmidt(std::vector<d
         }
 
         // step 3 - A = R Q
-        for (int row = 0; row < degree; row++)
+        for (size_t row = 0; row < degree; row++)
         {
-            for (int col = 0; col < degree; col++)
+            for (size_t col = 0; col < degree; col++)
             {
                 double sum {0.0};
-                for (int inner = 0; inner< degree; ++inner)
+                for (size_t inner = 0; inner< degree; ++inner)
                 {
                     sum += R[row][inner] * Q[inner][col];
                 }
@@ -131,7 +131,7 @@ std::vector<std::pair<c128, int>> CoefficientsToRoots::GramSchmidt(std::vector<d
         
         // step 4 check all sub-diagonal entries
         bool subdiag_low {true};
-        for (int i = 1; i < degree; ++i)
+        for (size_t i = 1; i < degree; ++i)
         {
             if (std::abs(A[i][i-1]) > Epsilon)
             {
@@ -150,10 +150,10 @@ std::vector<std::pair<c128, int>> CoefficientsToRoots::GramSchmidt(std::vector<d
 
 void CoefficientsToRoots::printCheck(const std::vector<std::vector<double>> &matrix)
 {
-    int n = matrix.size();
-    for (int i=0; i< n; i++)
+    size_t n = matrix.size();
+    for (size_t i=0; i< n; i++)
     {
-        for (int j=0; j<n; j++)
+        for (size_t j=0; j<n; j++)
         {
             std::cout<<matrix[i][j]<<" ";
         }
@@ -161,7 +161,7 @@ void CoefficientsToRoots::printCheck(const std::vector<std::vector<double>> &mat
     }
 }
 
-std::vector<std::pair<c128, int>> CoefficientsToRoots::extractRoots(const std::vector<std::vector<double>>& M, int degree)
+std::vector<std::pair<c128, int>> CoefficientsToRoots::extractRoots(const std::vector<std::vector<double>>& M, size_t degree)
 {
 
     std::cout<<"// Check Roots"<<std::endl;
@@ -185,7 +185,7 @@ std::vector<std::pair<c128, int>> CoefficientsToRoots::extractRoots(const std::v
         roots.emplace_back(newVal, 1);
     };
 
-    int i = 0;
+    size_t i = 0;
     while (i < degree)
     {
         
