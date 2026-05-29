@@ -14,9 +14,9 @@ class CoefficientsToRoots
 
 		// TODO Finetune these parameters
 	    static constexpr double Epsilon = 1e-3;
-	    static constexpr int MaxIterations = 100000;
+	    static constexpr size_t MaxIterations = 100000;
 		static constexpr double tolerance = 5e-2; // threshold for considering two roots with negligible diff the same. Expressed in % after scaling differences, since zeros can much more than 1.0.
 
-		static void printCheck(const std::vector<std::vector<double>> &matrix);
-		static std::vector<std::pair<c128, int>> extractRoots(const std::vector<std::vector<double>>& M, int n);
+		static void printCheck(const std::vector<std::vector<double>> &);
+		static std::vector<std::pair<c128, int>> extractRoots(const std::vector<std::vector<double>>&, size_t);
 };
