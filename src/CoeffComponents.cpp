@@ -171,7 +171,7 @@ void CoefficientsComponent::updateFilterStateOnCoefEdit(int row, int col, double
         std::cout<<std::endl;
 
         std::cout<<"Adding Zeros"<<std::endl;
-        for (int i=0 ; i< zeros.size(); i++)
+        for (size_t i=0 ; i< zeros.size(); i++)
         {
             auto &r = zeros[i].first;
             auto &order = zeros[i].second;
@@ -182,7 +182,7 @@ void CoefficientsComponent::updateFilterStateOnCoefEdit(int row, int col, double
 
 #ifdef DEBUG_C2R
         std::cout<<"Final Zeros"<<std::endl;
-        for (int i=0 ; i< processor->filterState->zeros.size(); i++)
+        for (size_t i=0 ; i< processor->filterState->zeros.size(); i++)
         {
             auto *r = processor->filterState->zeros[i];
 
@@ -196,14 +196,14 @@ void CoefficientsComponent::updateFilterStateOnCoefEdit(int row, int col, double
 
 #ifdef DEBUG_C2R
         std::cout<<"Previous Poles"<<std::endl;
-        for (int i=0 ; i< processor->filterState->poles.size(); i++)
+        for (size_t i=0 ; i< processor->filterState->poles.size(); i++)
         {
             auto *r = processor->filterState->poles[i];
             std::cout<<"\t("<<r->value.re.get()<<","<< r->value.im.get()<<") - "<<r->order<<", ";
         }std::cout<<std::endl;
 #endif
         std::cout<<"Adding Poles"<<std::endl;
-        for (int i=0 ; i< poles.size(); i++)
+        for (size_t i=0 ; i< poles.size(); i++)
         {
             
             auto &r = poles[i].first;
@@ -224,8 +224,8 @@ void CoefficientsComponent::updateFilterStateOnCoefEdit(int row, int col, double
             return {false, 0};
         };
         
-        size_t sz = processor->filterState->poles.size() - poles.size();
-        for (int i=0 ; i< sz; i++)
+        size_t sz = static_cast<size_t>(processor->filterState->poles.size()) - poles.size();
+        for (size_t i=0 ; i< sz; i++)
         {
             auto *r = processor->filterState->poles.getFirst();
             std::cout<<"\t("<<r->value.re.get()<<","<< r->value.im.get()<<") - "<<r->order<<", ";
@@ -244,7 +244,7 @@ void CoefficientsComponent::updateFilterStateOnCoefEdit(int row, int col, double
         std::cout<<std::endl;
 #ifdef DEBUG_C2R
         std::cout<<"Final Poles"<<std::endl;
-        for (int i=0 ; i< processor->filterState->poles.size(); i++)
+        for (size_t i=0 ; i< processor->filterState->poles.size(); i++)
         {
             auto *r = processor->filterState->poles[i];
             std::cout<<"\t("<<r->value.re.get()<<","<< r->value.im.get()<<") - "<<r->order<<", ";
