@@ -4,7 +4,7 @@
 #include <vector>
 #include <utility>
 
-#define DEBUG_C2R
+// #define DEBUG_C2R
 
 class CoefficientsToRoots
 {
@@ -14,7 +14,7 @@ class CoefficientsToRoots
 
 		// TODO Finetune these parameters
 	    static constexpr double Epsilon = 1e-3;
-	    static constexpr size_t MaxIterations = 100000;
+	    static constexpr size_t MaxIterations = 100;
 		static constexpr double tolerance = 5e-2; // threshold for considering two roots with negligible diff the same. Expressed in % after scaling differences, since zeros can much more than 1.0.
 
 		static void printCheck(const std::vector<std::vector<double>> &);
