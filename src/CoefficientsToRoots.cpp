@@ -47,29 +47,34 @@ std::vector<std::pair<c128, int>> CoefficientsToRoots::GramSchmidt(std::vector<d
     std::vector<std::vector<double>> Q(degree, std::vector<double>(degree));
     std::vector<std::vector<double>> R(degree, std::vector<double>(degree));
     
-    size_t iter = 0;
-    while(true) // could alternatively check the convergence of the values of the sub-diagonal elements
+    size_t shift_idx {degree}, iter {0};
+    while(shift_idx > 1)
     {
 
         if (++iter > degree * MaxIterations) break;
 
 
         // Reset R,Q
-        for (size_t r = 0; r < degree; ++r)
+        for (size_t r = 0; r < shift_idx; ++r)
         {
-            for (size_t c = 0; c < degree; ++c)
+            for (size_t c = 0; c < shift_idx; ++c)
             {
                 R[r][c] = 0.0;
                 Q[r][c] = 0.0;
             }
         }
 
+        // subtract rayleigh quotient shift
+        const double shift = A[shift_idx - 1][shift_idx - 1];
+        for (size_t i = 0; i < shift_idx; ++i) 
+            A[i][i] -= shift; // Decompose (Ak - sI)
+
         // step 1 - calculate Q : Q = A[col] - projections onto the previous Q[col]
-        for (size_t col = 0 ; col < degree; col++)
+        for (size_t col = 0 ; col < shift_idx; col++)
         {
             // set v with column A[col]
-            std::vector<double> v(degree);
-            for (size_t row = 0 ; row< degree; row++)
+            std::vector<double> v(shift_idx);
+            for (size_t row = 0 ; row< shift_idx; row++)
                 v[row] = A[row][col];
 
             // subtract projection : v[col] = A[col] - proj onto the previous (<col) orthonormal colums of Q.
@@ -77,13 +82,13 @@ std::vector<std::pair<c128, int>> CoefficientsToRoots::GramSchmidt(std::vector<d
             {
                 // compute dot product ...
                 double dot_product {0.0};
-                for (size_t curr_row = 0; curr_row < degree; ++curr_row)
+                for (size_t curr_row = 0; curr_row < shift_idx; ++curr_row)
                 {
                     dot_product += Q[curr_row][curr_col] * A[curr_row][col];
                 }
 
                 // .. and subtract it from the current column vector
-                for (size_t curr_row=0; curr_row < degree; ++curr_row)
+                for (size_t curr_row=0; curr_row < shift_idx; ++curr_row)
                 {
                     v[curr_row] -= dot_product * Q[curr_row][curr_col];
                 }
@@ -91,24 +96,24 @@ std::vector<std::pair<c128, int>> CoefficientsToRoots::GramSchmidt(std::vector<d
 
             // normalize column of q
             double norm = 0.0;
-            for (size_t k = 0; k < degree; ++k)
+            for (size_t k = 0; k < shift_idx; ++k)
             {
                 norm += v[k] * v[k];
             }
             norm = std::sqrt(norm);
             
-            for (size_t k = 0; k < degree; ++k)
+            for (size_t k = 0; k < shift_idx; ++k)
             {
                 Q[k][col] = v[k] / norm;
             }
         }
 
         // step 2 - calculate R :  R = Q A
-        for (size_t row = 0; row < degree; row++)
+        for (size_t row = 0; row < shift_idx; row++)
         {
-            for (size_t col = 0; col < degree; col++)
+            for (size_t col = 0; col < shift_idx; col++)
             {
-                for (size_t inner = 0; inner < degree; inner++)
+                for (size_t inner = 0; inner < shift_idx; inner++)
                 {
                     R[row][col] += (Q[inner][row] * A[inner][col]);     // Q transposed
                 }
@@ -116,32 +121,35 @@ std::vector<std::pair<c128, int>> CoefficientsToRoots::GramSchmidt(std::vector<d
         }
 
         // step 3 - A = R Q
-        for (size_t row = 0; row < degree; row++)
+        for (size_t row = 0; row < shift_idx; row++)
         {
-            for (size_t col = 0; col < degree; col++)
+            for (size_t col = 0; col < shift_idx; col++)
             {
                 double sum {0.0};
-                for (size_t inner = 0; inner< degree; ++inner)
+                for (size_t inner = 0; inner< shift_idx; ++inner)
                 {
                     sum += R[row][inner] * Q[inner][col];
                 }
                 A[row][col] = sum; // resetting A[row][col]
             }
         }
-        
-        // step 4 check all sub-diagonal entries
-        bool subdiag_low {true};
-        for (size_t i = 1; i < degree; ++i)
+
+
+        // step 4 add shift back in A and check sub-diagonal entries
+        for (size_t i = 0; i < shift_idx; ++i) 
+            A[i][i] += shift;
+
+        // check only the last subdiagonal entry (real eigenvalue)
+        if (std::abs(A[shift_idx-1][shift_idx-2]) < Epsilon)
         {
-            if (std::abs(A[i][i-1]) > Epsilon)
-            {
-                subdiag_low = false;
-                break;
-            }
+            shift_idx--;
+        }
+        // check the entry above the 2x2 block in search of complex conjugate pairs
+        else if (shift_idx > 2 && std::abs(A[shift_idx-2][shift_idx-3]) < Epsilon)
+        {
+            shift_idx -= 2;
         }
 
-        if (subdiag_low)
-            break;
     }
 
     // Extract roots — read diagonal
