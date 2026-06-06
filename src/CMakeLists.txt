@@ -70,7 +70,7 @@ juce_add_console_app(DigitalFilterVisualizer_Tests
 
 target_sources(DigitalFilterVisualizer_Tests 
 	PRIVATE 
-	../tests/main.cpp
+	../tests/Main.cpp
     PluginProcessor.cpp
 )
 
