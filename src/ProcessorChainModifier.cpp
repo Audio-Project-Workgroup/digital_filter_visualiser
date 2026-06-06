@@ -34,14 +34,20 @@ void ProcessorChainModifier::rootsToJuceCoeffs(
 	int delayCount = 0;
 	std::vector<PolesIndexesWithKeys> polesIndexesWithKeys;
 	polesIndexesWithKeys.reserve(polesSize);
+
 	for (std::size_t i = 0; i < polesSize; i++)
 	{
 		auto* pole = state->poles[i];
-		if (pole->isAtZero())
-			delayCount += std::abs(pole->order.get());
-		else
+		if (!pole->isAtZero())
 			polesIndexesWithKeys.push_back({ i, evaluatePole(pole) });
+		delayCount -= pole->order.get() * (pole->isReal() ? 1 : 2);
 	}
+	for (std::size_t i = 0; i < zerosSize; i++)
+	{
+		auto* zero = state->zeros[i];
+		delayCount -= zero->order.get() * (zero->isReal() ? 1 : 2);
+	}
+
 	std::sort(polesIndexesWithKeys.begin(), polesIndexesWithKeys.end(),
 		[](const PolesIndexesWithKeys a, const PolesIndexesWithKeys b)
 		{
@@ -265,6 +271,13 @@ juce::dsp::IIR::Coefficients<float>* ProcessorChainModifier::calculateIirCoeffic
 	}
 	else // 2-order filter
 	{
+		// Coefficients should be shifted in order not to decrement delay.
+		if (b0 == 0)
+		{
+			b0 = b1;
+			b1 = b2;
+			b2 = 0;
+		}
 		return new juce::dsp::IIR::Coefficients<float>{ b0, b1, b2, a0, a1, a2 };
 	}
 }
