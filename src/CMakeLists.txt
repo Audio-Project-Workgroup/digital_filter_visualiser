@@ -64,6 +64,25 @@ target_link_libraries(
   juce::juce_recommended_warning_flags
 )
 
-if(EXISTS "${CMAKE_SOURCE_DIR}/additional.cmake")
-    include("${CMAKE_SOURCE_DIR}/additional.cmake")
-endif()
+juce_add_console_app(DigitalFilterVisualizer_Tests
+    PRODUCT_NAME "DigitalFilterVisualizer_Tests"
+)
+
+target_sources(DigitalFilterVisualizer_Tests 
+	PRIVATE 
+	../tests/main.cpp
+    PluginProcessor.cpp
+)
+
+target_link_libraries(DigitalFilterVisualizer_Tests
+    PRIVATE
+        ${PROJECT_NAME}
+        juce::juce_core
+        juce::juce_events
+        juce::juce_data_structures
+        juce::juce_audio_basics
+        juce::juce_audio_processors
+        juce::juce_audio_utils
+        juce::juce_gui_basics
+        juce::juce_dsp
+)

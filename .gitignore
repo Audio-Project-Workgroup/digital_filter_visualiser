@@ -6,5 +6,6 @@ build
 src/TAGS
 src/JUCE
 src/out
-.vs/*
+.vs
+tests/.vs
 additional.cmake
