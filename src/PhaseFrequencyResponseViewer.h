@@ -23,19 +23,6 @@ private:
         int top,
         int bottom);
 
-    void calculate(
-        bool isLogScale,
-        bool isDegrees,
-        int intWidth,
-        std::vector<double>& angles,
-        std::vector<double>& amplitudes,
-        std::vector<double>& phases);
-    inline void calculateCoefficients(
-        double angle,
-        FilterRoot* root,
-        double& ampCoeff,
-        double& phaseCoeff);
-
     const juce::Colour
         backgroundColor = juce::Colour(0x08, 0x0C, 0x1C),
         lineColour = juce::Colours::white,

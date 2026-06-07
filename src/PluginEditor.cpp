@@ -1,6 +1,7 @@
 #include "PluginEditor.h"
 
 #include "ComplexPlaneEditor.cpp"
+#include "PhaseFrequencyResponseCalculator.cpp"
 #include "PhaseFrequencyResponseViewer.cpp"
 #include "CoeffComponents.cpp"
 #include "StateSerializer.cpp"

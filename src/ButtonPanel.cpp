@@ -113,10 +113,7 @@ void ButtonPanel::chooseFileAndSave(std::shared_ptr<juce::XmlElement> xml)
             {
                 juce::File file = fc.getResult();
                 if (file != juce::File{})
-                {
-                    auto str = xml.get()->toString().toStdString();
                     xml->writeTo(file, {});
-                }
             }
             catch (const std::exception& e)
             {

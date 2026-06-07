@@ -1,5 +1,5 @@
 #include "PhaseFrequencyResponseViewer.h"
-#include <cmath>
+#include "PhaseFrequencyResponseCalculator.h"
 
 PhaseFrequencyResponseViewer::PhaseFrequencyResponseViewer(AudioPluginAudioProcessor* p) :
 	processor(p),
@@ -134,7 +134,11 @@ void PhaseFrequencyResponseViewer::paint(juce::Graphics& g)
     // angles, amplitudes & phases
     const bool isLogScale = logScaleButton.getToggleState();
     std::vector<double> angles, amplitudes, phases;
-    calculate(isLogScale, true, width, angles, amplitudes, phases);
+    PhaseFrequencyResponseCalculator::calculate(
+        processor->filterState.get(), 
+        minFreq,
+        sampleRate,
+        isLogScale, true, width, angles, amplitudes, phases);
 
     if (!phaseButton.getToggleState())
         paintPlot(g, amplitudes, isLogScale, ampDb, " dB", topFreq, bottomFreq);
@@ -313,87 +317,6 @@ void PhaseFrequencyResponseViewer::paintPlot(
         g.setColour(lineColour);
         g.strokePath(path, strokeType);
         //g.restoreState();
-    }
-}
-
-void PhaseFrequencyResponseViewer::calculate(
-    bool isLogScale,
-    bool isDegrees,
-    int intWidth,
-    std::vector<double>& angles,
-    std::vector<double>& amplitudes,
-    std::vector<double>& phases)
-{
-    std::size_t width = static_cast<size_t>(intWidth);
-    angles.resize(width);
-    amplitudes.resize(width, 1.);
-    phases.resize(width, 0.);
-
-    const double eps = std::numeric_limits<double>::epsilon();
-    const double pi = juce::MathConstants<double>::pi;
-    const double maxAngle = pi;
-    const double minAngle = pi * minFreq / (sampleRate / 2);
-    const double logMaxAngle = std::log10(maxAngle);
-    const double logMinAngle = std::log10(minAngle);
-    const double angleCoeff =
-        isLogScale ?
-        (logMaxAngle - logMinAngle) / width :
-        maxAngle / width;
-    const double phaseUnitCoeff = isDegrees ? 180.0 / pi : 1.0;
-    const double phaseAmplitude = isDegrees ? 180.0 : pi;
-    const double phaseAmplitude2 = phaseAmplitude * 2;
-
-    double ampCoeff, phaseCoeff;
-    for (std::size_t i = 0; i < width; i++)
-    {
-        angles[i] =
-            isLogScale ?
-            std::pow(10., angleCoeff * i + logMinAngle) :
-            angleCoeff * i;
-
-        for (auto pole : processor->filterState->poles)
-        {
-            int order = std::abs(pole->order.get());
-            calculateCoefficients(angles[i], pole, ampCoeff, phaseCoeff);
-            amplitudes[i] *= std::pow(ampCoeff, order); // later it turns to 1 / amplitudes[i]
-            phases[i] -= phaseCoeff * order;
-        }
-
-        amplitudes[i] = 1.0 / std::max(amplitudes[i], eps);
-
-        for (auto zero : processor->filterState->zeros)
-        {
-            int order = zero->order.get();
-            calculateCoefficients(angles[i], zero, ampCoeff, phaseCoeff);
-            amplitudes[i] *= std::pow(ampCoeff, order);
-            phases[i] += phaseCoeff * order;
-        }
-
-        amplitudes[i] = juce::Decibels::gainToDecibels(amplitudes[i]);
-
-        double ph = phases[i] * phaseUnitCoeff;
-        ph = std::fmod(ph + phaseAmplitude, phaseAmplitude2);
-        ph += ph >= 0 ? 0 : phaseAmplitude2;
-        phases[i] = ph - phaseAmplitude;
-    }
-}
-
-void PhaseFrequencyResponseViewer::calculateCoefficients(
-    double angle,
-    FilterRoot* root,
-    double& ampCoeff,
-    double& phaseCoeff)
-{
-    std::complex<double> point(std::cos(angle), std::sin(angle));
-    std::complex<double> v = root->value.get() - point;
-    ampCoeff = std::abs(v);
-    phaseCoeff = std::arg(v);
-    if (!root->isReal())
-    {
-        std::complex<double> conj(root->value.re, -root->value.im);
-        v = conj - point;
-        ampCoeff *= std::abs(v);
-        phaseCoeff += std::arg(v);
     }
 }
 
