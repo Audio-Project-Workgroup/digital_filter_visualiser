@@ -2,6 +2,7 @@
 #include <juce_core/juce_core.h>
 #include <juce_dsp/juce_dsp.h>
 #include <juce_data_structures/juce_data_structures.h>
+#include "TestHelper.h"
 #include "../src/PluginProcessor.h"
 
 class RootsToCoefficientsTest : public juce::UnitTest
@@ -14,69 +15,63 @@ public:
     void runTest() override
     {
 		AudioPluginAudioProcessor processor; // shouldn't be a field of this class as its static object is defined.
+
+		performTest(
+			"No roots test",
+			processor,
+			{},
+			{ 1 });
+
+		performTest(
+			"1 1-order real root",
+			processor,
+			{ {1, 5, 0} },
+			{ 1, -5 });
+
+		performTest(
+			"1 3-order real root",
+			processor,
+			{ {3, -5, 0} },
+			{ 1, 15, 75, 125 });
+
+		performTest(
+			"2 1-order real roots",
+			processor,
+			{ {1, 5, 0}, {1, -2, 0} },
+			{ 1, -3, -10 });
+		
+		performTest(
+			"1 1-order complex roots",
+			processor,
+			{ {1, 2, -3} },
+			{ 1, -4, 13 });
+
+		performTest(
+			"1 1-order complex root, 1 1-order real root",
+			processor,
+			{ {1, 2, -3}, {1, -2, 0} },
+			{ 1, -2, 5, 26 });
+	}
+
+private:
+	void performTest(
+		const juce::String testName,
+		AudioPluginAudioProcessor& processor,
+		std::vector<std::array<double, 3>> roots,
+		std::vector<double> expectedCoefficients)
+	{
+		beginTest(testName);
+		
+		for (auto r : roots)
+			jassert(r[0] > 0);
+
 		auto* state = processor.filterState.get();
-		auto& roots = state->zeros;
-
-        beginTest("No roots test");
-        auto res = RootsToCoefficients::CalculatePolynomialCoefficientsFrom(roots);
-        expect(res.size() == 1);
-        expect(res[0] == 1);
-
-        beginTest("1 1-order real root");
-		roots.clear();
-		auto r1 = state->add(1);
-		r1->value.re.setValue(5, &processor.um);
-		r1->value.im.setValue(0, &processor.um);
-        res = RootsToCoefficients::CalculatePolynomialCoefficientsFrom(roots);
-        expect(res.size() == 2);
-        expect(res[0] == 1);
-		expect(res[1] == -5);
-
-		beginTest("1 3-order real root");
-		r1->order.setValue(3, &processor.um);
-		r1->value.re.setValue(-5, &processor.um);
-		r1->value.im.setValue(0, &processor.um);
-		res = RootsToCoefficients::CalculatePolynomialCoefficientsFrom(roots);
-		expect(res.size() == 4);
-		expect(res[0] == 1);
-		expect(res[1] == 15);
-		expect(res[2] == 75);
-		expect(res[3] == 125);
-
-		beginTest("2 1-order real roots");
-		r1->order.setValue(1, &processor.um);
-		r1->value.re.setValue(5, &processor.um);
-		r1->value.im.setValue(0, &processor.um);
-		auto r2 = state->add(1);
-		r2->value.re.setValue(-2, &processor.um);
-		r2->value.im.setValue(0, &processor.um);
-		res = RootsToCoefficients::CalculatePolynomialCoefficientsFrom(roots);
-		expect(res.size() == 3);
-		expect(res[0] == 1);
-		expect(res[1] == -3);
-		expect(res[2] == -10);
-
-		beginTest("1 1-order complex roots");
-		state->remove(r2);
-		r1->order.setValue(1, &processor.um);
-		r1->value.re.setValue(2, &processor.um);
-		r1->value.im.setValue(-3, &processor.um);
-		res = RootsToCoefficients::CalculatePolynomialCoefficientsFrom(roots);
-		expect(res.size() == 3);
-		expect(res[0] == 1);
-		expect(res[1] == -4);
-		expect(res[2] == 13);
-
-		beginTest("1 1-order complex root, 1 1-order real root");
-		r2 = state->add(1);
-		r2->value.re.setValue(-2, &processor.um);
-		r2->value.im.setValue(0, &processor.um);
-		res = RootsToCoefficients::CalculatePolynomialCoefficientsFrom(roots);
-		expect(res.size() == 4);
-		expect(res[0] == 1);
-		expect(res[1] == -2);
-		expect(res[2] == 5);
-		expect(res[3] == 26);
+		TestHelper::makeFilterState(state, roots, 1);
+		auto res = RootsToCoefficients::CalculatePolynomialCoefficientsFrom(state->zeros);
+		
+		expectEquals(res.size(), expectedCoefficients.size());
+		for (int i = 0; i < res.size(); i++)
+			expectEquals(res[i], expectedCoefficients[i]);
 	}
 };
 

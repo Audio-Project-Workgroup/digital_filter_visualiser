@@ -2,6 +2,7 @@
 #include <juce_core/juce_core.h>
 #include <juce_dsp/juce_dsp.h>
 #include <juce_data_structures/juce_data_structures.h>
+#include "TestHelper.h"
 #include "../src/PluginProcessor.h"
 
 class ProcessorChainModifierTest : public juce::UnitTest
@@ -137,23 +138,10 @@ private:
         std::vector<float> expectedFirCoefficients)
     {
         beginTest(testName);
-        makeFilterState(processor, roots, gain);
+        TestHelper::makeFilterState(processor.filterState.get(), roots, gain);
         ProcessorChainModifier::rootsToJuceCoeffs(processor.filterState.get(), processor.activeState, spec);
         checkMultichannel(processor.activeState, channelNumber);
         checkValues(processor.activeState, expectedDelay, gain, expectedIirCoefficients, expectedFirCoefficients);
-    }
-
-    void makeFilterState(
-        AudioPluginAudioProcessor& processor,
-        std::vector<std::array<double, 3>>& roots,
-        float gain)
-    {
-        auto* state = processor.filterState.get();
-        state->zeros.clear();
-        state->poles.clear();
-        state->gain.setValue(gain, nullptr);
-        for (auto& r : roots)
-            auto sr = state->add(r[0], { r[1], r[2] });
     }
 
     void checkMultichannel(

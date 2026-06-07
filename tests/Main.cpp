@@ -1,6 +1,7 @@
 #include "../src/JUCE/modules/juce_core/juce_core.h"
 #include "RootsToCoefficientsTest.h" 
 #include "ProcessorChainModifierTest.h" 
+#include "PhaseFrequencyResponseTest.h"
 
 //==============================================================================
 int main (int argc, char* argv[])
