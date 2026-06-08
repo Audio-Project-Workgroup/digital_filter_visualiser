@@ -254,6 +254,30 @@ moveRoot(FilterRoot::Ptr root, c128 newValue)
   return(newValue);
 }
 
+FilterRoot::Ptr FilterState::
+splitRoot(FilterRoot::Ptr root, u32 orderToRemove, c128 otherRootLocation)
+{
+  FilterRoot::Ptr result = nullptr;
+  if(auto *rootPtr = root.get())
+  {
+    if(std::abs(rootPtr->order) > 1)
+    {
+      if(rootPtr->isPole())
+      {
+	result = add(-static_cast<s32>(orderToRemove), otherRootLocation);
+	rootPtr->order += static_cast<s32>(orderToRemove);
+      }
+      else // root is a zero
+      {
+	rootPtr->order += -static_cast<s32>(orderToRemove);
+	result = add(static_cast<s32>(orderToRemove), otherRootLocation);
+      }
+    }
+  }
+
+  return(result);
+}
+
 void FilterState::
 beginWeakInteraction(FilterRoot::Ptr root)
 {

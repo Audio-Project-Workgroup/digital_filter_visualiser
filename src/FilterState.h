@@ -252,6 +252,17 @@ struct FilterState : private juce::ValueTree::Listener
    */
   c128 moveRoot(FilterRoot::Ptr root, c128 newValue);
 
+  /** Split given root into two roots of the same kind whose orders add up to
+      the original order.
+   * Accepts the root to split, the order to remove from the passed root, and
+     the location of the other root.
+   * Always pass a positive number for `orderToRemove`, regardless of whether a
+     pole or a zero is being split; the given root's order will always decrease.
+   * Does not bring the root order to zero; cannot be used to destroy a root.
+   * Returns a pointer to the other root.
+   */
+  FilterRoot::Ptr splitRoot(FilterRoot::Ptr root, u32 orderToRemove, c128 otherRootLocation);
+
   /** Let listeners add or remove themselves to the underlying value tree
    */
   void addListener(juce::ValueTree::Listener *listener);

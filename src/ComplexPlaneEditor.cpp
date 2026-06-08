@@ -247,29 +247,11 @@ timerCallback(void)
     auto const m = juce::ModifierKeys::getCurrentModifiersRealtime();
     auto const isRightButtonDown = m.isRightButtonDown();
 
-    // NOTE(ry): right click while dragging to split higher-order root
-    // TODO(ry): move this logic to the filter state as well
+    // NOTE(ry): right click while dragging to split root
     if(isRightButtonDown && !wasRightButtonDown)
     {
       DBG("right click while dragging");
-      if(auto *rootPtr = root.get())
-      {
-	// NOTE(ry): when dragging a higher-order root, deselect roots, decreasing
-	// the active root order and moving roots to the start of the drag
-	if(std::abs(rootPtr->order) > 1)
-	{
-	  if(rootPtr->isPole())
-	  {
-	    editor->processor->filterState->add(-1, valueAtDragStart);
-	    rootPtr->order += 1;
-	  }
-	  else
-	  {
-	    rootPtr->order += -1;
-	    editor->processor->filterState->add(1, valueAtDragStart);
-	  }
-	}
-      }
+      editor->processor->filterState->splitRoot(root, 1, valueAtDragStart);
     }
 
     wasRightButtonDown = isRightButtonDown;
