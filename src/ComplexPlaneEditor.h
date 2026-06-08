@@ -180,7 +180,9 @@ public:
   juce::AffineTransform pixelsFromWorldUnits;
   juce::AffineTransform worldUnitsFromPixels;
 
-  static constexpr r64 snapThresholdPixels = 18.0; // TODO(ry): tune
+  // TODO(ry): tune
+  static constexpr r64 snapThresholdPixels  = 18.0;
+  static constexpr r64 stickThresholdPixels = snapThresholdPixels / 2.0;
 
 private:
   void updateTransforms(void);

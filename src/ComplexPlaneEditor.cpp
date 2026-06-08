@@ -204,12 +204,20 @@ moveToLocalSpace(juce::Point<float> localPositionScreen)
 void ComplexPlaneEditor::RootPoint::
 moveToEditorSpace(juce::Point<double> editorPositionScreen)
 {
-  // TODO(ry): keep the real axis "sticky"; points starting on the axis should
-  // have to be dragged some amount before they actually move off-axis (and a
-  // conjugate point appears and the filter order updates)
   auto editorPositionWorldX = editorPositionScreen.toDouble().getX();
   auto editorPositionWorldY = editorPositionScreen.toDouble().getY();
   editor->worldUnitsFromPixels.transformPoint(editorPositionWorldX, editorPositionWorldY);
+
+  // NOTE(ry): make the real axis "sticky"; points starting on the axis have to
+  // be dragged some amount before they actually move off-axis.
+  if(juce::exactlyEqual(r64(root->value.im), 0.0))
+  {
+    auto stickThresholdWorld = editor->unitsPerPixel * ComplexPlaneEditor::stickThresholdPixels;
+    if(std::abs(editorPositionWorldY) < stickThresholdWorld)
+    {
+      editorPositionWorldY = 0.0;
+    }
+  }
   auto newRootValue = c128(editorPositionWorldX, editorPositionWorldY);
 
   moveToWorldSpace(newRootValue);
