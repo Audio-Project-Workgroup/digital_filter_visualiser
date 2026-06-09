@@ -60,6 +60,7 @@ public:
     FilterRoot::Ptr root;
     RootPoint *conjugate;
 
+
   private:
     void valueTreePropertyChanged(juce::ValueTree &node, const juce::Identifier &property) override;
     void timerCallback(void) override;
@@ -70,8 +71,31 @@ public:
     static ComplexPlaneEditor *editor;
     c128 valueAtDragStart;
 
-    bool isDragging;
-    bool wasRightButtonDown;
+    // TODO(ry): it'd be cool to generate all this code, maybe give the
+    // generator keybinds as well. probably too difficult to say which callbacks
+    // update each flag...
+    enum InteractionFlags : u32 {
+      InteractionFlag_isDragging            = 1 << 0,
+      InteractionFlag_wasRightButtonDown    = 1 << 1,
+      InteractionFlag_constantMagnitudeDrag = 1 << 2,
+      InteractionFlag_constantAngleDrag     = 1 << 3,
+    };
+
+    b32 isDragging(void) { return flags & InteractionFlag_isDragging; }
+    b32 wasRightButtonDown(void) { return flags & InteractionFlag_wasRightButtonDown; }
+    b32 constantMagnitudeDrag(void) { return flags & InteractionFlag_constantMagnitudeDrag; }
+    b32 constantAngleDrag(void) { return flags & InteractionFlag_constantAngleDrag; }
+
+    void isDragging(b32 set)
+    { set ? flags |= InteractionFlag_isDragging : flags &= ~InteractionFlag_isDragging; }
+    void wasRightButtonDown(b32 set)
+    { set ? flags |= InteractionFlag_wasRightButtonDown : flags &= ~InteractionFlag_wasRightButtonDown; }
+    void constantMagnitudeDrag(b32 set)
+    { set ? flags |= InteractionFlag_constantMagnitudeDrag : flags &= ~InteractionFlag_constantMagnitudeDrag; }
+    void constantAngleDrag(b32 set)
+    { set ? flags |= InteractionFlag_constantAngleDrag : flags &= ~InteractionFlag_constantAngleDrag; }
+
+    u32 flags;
   };
 
   class RootTooltip final : public juce::Component, private juce::Timer
@@ -203,6 +227,23 @@ private:
   juce::OwnedArray<RootPoint> points;
 
   RootTooltip tooltip;
+
+  // interaction mode toggles
+  enum class InteractionMode : u32 {
+    defaultInteraction,
+    constantMagnitudeInteraction,
+    constantAngleInteraction,
+    Count,
+  };
+
+  InteractionMode currentInteractionMode;
+  InteractionMode lastInteractionMode;
+
+  juce::TextButton defaultInteraction;
+  juce::TextButton constantMagnitudeInteraction;
+  juce::TextButton constantAngleInteraction;
+
+  static constexpr int InteractionToggleGroupID = 0x00867068;
 
   bool pointHoveringOverAxis;
 };

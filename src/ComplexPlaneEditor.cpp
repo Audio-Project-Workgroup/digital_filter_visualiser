@@ -129,7 +129,7 @@ mouseDown(const juce::MouseEvent &e)
   {
     editor->processor->filterState->beginStrongInteraction(root);
 
-    isDragging = true;
+    isDragging(true);
     startTimerHz(timerFreq);
 
     editor->tooltip.hide();
@@ -155,7 +155,7 @@ mouseUp(const juce::MouseEvent &e)
   if(e.mods.isLeftButtonDown())
   {
     stopTimer();
-    isDragging = false;
+    isDragging(false);
 
     // NOTE(ry): snap to axis
     if(editor->isPointHoveringOverAxis())
@@ -220,6 +220,20 @@ moveToEditorSpace(juce::Point<double> editorPositionScreen)
   }
   auto newRootValue = c128(editorPositionWorldX, editorPositionWorldY);
 
+  if(constantMagnitudeDrag())
+  {
+    // TODO(ry): handle divide by zero
+    newRootValue /= std::abs(newRootValue);
+    newRootValue *= std::abs(c128(root->value));
+  }
+  else if(constantAngleDrag())
+  {
+    // TODO(ry): is there a way to not call atan2 here?
+    auto mag = std::abs(newRootValue);
+    auto arg = std::arg(c128(root->value));
+    newRootValue = std::polar(mag, arg);
+  }
+
   moveToWorldSpace(newRootValue);
 }
 
@@ -239,6 +253,9 @@ mouseDrag(const juce::MouseEvent &e)
 {
   if(e.mods.isLeftButtonDown())
   {
+    constantMagnitudeDrag(e.mods.isShiftDown());
+    constantAngleDrag(e.mods.isCtrlDown());
+
     if(root.get())
     {
       auto const localPosition = e.mouseDownPosition + e.getOffsetFromDragStart().toFloat();
@@ -250,19 +267,19 @@ mouseDrag(const juce::MouseEvent &e)
 void ComplexPlaneEditor::RootPoint::
 timerCallback(void)
 {
-  if(isDragging)
+  if(isDragging())
   {
     auto const m = juce::ModifierKeys::getCurrentModifiersRealtime();
     auto const isRightButtonDown = m.isRightButtonDown();
 
     // NOTE(ry): right click while dragging to split root
-    if(isRightButtonDown && !wasRightButtonDown)
+    if(isRightButtonDown && !wasRightButtonDown())
     {
       DBG("right click while dragging");
       editor->processor->filterState->splitRoot(root, 1, valueAtDragStart);
     }
 
-    wasRightButtonDown = isRightButtonDown;
+    wasRightButtonDown(isRightButtonDown);
   }
 }
 
@@ -324,6 +341,9 @@ ComplexPlaneEditor::
 ComplexPlaneEditor(AudioPluginAudioProcessor *p)
   :processor(p)
   ,tooltip(this)
+  ,defaultInteraction("def")
+  ,constantMagnitudeInteraction("mag")
+  ,constantAngleInteraction("arg")
 {
   processor->filterState->addListener(this);
 
@@ -334,6 +354,37 @@ ComplexPlaneEditor(AudioPluginAudioProcessor *p)
   unitsPerLine = 1;
 
   addChildComponent(&tooltip);
+
+  defaultInteraction.setClickingTogglesState(true);
+  constantMagnitudeInteraction.setClickingTogglesState(true);
+  constantAngleInteraction.setClickingTogglesState(true);
+
+  defaultInteraction.setRadioGroupId(InteractionToggleGroupID);
+  constantMagnitudeInteraction.setRadioGroupId(InteractionToggleGroupID);
+  constantAngleInteraction.setRadioGroupId(InteractionToggleGroupID);
+
+  defaultInteraction.onClick = [this](){
+    lastInteractionMode = currentInteractionMode;
+    currentInteractionMode = InteractionMode::defaultInteraction;
+  };
+  constantMagnitudeInteraction.onClick = [this](){
+    lastInteractionMode = currentInteractionMode;
+    currentInteractionMode = InteractionMode::constantMagnitudeInteraction;
+  };
+  constantAngleInteraction.onClick = [this](){
+    lastInteractionMode = currentInteractionMode;
+    currentInteractionMode = InteractionMode::constantAngleInteraction;
+  };
+
+  // addChildComponent(defaultInteraction);
+  // addChildComponent(constantMagnitudeInteraction);
+  // addChildComponent(constantAngleInteraction);
+  addAndMakeVisible(defaultInteraction);
+  addAndMakeVisible(constantMagnitudeInteraction);
+  addAndMakeVisible(constantAngleInteraction);
+
+  defaultInteraction.onClick();
+  defaultInteraction.setToggleState(true, juce::dontSendNotification);
 
   processor->filterState->syncListener(this);
 }
@@ -433,9 +484,26 @@ mouseDrag(const juce::MouseEvent &e)
 }
 
 void ComplexPlaneEditor::
-resized()
+resized(void)
 {
   PROFILE_FUNCTION();
+
+  auto area = getLocalBounds();
+  {
+    auto thirdWidth = area.getWidth() / 3;
+    auto seventhHeight = area.getHeight() / 7;
+    area.removeFromTop(seventhHeight);
+    area.removeFromBottom(5*seventhHeight);
+    area.removeFromLeft(thirdWidth);
+    area.removeFromRight(thirdWidth);
+  }
+
+  {
+    auto thirdWidth = area.getWidth() / 3;
+    defaultInteraction.setBounds(area.removeFromLeft(thirdWidth));
+    constantMagnitudeInteraction.setBounds(area.removeFromLeft(thirdWidth));
+    constantAngleInteraction.setBounds(area.removeFromLeft(thirdWidth));
+  }
 
   updateTransformsAndChildBounds();
 }
