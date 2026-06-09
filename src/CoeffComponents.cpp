@@ -193,6 +193,8 @@ void CoefficientsComponent::updateFilterStateOnCoefEdit(int row, int col, double
     {
         auto poles =  CoefficientsToRoots::GramSchmidt(this->fbcoeffs);
 
+        size_t prev_sz = static_cast<size_t>(processor->filterState->poles.size());
+
 #ifdef DEBUG_C2R
         std::cout<<"Previous Poles"<<std::endl;
         for (size_t i=0 ; i< processor->filterState->poles.size(); i++)
@@ -213,7 +215,6 @@ void CoefficientsComponent::updateFilterStateOnCoefEdit(int row, int col, double
         std::cout<<std::endl;
 
         std::cout<<"Removing Poles"<<std::endl;
-
         auto isNewPole = [&](c128 val) -> std::pair<bool, int> {
             for (auto& [r, order] : poles) 
             {
@@ -223,21 +224,22 @@ void CoefficientsComponent::updateFilterStateOnCoefEdit(int row, int col, double
             return {false, 0};
         };
         
-        size_t sz = static_cast<size_t>(processor->filterState->poles.size()) - poles.size();
-        for (size_t i=0 ; i< sz; i++)
+        for (size_t i=0 ; i< prev_sz; i++)
         {
-            auto *r = processor->filterState->poles.getFirst();
+            auto *r = processor->filterState->poles[i];
             std::cout<<"\t("<<r->value.re.get()<<","<< r->value.im.get()<<") - "<<r->order<<", ";
             c128 key(c128(r->value.re.get(),r->value.im.get()));
             auto [found, order] = isNewPole(key);
 
             if ( found )
             {
-                r->order= order;
+                r->order= -order;
             }
             else
             {
                 processor->filterState->remove(r);
+                i--;
+                prev_sz--;
             } 
         }
         std::cout<<std::endl;
