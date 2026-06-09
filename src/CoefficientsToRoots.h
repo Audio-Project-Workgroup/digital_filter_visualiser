@@ -18,5 +18,5 @@ class CoefficientsToRoots
 		static constexpr double tolerance = 5e-2; // threshold for considering two roots with negligible diff the same. Expressed in % after scaling differences, since zeros can much more than 1.0.
 
 		static void printCheck(const std::vector<std::vector<double>> &);
-		static std::vector<std::pair<c128, int>> extractRoots(const std::vector<std::vector<double>>&, size_t);
+		static void extractRoots(std::vector<std::pair<c128, int>> &, const std::vector<std::vector<double>>&, size_t);
 };

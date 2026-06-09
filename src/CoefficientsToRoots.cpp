@@ -7,20 +7,37 @@
 #include <algorithm>
 #include <iostream>
 #include <cmath>
+#include <limits>
 
 std::vector<std::pair<c128, int>> CoefficientsToRoots::GramSchmidt(std::vector<double> coefs)
 {
+
     // filter out leading zeros and leading 1.0
     size_t degree = 0;
-    while(coefs[degree] ==0.0 || coefs[degree] == 1.0)
+    while( coefs[degree] < std::numeric_limits<double>::min() || coefs[degree] - 1.0 < std::numeric_limits<double>::min())
         degree++;
     degree = coefs.size() - degree;
+ std::cout<<"Degree "<<degree<<std::endl;
+   // filter out trailing zeros increasing the order of root at Zero (usually for default poles)
+    size_t orderAtZero = 0;
+    for( size_t i = coefs.size()-1; i >= 0 && std::abs(coefs[i]) < std::numeric_limits<double>::min() ; --i)
+    {
+        ++orderAtZero;
+        --degree;
+    }
     jassert( degree!=0 );
+    
+    // append root at zero of "orderAtZero" order
+    // size_t numRoots = (orderAtZero>0) ? degree+1 : degree;
+    std::vector<std::pair<c128, int>> roots;
+    if (orderAtZero>0)
+        roots.emplace_back(std::make_pair(0.0, orderAtZero));
 
     if (degree==1)
     {
-        std::cout<<"Returing 1 root --> "<<coefs[degree]<<std::endl;
-        return {std::make_pair(static_cast<c128>(-coefs[coefs.size() - 1]), 1)};
+        std::cout<<"Returing 1 non-zero root --> "<<coefs[degree]<<std::endl;
+        roots.emplace_back( std::make_pair(static_cast<c128>(-coefs[coefs.size() - 1]), 1) );
+        return roots;
     }
 
     // build companion Matrix
@@ -30,7 +47,7 @@ std::vector<std::pair<c128, int>> CoefficientsToRoots::GramSchmidt(std::vector<d
     for (size_t i=0; i< degree; i++)
     {
         size_t j = i+1;
-        size_t coef_idx = coefs.size()-1-i;
+        size_t coef_idx = coefs.size()-1 - orderAtZero -i;
         A[i][degree-1] = -coefs[coef_idx];  // fill last column with negative vals of coefs
         if (i!=degree-1)
         {
@@ -153,7 +170,8 @@ std::vector<std::pair<c128, int>> CoefficientsToRoots::GramSchmidt(std::vector<d
     }
 
     // Extract roots — read diagonal
-    return extractRoots(A, degree);
+    extractRoots(roots, A, degree);
+    return roots;
 }
 
 void CoefficientsToRoots::printCheck(const std::vector<std::vector<double>> &matrix)
@@ -169,13 +187,13 @@ void CoefficientsToRoots::printCheck(const std::vector<std::vector<double>> &mat
     }
 }
 
-std::vector<std::pair<c128, int>> CoefficientsToRoots::extractRoots(const std::vector<std::vector<double>>& M, size_t degree)
+void CoefficientsToRoots::extractRoots(std::vector<std::pair<c128, int>> & roots, const std::vector<std::vector<double>>& M, size_t degree)
 {
 
     std::cout<<"// Check Roots"<<std::endl;
     CoefficientsToRoots::printCheck(M);
     
-    std::vector<std::pair<c128, int>> roots;
+    // std::vector<std::pair<c128, int>> roots;
 
     auto addRoot = [&](c128 newVal) {
         for (auto& [val, order] : roots)
@@ -247,5 +265,4 @@ std::vector<std::pair<c128, int>> CoefficientsToRoots::extractRoots(const std::v
         std::cout<<"("<<root.first.real()<<","<<root.first.imag()<<") - "<<root.second<<", ";
     std::cout<<std::endl;
 #endif
-    return roots;
 }
