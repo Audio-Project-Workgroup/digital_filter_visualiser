@@ -226,18 +226,27 @@ moveToEditorSpace(juce::Point<double> editorPositionScreen)
 
   DBG("user: constant magnitude interaction: " << (editor->constantMagnitudeInteraction() ? "set" : "unset"));
   DBG("user: constant angle interaction: " << (editor->constantAngleInteraction() ? "set" : "unset"));
+  // NOTE(ry): the idea here is to project the prospective new value onto a
+  // vector parallel to the line of constant magnitude/angle; in the case of
+  // magnitude, the line is actually a circle, so we have to renormalize at the
+  // end or else the magnitude will slightly increase forever.
   if(editor->constantMagnitudeInteraction())
   {
-    // TODO(ry): handle divide by zero
+    using namespace std::complex_literals;
+
+    auto dot = (newRootValue * std::conj(1i*c128(root->value))).real();
+    auto mag = c128(root->value) * std::conj(c128(root->value));
+    newRootValue = ((dot/mag) * 1i*c128(root->value)) + c128(root->value); // TODO(ry): prevent divide by zero
+
+    // TODO(ry): prevent divide by zero
     newRootValue /= std::abs(newRootValue);
     newRootValue *= std::abs(c128(root->value));
   }
   if(editor->constantAngleInteraction())
   {
-    // TODO(ry): is there a way to not call atan2 here?
-    auto mag = std::abs(newRootValue);
-    auto arg = std::arg(c128(root->value));
-    newRootValue = std::polar(mag, arg);
+    auto dot = (newRootValue * std::conj(c128(root->value))).real();
+    auto mag = c128(root->value) * std::conj(c128(root->value));
+    newRootValue = (dot/mag) * c128(root->value); // TODO(ry): prevent divide by zero
   }
 
   moveToWorldSpace(newRootValue);
