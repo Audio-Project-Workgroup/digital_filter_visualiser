@@ -7,35 +7,36 @@
 #include <algorithm>
 #include <iostream>
 #include <cmath>
-#include <limits>
 
 std::vector<std::pair<c128, int>> CoefficientsToRoots::GramSchmidt(std::vector<double> coefs)
 {
 
-    // filter out leading zeros and leading 1.0
+    // filter out leading zeros, increasing counter until the leading 1.0 is found.
     size_t degree = 0;
-    while( coefs[degree] < std::numeric_limits<double>::min() || coefs[degree] - 1.0 < std::numeric_limits<double>::min())
+    while( degree < coefs.size() && coefs[degree] != 1.0)
         degree++;
-    degree = coefs.size() - degree;
- std::cout<<"Degree "<<degree<<std::endl;
+    degree = coefs.size() - degree -1; // subtract 1 for the leading 1.0
+ 
    // filter out trailing zeros increasing the order of root at Zero (usually for default poles)
     size_t orderAtZero = 0;
-    for( size_t i = coefs.size()-1; i >= 0 && std::abs(coefs[i]) < std::numeric_limits<double>::min() ; --i)
+    for( int i = static_cast<int>(coefs.size()-1); i >= 0 && std::abs(coefs[(size_t)i]) == 0.0 ; --i)
     {
         ++orderAtZero;
         --degree;
     }
-    jassert( degree!=0 );
-    
+
     // append root at zero of "orderAtZero" order
-    // size_t numRoots = (orderAtZero>0) ? degree+1 : degree;
     std::vector<std::pair<c128, int>> roots;
     if (orderAtZero>0)
         roots.emplace_back(std::make_pair(0.0, orderAtZero));
 
+    if (degree == 0 )
+        // Returing root at (0,0) if any
+        return roots;
+
     if (degree==1)
     {
-        std::cout<<"Returing 1 non-zero root --> "<<coefs[degree]<<std::endl;
+        // Returing 1 non-zero root + root at (0,0) if any
         roots.emplace_back( std::make_pair(static_cast<c128>(-coefs[coefs.size() - 1]), 1) );
         return roots;
     }
