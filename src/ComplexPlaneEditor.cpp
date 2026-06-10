@@ -12,6 +12,8 @@ RootTooltip(ComplexPlaneEditor *e)
   setAlwaysOnTop(true);
   setInterceptsMouseClicks(true, true);
 
+  addMouseListener(editor, true);
+
   destroy.onClick = [this](){
     editor->processor->filterState->um->beginNewTransaction();
     editor->processor->filterState->remove(root);
@@ -88,6 +90,7 @@ RootPoint(bool c, FilterRoot::Ptr r)
 {
   if(auto *rootPtr = root.get())
   {
+    addMouseListener(editor, false);
     rootPtr->node.addListener(this);
   }
   setSize(10, 10);
@@ -98,6 +101,7 @@ ComplexPlaneEditor::RootPoint::
 {
   if(auto *rootPtr = root.get())
   {
+    removeMouseListener(editor);
     rootPtr->node.removeListener(this);
   }
 }
@@ -220,13 +224,15 @@ moveToEditorSpace(juce::Point<double> editorPositionScreen)
   }
   auto newRootValue = c128(editorPositionWorldX, editorPositionWorldY);
 
-  if(constantMagnitudeDrag())
+  DBG("user: constant magnitude interaction: " << (editor->constantMagnitudeInteraction() ? "set" : "unset"));
+  DBG("user: constant angle interaction: " << (editor->constantAngleInteraction() ? "set" : "unset"));
+  if(editor->constantMagnitudeInteraction())
   {
     // TODO(ry): handle divide by zero
     newRootValue /= std::abs(newRootValue);
     newRootValue *= std::abs(c128(root->value));
   }
-  else if(constantAngleDrag())
+  if(editor->constantAngleInteraction())
   {
     // TODO(ry): is there a way to not call atan2 here?
     auto mag = std::abs(newRootValue);
@@ -253,8 +259,9 @@ mouseDrag(const juce::MouseEvent &e)
 {
   if(e.mods.isLeftButtonDown())
   {
-    constantMagnitudeDrag(e.mods.isShiftDown());
-    constantAngleDrag(e.mods.isCtrlDown());
+    // TODO(ry): maybe make these keybinds variable?
+    editor->constantMagnitudeInteraction(e.mods.isShiftDown());
+    editor->constantAngleInteraction(e.mods.isCtrlDown());
 
     if(root.get())
     {
@@ -341,9 +348,9 @@ ComplexPlaneEditor::
 ComplexPlaneEditor(AudioPluginAudioProcessor *p)
   :processor(p)
   ,tooltip(this)
-  ,defaultInteraction("def")
-  ,constantMagnitudeInteraction("mag")
-  ,constantAngleInteraction("arg")
+  ,defaultInteractionButton("def")
+  ,constantMagnitudeInteractionButton("mag")
+  ,constantAngleInteractionButton("arg")
 {
   processor->filterState->addListener(this);
 
@@ -355,36 +362,38 @@ ComplexPlaneEditor(AudioPluginAudioProcessor *p)
 
   addChildComponent(&tooltip);
 
-  defaultInteraction.setClickingTogglesState(true);
-  constantMagnitudeInteraction.setClickingTogglesState(true);
-  constantAngleInteraction.setClickingTogglesState(true);
+  // TODO(ry): some generatable looking code here
+  defaultInteractionButton.addMouseListener(this, false);
+  constantMagnitudeInteractionButton.addMouseListener(this, false);
+  constantAngleInteractionButton.addMouseListener(this, false);
 
-  defaultInteraction.setRadioGroupId(InteractionToggleGroupID);
-  constantMagnitudeInteraction.setRadioGroupId(InteractionToggleGroupID);
-  constantAngleInteraction.setRadioGroupId(InteractionToggleGroupID);
+  defaultInteractionButton.setClickingTogglesState(true);
+  constantMagnitudeInteractionButton.setClickingTogglesState(true);
+  constantAngleInteractionButton.setClickingTogglesState(true);
 
-  defaultInteraction.onClick = [this](){
-    lastInteractionMode = currentInteractionMode;
-    currentInteractionMode = InteractionMode::defaultInteraction;
+  defaultInteractionButton.setRadioGroupId(InteractionToggleGroupID);
+  constantMagnitudeInteractionButton.setRadioGroupId(InteractionToggleGroupID);
+  constantAngleInteractionButton.setRadioGroupId(InteractionToggleGroupID);
+
+  defaultInteractionButton.onClick = [this](){
+    constantMagnitudeInteraction(false, true);
+    constantAngleInteraction(false, true);
   };
-  constantMagnitudeInteraction.onClick = [this](){
-    lastInteractionMode = currentInteractionMode;
-    currentInteractionMode = InteractionMode::constantMagnitudeInteraction;
+  constantMagnitudeInteractionButton.onClick = [this](){
+    constantMagnitudeInteraction(true, true);
+    constantAngleInteraction(false, true);
   };
-  constantAngleInteraction.onClick = [this](){
-    lastInteractionMode = currentInteractionMode;
-    currentInteractionMode = InteractionMode::constantAngleInteraction;
+  constantAngleInteractionButton.onClick = [this](){
+    constantMagnitudeInteraction(false, true);
+    constantAngleInteraction(true, true);
   };
 
-  // addChildComponent(defaultInteraction);
-  // addChildComponent(constantMagnitudeInteraction);
-  // addChildComponent(constantAngleInteraction);
-  addAndMakeVisible(defaultInteraction);
-  addAndMakeVisible(constantMagnitudeInteraction);
-  addAndMakeVisible(constantAngleInteraction);
+  addChildComponent(defaultInteractionButton);
+  addChildComponent(constantMagnitudeInteractionButton);
+  addChildComponent(constantAngleInteractionButton);
 
-  defaultInteraction.onClick();
-  defaultInteraction.setToggleState(true, juce::dontSendNotification);
+  defaultInteractionButton.onClick();
+  defaultInteractionButton.setToggleState(true, juce::dontSendNotification);
 
   processor->filterState->syncListener(this);
 }
@@ -396,90 +405,117 @@ ComplexPlaneEditor::
 }
 
 void ComplexPlaneEditor::
+mouseEnter(const juce::MouseEvent &e)
+{
+  juce::ignoreUnused(e);
+  defaultInteractionButton.setVisible(true);
+  constantMagnitudeInteractionButton.setVisible(true);
+  constantAngleInteractionButton.setVisible(true);
+}
+
+void ComplexPlaneEditor::
+mouseExit(const juce::MouseEvent &e)
+{
+  juce::ignoreUnused(e);
+  defaultInteractionButton.setVisible(false);
+  constantMagnitudeInteractionButton.setVisible(false);
+  constantAngleInteractionButton.setVisible(false);
+}
+
+void ComplexPlaneEditor::
 mouseWheelMove(const juce::MouseEvent &e, const juce::MouseWheelDetails &w)
 {
-  auto delta = w.isReversed ? -w.deltaY : w.deltaY;
-  pixelsPerUnit *= (1.0 + delta);
-  unitsPerPixel = 1.0 / pixelsPerUnit;
-
-  // NOTE(ry): update grid line resolution
+  if(e.eventComponent == this)
   {
-    auto scaled = 100.0 * unitsPerPixel;
-    auto exponent = std::floor(std::log10(scaled));
-    auto fraction = scaled / std::pow(10.0, exponent);
-    auto logFraction = std::log10(fraction);
-    auto base = (logFraction < 1.0/3.0) ? 1 : (logFraction < 2.0/3.0) ? 2 : 5;
-    unitsPerLine = base * std::pow(10.0, exponent);
+    auto delta = w.isReversed ? -w.deltaY : w.deltaY;
+    pixelsPerUnit *= (1.0 + delta);
+    unitsPerPixel = 1.0 / pixelsPerUnit;
+
+    // NOTE(ry): update grid line resolution
+    {
+      auto scaled = 100.0 * unitsPerPixel;
+      auto exponent = std::floor(std::log10(scaled));
+      auto fraction = scaled / std::pow(10.0, exponent);
+      auto logFraction = std::log10(fraction);
+      auto base = (logFraction < 1.0/3.0) ? 1 : (logFraction < 2.0/3.0) ? 2 : 5;
+      unitsPerLine = base * std::pow(10.0, exponent);
+    }
+
+    // NOTE(ry): update world center
+    {
+      // NOTE(ry): get mouse position in old coordinates
+      auto oldMouseP = e.position.toDouble();
+      auto oldMousePX = oldMouseP.x;
+      auto oldMousePY = oldMouseP.y;
+      worldUnitsFromPixels.transformPoint(oldMousePX, oldMousePY);
+
+      updateTransforms();
+
+      // NOTE(ry): get mouse position in new coordinates
+      auto newMousePX = oldMouseP.x;
+      auto newMousePY = oldMouseP.y;
+      worldUnitsFromPixels.transformPoint(newMousePX, newMousePY);
+
+      // NOTE(ry): move world center so local mouse position doesn't change during zoom
+      auto mouseOffsetX = newMousePX - oldMousePX;
+      auto mouseOffsetY = newMousePY - oldMousePY;
+      worldCenter -= juce::Point<double>(mouseOffsetX, mouseOffsetY);
+    }
+
+    updateTransformsAndChildBounds();
+    repaint();
   }
-
-  // NOTE(ry): update world center
-  {
-    // NOTE(ry): get mouse position in old coordinates
-    auto oldMouseP = e.position.toDouble();
-    auto oldMousePX = oldMouseP.x;
-    auto oldMousePY = oldMouseP.y;
-    worldUnitsFromPixels.transformPoint(oldMousePX, oldMousePY);
-
-    updateTransforms();
-
-    // NOTE(ry): get mouse position in new coordinates
-    auto newMousePX = oldMouseP.x;
-    auto newMousePY = oldMouseP.y;
-    worldUnitsFromPixels.transformPoint(newMousePX, newMousePY);
-
-    // NOTE(ry): move world center so local mouse position doesn't change during zoom
-    auto mouseOffsetX = newMousePX - oldMousePX;
-    auto mouseOffsetY = newMousePY - oldMousePY;
-    worldCenter -= juce::Point<double>(mouseOffsetX, mouseOffsetY);
-  }
-
-  updateTransformsAndChildBounds();
-  repaint();
 }
 
 void ComplexPlaneEditor::
 mouseDown(const juce::MouseEvent &e)
 {
-  if(e.mods.isLeftButtonDown())
+  if(e.eventComponent == this)
   {
-    // NOTE(ry): dragging the world position
-    worldCenterAtDragStart = worldCenter;
-  }
-  else if(e.mods.isRightButtonDown())
-  {
-    // NOTE(ry): creating a root point.
-    // root is a pole if no mods are down, and a zero if control is down.
-    s32 newOrder = e.mods.isCtrlDown() ? 1 : -1;
-    auto const mousePixels = e.position.toDouble();
-    auto mouseWorldX = mousePixels.x;
-    auto mouseWorldY = mousePixels.y;
-    worldUnitsFromPixels.transformPoint(mouseWorldX, mouseWorldY);
-
-    // NOTE(ry): snap to axis
-    auto const snapThresholdWorld = unitsPerPixel * ComplexPlaneEditor::snapThresholdPixels;
-    if(std::abs(mouseWorldY) < snapThresholdWorld)
+    if(e.mods.isLeftButtonDown())
     {
-      mouseWorldY = 0.0;
+      // NOTE(ry): dragging the world position
+      worldCenterAtDragStart = worldCenter;
     }
+    else if(e.mods.isRightButtonDown())
+    {
+      // NOTE(ry): creating a root point.
+      // root is a pole if no mods are down, and a zero if control is down.
+      s32 newOrder = e.mods.isCtrlDown() ? 1 : -1;
+      auto const mousePixels = e.position.toDouble();
+      auto mouseWorldX = mousePixels.x;
+      auto mouseWorldY = mousePixels.y;
+      worldUnitsFromPixels.transformPoint(mouseWorldX, mouseWorldY);
 
-    auto const newVal = c128(mouseWorldX, mouseWorldY);
-    processor->filterState->um->beginNewTransaction();
-    processor->filterState->add(newOrder, newVal);
+      // NOTE(ry): snap to axis
+      auto const snapThresholdWorld = unitsPerPixel * ComplexPlaneEditor::snapThresholdPixels;
+      if(std::abs(mouseWorldY) < snapThresholdWorld)
+      {
+	mouseWorldY = 0.0;
+      }
+
+      auto const newVal = c128(mouseWorldX, mouseWorldY);
+      processor->filterState->um->beginNewTransaction();
+      processor->filterState->add(newOrder, newVal);
+    }
   }
 }
 
 void ComplexPlaneEditor::
 mouseDrag(const juce::MouseEvent &e)
 {
-  if(e.mods.isLeftButtonDown())
+  if(e.eventComponent == this)
   {
-    auto offsetPixels = e.getOffsetFromDragStart().toDouble();
-    const auto worldUnitsFromPixelsScale = juce::Point<double>(unitsPerPixel, -unitsPerPixel);
-    auto offsetWorld = worldUnitsFromPixelsScale * offsetPixels;
-    worldCenter = worldCenterAtDragStart - offsetWorld;
+    if(e.mods.isLeftButtonDown())
+    {
+      auto offsetPixels = e.getOffsetFromDragStart().toDouble();
+      const auto worldUnitsFromPixelsScale = juce::Point<double>(unitsPerPixel, -unitsPerPixel);
+      auto offsetWorld = worldUnitsFromPixelsScale * offsetPixels;
+      worldCenter = worldCenterAtDragStart - offsetWorld;
 
-    updateTransformsAndChildBounds();
-    repaint();
+      updateTransformsAndChildBounds();
+      repaint();
+    }
   }
 }
 
@@ -500,9 +536,9 @@ resized(void)
 
   {
     auto thirdWidth = area.getWidth() / 3;
-    defaultInteraction.setBounds(area.removeFromLeft(thirdWidth));
-    constantMagnitudeInteraction.setBounds(area.removeFromLeft(thirdWidth));
-    constantAngleInteraction.setBounds(area.removeFromLeft(thirdWidth));
+    defaultInteractionButton.setBounds(area.removeFromLeft(thirdWidth));
+    constantMagnitudeInteractionButton.setBounds(area.removeFromLeft(thirdWidth));
+    constantAngleInteractionButton.setBounds(area.removeFromLeft(thirdWidth));
   }
 
   updateTransformsAndChildBounds();

@@ -71,29 +71,19 @@ public:
     static ComplexPlaneEditor *editor;
     c128 valueAtDragStart;
 
-    // TODO(ry): it'd be cool to generate all this code, maybe give the
-    // generator keybinds as well. probably too difficult to say which callbacks
-    // update each flag...
+    // TODO(ry): smells generatable...
     enum InteractionFlags : u32 {
       InteractionFlag_isDragging            = 1 << 0,
       InteractionFlag_wasRightButtonDown    = 1 << 1,
-      InteractionFlag_constantMagnitudeDrag = 1 << 2,
-      InteractionFlag_constantAngleDrag     = 1 << 3,
     };
 
     b32 isDragging(void) { return flags & InteractionFlag_isDragging; }
     b32 wasRightButtonDown(void) { return flags & InteractionFlag_wasRightButtonDown; }
-    b32 constantMagnitudeDrag(void) { return flags & InteractionFlag_constantMagnitudeDrag; }
-    b32 constantAngleDrag(void) { return flags & InteractionFlag_constantAngleDrag; }
 
     void isDragging(b32 set)
     { set ? flags |= InteractionFlag_isDragging : flags &= ~InteractionFlag_isDragging; }
     void wasRightButtonDown(b32 set)
     { set ? flags |= InteractionFlag_wasRightButtonDown : flags &= ~InteractionFlag_wasRightButtonDown; }
-    void constantMagnitudeDrag(b32 set)
-    { set ? flags |= InteractionFlag_constantMagnitudeDrag : flags &= ~InteractionFlag_constantMagnitudeDrag; }
-    void constantAngleDrag(b32 set)
-    { set ? flags |= InteractionFlag_constantAngleDrag : flags &= ~InteractionFlag_constantAngleDrag; }
 
     u32 flags;
   };
@@ -190,6 +180,8 @@ public:
     ComplexPlaneEditor *editor;
   };
 
+  void mouseEnter(const juce::MouseEvent &e) override;
+  void mouseExit(const juce::MouseEvent &e) override;
   void mouseWheelMove(const juce::MouseEvent &e, const juce::MouseWheelDetails &w) override;
   void mouseDown(const juce::MouseEvent&) override;
   void mouseDrag(const juce::MouseEvent &e) override;
@@ -207,6 +199,53 @@ public:
   // TODO(ry): tune
   static constexpr r64 snapThresholdPixels  = 18.0;
   static constexpr r64 stickThresholdPixels = snapThresholdPixels / 2.0;
+
+  enum InteractionFlags : u32 {
+    InteractionFlag_constantMagnitude = 1 << 0,
+    InteractionFlag_constantAngle     = 1 << 1,
+  };
+
+  b32 constantMagnitudeInteraction(void)
+  { return transientInteractionFlags & InteractionFlag_constantMagnitude; }
+  b32 constantAngleInteraction(void)
+  { return transientInteractionFlags & InteractionFlag_constantAngle; }
+
+  void constantMagnitudeInteraction(bool set, bool authoritative = false)
+  {
+    if(authoritative)
+    {
+      set ? authoritativeInteractionFlags |= InteractionFlag_constantMagnitude
+	  : authoritativeInteractionFlags &= ~InteractionFlag_constantMagnitude;
+      transientInteractionFlags = authoritativeInteractionFlags;
+    }
+    else
+    {
+      set ? transientInteractionFlags |= InteractionFlag_constantMagnitude
+	  : transientInteractionFlags &= (~InteractionFlag_constantMagnitude
+					  |authoritativeInteractionFlags);
+    }
+
+    constantMagnitudeInteractionButton.setToggleState(set, juce::dontSendNotification);
+    DBG("setter: constant magnitude interaction: " << (constantMagnitudeInteraction() ? "set" : "unset"));
+  }
+  void constantAngleInteraction(bool set, bool authoritative = false)
+  {
+    if(authoritative)
+    {
+      set ? authoritativeInteractionFlags |= InteractionFlag_constantAngle
+	  : authoritativeInteractionFlags &= ~InteractionFlag_constantAngle;
+      transientInteractionFlags = authoritativeInteractionFlags;
+    }
+    else
+    {
+      set ? transientInteractionFlags |= InteractionFlag_constantAngle
+	  : transientInteractionFlags &= (~InteractionFlag_constantAngle
+					  |authoritativeInteractionFlags);
+    }
+
+    constantAngleInteractionButton.setToggleState(set, juce::dontSendNotification);
+    DBG("setter: constant angle interaction: " << (constantAngleInteraction() ? "set" : "unset"));
+  }
 
 private:
   void updateTransforms(void);
@@ -229,19 +268,12 @@ private:
   RootTooltip tooltip;
 
   // interaction mode toggles
-  enum class InteractionMode : u32 {
-    defaultInteraction,
-    constantMagnitudeInteraction,
-    constantAngleInteraction,
-    Count,
-  };
+  juce::TextButton defaultInteractionButton;
+  juce::TextButton constantMagnitudeInteractionButton;
+  juce::TextButton constantAngleInteractionButton;
 
-  InteractionMode currentInteractionMode;
-  InteractionMode lastInteractionMode;
-
-  juce::TextButton defaultInteraction;
-  juce::TextButton constantMagnitudeInteraction;
-  juce::TextButton constantAngleInteraction;
+  u32 authoritativeInteractionFlags;
+  u32 transientInteractionFlags;
 
   static constexpr int InteractionToggleGroupID = 0x00867068;
 
