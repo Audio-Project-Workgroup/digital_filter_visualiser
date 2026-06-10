@@ -149,7 +149,7 @@ void CoefficientsComponent::updateFilterStateOnCoefEdit(int row, int col, double
     if (col == 2)
     {
 
-        auto zeros = CoefficientsToRoots::GramSchmidt(this->ffcoeffs);
+        auto zeros = CoefficientsToRoots::QR(this->ffcoeffs);
 
 #ifdef DEBUG_C2R
         std::cout<<"Previous Zeros"<<std::endl;
@@ -191,7 +191,7 @@ void CoefficientsComponent::updateFilterStateOnCoefEdit(int row, int col, double
     }
     else if (col == 3)
     {
-        auto poles =  CoefficientsToRoots::GramSchmidt(this->fbcoeffs);
+        auto poles =  CoefficientsToRoots::QR(this->fbcoeffs);
 
         size_t prev_sz = static_cast<size_t>(processor->filterState->poles.size());
 
