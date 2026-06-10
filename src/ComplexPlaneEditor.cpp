@@ -226,13 +226,23 @@ moveToEditorSpace(juce::Point<double> editorPositionScreen)
 
   DBG("user: constant magnitude interaction: " << (editor->constantMagnitudeInteraction() ? "set" : "unset"));
   DBG("user: constant angle interaction: " << (editor->constantAngleInteraction() ? "set" : "unset"));
+
   // NOTE(ry): the idea here is to project the prospective new value onto a
   // vector parallel to the line of constant magnitude/angle; in the case of
   // magnitude, the line is actually a circle, so we have to renormalize at the
   // end or else the magnitude will slightly increase forever.
-  if(editor->constantMagnitudeInteraction())
+  if(editor->constantMagnitudeInteraction() &&
+     editor->constantAngleInteraction())
+  {
+    // NOTE(ry): real-world application of fizzbuzz right here
+    newRootValue = root->value;
+  }
+  else if(editor->constantMagnitudeInteraction())
   {
     using namespace std::complex_literals;
+
+    // NOTE(ry): normalize pole magnitude before applying constant magnitude update
+    if(root->isPole()) newRootValue /= std::abs(newRootValue);
 
     auto dot = (newRootValue * std::conj(1i*c128(root->value))).real();
     auto mag = c128(root->value) * std::conj(c128(root->value));
@@ -242,7 +252,7 @@ moveToEditorSpace(juce::Point<double> editorPositionScreen)
     newRootValue /= std::abs(newRootValue);
     newRootValue *= std::abs(c128(root->value));
   }
-  if(editor->constantAngleInteraction())
+  else if(editor->constantAngleInteraction())
   {
     auto dot = (newRootValue * std::conj(c128(root->value))).real();
     auto mag = c128(root->value) * std::conj(c128(root->value));
@@ -268,9 +278,13 @@ mouseDrag(const juce::MouseEvent &e)
 {
   if(e.mods.isLeftButtonDown())
   {
+    u32 interactionFlags = 0;
     // TODO(ry): maybe make these keybinds variable?
-    editor->constantMagnitudeInteraction(e.mods.isShiftDown());
-    editor->constantAngleInteraction(e.mods.isCtrlDown());
+    if(e.mods.isShiftDown())
+    { interactionFlags |= InteractionFlag_constantMagnitude; }
+    if(e.mods.isCtrlDown())
+    { interactionFlags |= InteractionFlag_constantAngle; }
+    editor->setInteractionMode(interactionFlags);
 
     if(root.get())
     {
@@ -385,24 +399,29 @@ ComplexPlaneEditor(AudioPluginAudioProcessor *p)
   constantAngleInteractionButton.setRadioGroupId(InteractionToggleGroupID);
 
   defaultInteractionButton.onClick = [this](){
-    constantMagnitudeInteraction(false, true);
-    constantAngleInteraction(false, true);
+    if(defaultInteractionButton.getToggleState())
+    {
+      setInteractionMode(0, true);
+    }
   };
   constantMagnitudeInteractionButton.onClick = [this](){
-    constantMagnitudeInteraction(true, true);
-    constantAngleInteraction(false, true);
+    if(constantMagnitudeInteractionButton.getToggleState())
+    {
+      setInteractionMode(InteractionFlag_constantMagnitude, true);
+    }
   };
   constantAngleInteractionButton.onClick = [this](){
-    constantMagnitudeInteraction(false, true);
-    constantAngleInteraction(true, true);
+    if(constantAngleInteractionButton.getToggleState())
+    {
+      setInteractionMode(InteractionFlag_constantAngle, true);
+    }
   };
 
   addChildComponent(defaultInteractionButton);
   addChildComponent(constantMagnitudeInteractionButton);
   addChildComponent(constantAngleInteractionButton);
 
-  defaultInteractionButton.onClick();
-  defaultInteractionButton.setToggleState(true, juce::dontSendNotification);
+  defaultInteractionButton.setToggleState(true, juce::sendNotification);
 
   processor->filterState->syncListener(this);
 }

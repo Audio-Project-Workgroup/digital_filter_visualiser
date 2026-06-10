@@ -210,41 +210,29 @@ public:
   b32 constantAngleInteraction(void)
   { return transientInteractionFlags & InteractionFlag_constantAngle; }
 
-  void constantMagnitudeInteraction(bool set, bool authoritative = false)
+  void setInteractionMode(u32 iflags, bool authoritative = false)
   {
     if(authoritative)
     {
-      set ? authoritativeInteractionFlags |= InteractionFlag_constantMagnitude
-	  : authoritativeInteractionFlags &= ~InteractionFlag_constantMagnitude;
+      authoritativeInteractionFlags = iflags;
       transientInteractionFlags = authoritativeInteractionFlags;
     }
     else
     {
-      set ? transientInteractionFlags |= InteractionFlag_constantMagnitude
-	  : transientInteractionFlags &= (~InteractionFlag_constantMagnitude
-					  |authoritativeInteractionFlags);
+      transientInteractionFlags = iflags|authoritativeInteractionFlags;
+
+      constantMagnitudeInteractionButton
+	.setToggleState(constantMagnitudeInteraction(), juce::dontSendNotification);
+      constantAngleInteractionButton
+	.setToggleState(constantAngleInteraction(), juce::dontSendNotification);
+      defaultInteractionButton
+	.setToggleState(!constantMagnitudeInteraction() && !constantAngleInteraction(),
+			juce::dontSendNotification);
     }
 
-    constantMagnitudeInteractionButton.setToggleState(set, juce::dontSendNotification);
-    DBG("setter: constant magnitude interaction: " << (constantMagnitudeInteraction() ? "set" : "unset"));
-  }
-  void constantAngleInteraction(bool set, bool authoritative = false)
-  {
-    if(authoritative)
-    {
-      set ? authoritativeInteractionFlags |= InteractionFlag_constantAngle
-	  : authoritativeInteractionFlags &= ~InteractionFlag_constantAngle;
-      transientInteractionFlags = authoritativeInteractionFlags;
-    }
-    else
-    {
-      set ? transientInteractionFlags |= InteractionFlag_constantAngle
-	  : transientInteractionFlags &= (~InteractionFlag_constantAngle
-					  |authoritativeInteractionFlags);
-    }
-
-    constantAngleInteractionButton.setToggleState(set, juce::dontSendNotification);
-    DBG("setter: constant angle interaction: " << (constantAngleInteraction() ? "set" : "unset"));
+    DBG("setter:");
+    DBG("constantMagnitude: " << (constantMagnitudeInteraction() ? "set" : "unset"));
+    DBG("constantAngle: " << (constantAngleInteraction() ? "set" : "unset"));
   }
 
 private:
