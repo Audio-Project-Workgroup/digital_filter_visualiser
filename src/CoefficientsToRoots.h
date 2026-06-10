@@ -8,15 +8,51 @@
 
 class CoefficientsToRoots
 {
+	/*	
+		Class to convert polynomial coefficients into roots using a QR method.
+	*/
+
 	public:
-		static std::vector<std::pair<c128, int>> GramSchmidt(std::vector<double> coefs); // TODO change return type to bool --> for when there is a pole outside the unit. Check will be done outside of this.
+		/*	Method used to convert polynomial coefficients into roots using a QR method.
+			Consists of the following steps:
+				- Preprocessing:
+					- Filter out leading zeros if any
+					- Filter out trailing zeros if any
+					- Build companion matrix of Hessenberg form from given coefficients
+					- Calculate rayleigh quotient shift 
+				- apply shifted QR iterations (starting from bottom right) with deflation when subdiagonal entries become ~0
+						- Step 1 calculate Q0 via Gram Schmidt orthogonalization method
+						- Step 2 calculate R0 :  R0 = Q0 A0
+						- Step 3 calculate A1 : A1 = R0 Q0
+						- Step 4 add shift back in A1 and check sub-diagonal entries for deflation
+				- Extract eigenvalues:
+					- merge roots that have smaller scaled difference than tolerance
+					- scan subdiagonal:
+						- if values on the subdiagonal smaller than Epsilon, then real root
+						- else 2 solutions. Solve det(A - λI) = 0 for 2x2 square matrix:
+							- if discriminant >= 0, then two real solutions
+							- else then root has a complex conjugate (conjugate is not appended on returned vector, as this is done automatically when using FilterState::add to add that root in the Value tree)
+			Returns complex roots paired with their corresponding order.
+		 */
+		static std::vector<std::pair<c128, int>> QR(std::vector<double> coefs); // TODO change return type to bool --> for when there is a pole outside the unit. Check will be done outside of this.
 	private:
 
 		// TODO Finetune these parameters
-	    static constexpr double Epsilon = 1e-3;
-	    static constexpr size_t MaxIterations = 100;
-		static constexpr double tolerance = 5e-2; // threshold for considering two roots with negligible diff the same. Expressed in % after scaling differences, since zeros can much more than 1.0.
 
+		/*	Threshold for detecting convergence (near-zero) of the subdiagonal elements in QR iteration.*/
+	    static constexpr double Epsilon = 1e-3;
+
+		/*	Maximum QR iterations per eigenvalue block to prevent infinite loops.*/
+	    static constexpr size_t MaxIterations = 100;
+
+		/* 	Threshold for considering two roots with negligible diff the same. 
+			Expressed in % after scaling differences, since zeros may lie outside the unit circle. */
+		static constexpr double tolerance = 5e-2; 
+
+		/*	Method added to debug - will be removed when cleaning out the files */
 		static void printCheck(const std::vector<std::vector<double>> &);
+		
+		/*	Extracts roots from the eigenvalues of the converged quasi-triangular QR matrix and merges duplicates. 
+			For more details see description of QR method */
 		static void extractRoots(std::vector<std::pair<c128, int>> &, const std::vector<std::vector<double>>&, size_t);
 };

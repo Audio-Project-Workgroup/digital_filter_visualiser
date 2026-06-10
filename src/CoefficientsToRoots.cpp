@@ -8,7 +8,7 @@
 #include <iostream>
 #include <cmath>
 
-std::vector<std::pair<c128, int>> CoefficientsToRoots::GramSchmidt(std::vector<double> coefs)
+std::vector<std::pair<c128, int>> CoefficientsToRoots::QR(std::vector<double> coefs)
 {
 
     // filter out leading zeros, increasing counter until the leading 1.0 is found.
@@ -254,7 +254,7 @@ void CoefficientsToRoots::extractRoots(std::vector<std::pair<c128, int>> & roots
                 const double re = (a+d) / 2.0;
                 const double im = std::sqrt(-discriminant) / 2.0;
                 addRoot(c128(re,im));
-                // addRoot(c128(re,-im)); // Note: this is added automatically using addRoot. Commenting this, removes the bug of overlapping roots.
+                // addRoot(c128(re,-im)); // Note: this is added automatically later using FilterState::add method. Commenting this, removes the bug of overlapping roots.
             }
             i += 2;
         }
