@@ -139,8 +139,6 @@ void CoefficientsComponent::updateFilterStateOnCoefEdit(int row, int col, double
 {
     // calculate roots through the coefficient2roots function && notify other listeners about this change
 
-    // @TODO Clean print statements (after ensuring robust implementation)...
-
     if (col == 2)
         ffcoeffs[static_cast<size_t>(row)] = value;
     else if (col == 3)
@@ -148,46 +146,20 @@ void CoefficientsComponent::updateFilterStateOnCoefEdit(int row, int col, double
     
     if (col == 2)
     {
-
         auto zeros = CoefficientsToRoots::QR(this->ffcoeffs);
 
-#ifdef DEBUG_C2R
-        std::cout<<"Previous Zeros"<<std::endl;
-        for (int i=0 ; i< processor->filterState->zeros.size(); i++)
-        {
-            auto *r = processor->filterState->zeros[i];
-            std::cout<<"("<<r->value.re.get()<<","<< r->value.im.get()<<") - "<<r->order<<", ";
-        }std::cout<<std::endl;
-#endif
-
-        std::cout<<"Removing Zeroes"<<std::endl;
         while (!processor->filterState->zeros.isEmpty())
         {
             auto *r = processor->filterState->zeros.getFirst();
-            std::cout<<"\t("<<r->value.re.get()<<","<< r->value.im.get()<<") - "<<r->order<<", ";
             processor->filterState->remove(r);
         }
-        std::cout<<std::endl;
 
-        std::cout<<"Adding Zeros"<<std::endl;
         for (size_t i=0 ; i< zeros.size(); i++)
         {
             auto &r = zeros[i].first;
             auto &order = zeros[i].second;
-            std::cout<<"\t("<<r.real()<<","<< r.imag()<<") - "<<order<<", ";
             processor->filterState->add(order, r);
         }
-        std::cout<<std::endl;
-
-#ifdef DEBUG_C2R
-        std::cout<<"Final Zeros"<<std::endl;
-        for (size_t i=0 ; i< processor->filterState->zeros.size(); i++)
-        {
-            auto *r = processor->filterState->zeros[i];
-
-            std::cout<<"("<<r->value.re.get()<<","<< r->value.im.get()<<") - "<<r->order<<", ";
-        }std::cout<<std::endl;
-#endif
     }
     else if (col == 3)
     {
@@ -195,26 +167,14 @@ void CoefficientsComponent::updateFilterStateOnCoefEdit(int row, int col, double
 
         size_t prev_sz = static_cast<size_t>(processor->filterState->poles.size());
 
-#ifdef DEBUG_C2R
-        std::cout<<"Previous Poles"<<std::endl;
-        for (size_t i=0 ; i< processor->filterState->poles.size(); i++)
-        {
-            auto *r = processor->filterState->poles[i];
-            std::cout<<"\t("<<r->value.re.get()<<","<< r->value.im.get()<<") - "<<r->order<<", ";
-        }std::cout<<std::endl;
-#endif
-        std::cout<<"Adding Poles"<<std::endl;
         for (size_t i=0 ; i< poles.size(); i++)
         {
             
             auto &r = poles[i].first;
             auto &order = poles[i].second;
             processor->filterState->add(-order, r);
-            std::cout<<"\t("<<r.real()<<","<< r.imag()<<") - "<<order<<", ";
         }
-        std::cout<<std::endl;
 
-        std::cout<<"Removing Poles"<<std::endl;
         auto isNewPole = [&](c128 val) -> std::pair<bool, int> {
             for (auto& [r, order] : poles) 
             {
@@ -227,7 +187,6 @@ void CoefficientsComponent::updateFilterStateOnCoefEdit(int row, int col, double
         for (size_t i=0 ; i< prev_sz; i++)
         {
             auto *r = processor->filterState->poles[i];
-            std::cout<<"\t("<<r->value.re.get()<<","<< r->value.im.get()<<") - "<<r->order<<", ";
             c128 key(c128(r->value.re.get(),r->value.im.get()));
             auto [found, order] = isNewPole(key);
 
@@ -242,20 +201,7 @@ void CoefficientsComponent::updateFilterStateOnCoefEdit(int row, int col, double
                 prev_sz--;
             } 
         }
-        std::cout<<std::endl;
-#ifdef DEBUG_C2R
-        std::cout<<"Final Poles"<<std::endl;
-        for (size_t i=0 ; i< processor->filterState->poles.size(); i++)
-        {
-            auto *r = processor->filterState->poles[i];
-            std::cout<<"\t("<<r->value.re.get()<<","<< r->value.im.get()<<") - "<<r->order<<", ";
-        }std::cout<<std::endl;
-#endif
-    }
-#ifdef DEBUG_C2R
-    std::cout<<"Root order "<<processor->filterState->totalOrder <<" finiteZerosOrder "<< processor->filterState->finiteZerosOrder<<std::endl;
-#endif
-    
+    }    
 }
 
 void CoefficientsComponent::valueTreePropertyChanged (juce::ValueTree& node, const juce::Identifier& property)
