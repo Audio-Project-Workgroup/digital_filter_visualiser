@@ -228,35 +228,60 @@ moveToEditorSpace(juce::Point<double> editorPositionScreen)
   DBG("user: constant angle interaction: " << (editor->constantAngleInteraction() ? "set" : "unset"));
 
   // NOTE(ry): the idea here is to project the prospective new value onto a
-  // vector parallel to the line of constant magnitude/angle; in the case of
+  // vector parallel to the line of constant magnitude/angle. in the case of
   // magnitude, the line is actually a circle, so we have to renormalize at the
-  // end or else the magnitude will slightly increase forever.
-  if(editor->constantMagnitudeInteraction() &&
-     editor->constantAngleInteraction())
+  // end or else the magnitude will slightly increase forever. we also have to
+  // keep the prospective new value magnitude small relative to the existing
+  // value's magnitude to prevent jumping discontinuously around the circle
   {
-    // NOTE(ry): real-world application of fizzbuzz right here
-    newRootValue = root->value;
-  }
-  else if(editor->constantMagnitudeInteraction())
-  {
-    using namespace std::complex_literals;
+    // NOTE(ry): prevent divide by zero in projection calculations
+    auto constexpr minMag = 1e-6;
+    auto mag = std::max((c128(root->value) * std::conj(c128(root->value))).real(), minMag);
 
-    // NOTE(ry): normalize pole magnitude before applying constant magnitude update
-    if(root->isPole()) newRootValue /= std::abs(newRootValue);
+    if(editor->constantMagnitudeInteraction() &&
+       editor->constantAngleInteraction())
+    {
+      // NOTE(ry): real-world application of fizzbuzz right here
+      newRootValue = root->value;
+    }
+    else if(editor->constantMagnitudeInteraction())
+    {
+      // TODO(ry): more attention could be given to the feel of these
+      // interactions, eg replacing hard clamps with smooth transitions, or
+      // modifying the projection to get more intuitive results
+      using namespace std::complex_literals;
+      auto constexpr maxScale = 1.5;
 
-    auto dot = (newRootValue * std::conj(1i*c128(root->value))).real();
-    auto mag = c128(root->value) * std::conj(c128(root->value));
-    newRootValue = ((dot/mag) * 1i*c128(root->value)) + c128(root->value); // TODO(ry): prevent divide by zero
+      // NOTE(ry): the prospective new value magnitude should be small relative
+      // to the existing root magnitude, or else the point will go crazy
+      if(root->isPole())
+      {
+	if(std::abs(newRootValue) > maxScale*std::abs(c128(root->value)))
+	{
+	  newRootValue /= std::abs(newRootValue);
+	  newRootValue *= maxScale*std::abs(c128(root->value));
+	}
+      }
 
-    // TODO(ry): prevent divide by zero
-    newRootValue /= std::abs(newRootValue);
-    newRootValue *= std::abs(c128(root->value));
-  }
-  else if(editor->constantAngleInteraction())
-  {
-    auto dot = (newRootValue * std::conj(c128(root->value))).real();
-    auto mag = c128(root->value) * std::conj(c128(root->value));
-    newRootValue = (dot/mag) * c128(root->value); // TODO(ry): prevent divide by zero
+      auto dot = (newRootValue * std::conj(1i*c128(root->value))).real();
+      newRootValue = ((dot/mag) * 1i*c128(root->value)) + c128(root->value);
+
+      if(std::abs(newRootValue) < minMag)
+      {
+	// NOTE: avoid divide by zero
+	newRootValue = root->value;
+      }
+      else
+      {
+	newRootValue /= std::abs(newRootValue);
+	newRootValue *= std::abs(c128(root->value));
+      }
+    }
+    else if(editor->constantAngleInteraction())
+    {
+      auto dot = (newRootValue * std::conj(c128(root->value))).real();
+      newRootValue = (dot/mag) * c128(root->value);
+    }
   }
 
   moveToWorldSpace(newRootValue);
