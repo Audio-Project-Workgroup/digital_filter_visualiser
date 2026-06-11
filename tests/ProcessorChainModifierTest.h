@@ -14,7 +14,7 @@ public:
     void runTest() override
     {
         AudioPluginAudioProcessor processor; // shouldn't be a field of this class as its static object is defined.
-        prepareProcState(processor.activeState, channelNumber);
+        prepareProcState(processor.activeState, _channelNumber);
 
         performTest(
             "No roots",
@@ -24,7 +24,7 @@ public:
             0,
             {},
             { 1 });
-    
+
         performTest(
             "Delay",
             processor,
@@ -84,7 +84,7 @@ public:
             processor,
             { { 1, 0.5, 0.5 } , { -2, -0.1, 0 }, { -2, 0, 0 } },
             1,
-            2, 
+            2,
             { { 1, -1, 0.5, 0.2, 0.01 } },
             { 1 });
 
@@ -100,24 +100,24 @@ public:
         performTest(
             "Sorting poles",
             processor,
-            { 
-                { -2, 0.5, 0.5 }, // 0: mag - 0.707, |angle| = pi/4, Q = 1.333, res = 0.9705 
+            {
+                { -2, 0.5, 0.5 }, // 0: mag - 0.707, |angle| = pi/4, Q = 1.333, res = 0.9705
                 { -2, 0, 0 },     // 1: delay
-                { -2, -0.1, 0 },  // 2: mag - 0.1, |angle| = pi, Q = 0.682, res = 0.75335 
+                { -2, -0.1, 0 },  // 2: mag - 0.1, |angle| = pi, Q = 0.682, res = 0.75335
             },
             1,
             8,
-            { 
+            {
                 { 1, 0, 0, 0.2, 0.01 }, // 2
-                { 1, 0, 0, -1, 0.5 },   // 0 
-                { 1, 0, 0, -1, 0.5 },   // 0 
+                { 1, 0, 0, -1, 0.5 },   // 0
+                { 1, 0, 0, -1, 0.5 },   // 0
             },
             { 1 });
     }
 
 private:
     juce::dsp::ProcessSpec spec{ 48000, 512, 1 }; // 1 channel for each mono processor
-    const int channelNumber = 2;
+    const int _channelNumber = 2;
     const float maxRelError = 1e-6;
 
     void prepareProcState(std::atomic<FullState<float>*>& procState, int channelNumber)
@@ -140,7 +140,7 @@ private:
         beginTest(testName);
         TestHelper::makeFilterState(processor.filterState.get(), roots, gain);
         ProcessorChainModifier::rootsToJuceCoeffs(processor.filterState.get(), processor.activeState, spec);
-        checkMultichannel(processor.activeState, channelNumber);
+        checkMultichannel(processor.activeState, _channelNumber);
         checkValues(processor.activeState, expectedDelay, gain, expectedIirCoefficients, expectedFirCoefficients);
     }
 
@@ -167,7 +167,7 @@ private:
                 for (int k = 0; k < c0.size(); k++)
                     expectEquals(c0[k], cI[k]);
             }
-            
+
             auto& c0 = state0->firFilter->coefficients.get()->coefficients;
             auto& cI = stateI->firFilter->coefficients.get()->coefficients;
             expectEquals(c0.size(), cI.size());
@@ -187,14 +187,14 @@ private:
         expectEquals((int)state->delay.getDelay(), expectedDelay);
         expectWithinAbsoluteError(state->gain.getGainLinear(), expectedGain, maxRelError * expectedGain);
         expectEquals(state->iirCascade.size(), (int)expectedIirCoefficients.size());
-        for (int i = 0; i < state->iirCascade.size(); i++)
+        for (size_t i = 0; i < static_cast<size_t>(state->iirCascade.size()); i++)
         {
             auto& c = state->iirCascade[i]->coefficients.get()->coefficients;
             std::vector<float> rrr;
             for (int j = 0; j < c.size(); j++)
                 rrr.push_back(c[j]);
             expectEquals(c.size(), (int)expectedIirCoefficients[i].size());
-            for (int j = 0; j < c.size(); j++)
+            for (size_t j = 0; j < static_cast<size_t>(c.size()); j++)
                 expectWithinAbsoluteError(c[j], expectedIirCoefficients[i][j], maxRelError * std::abs(expectedIirCoefficients[i][j]));
         }
 
@@ -203,7 +203,7 @@ private:
         std::vector<float> rrr;
         for (int j = 0; j < c.size(); j++)
             rrr.push_back(c[j]);
-        for (int j = 0; j < c.size(); j++)
+        for (size_t j = 0; j < static_cast<size_t>(c.size()); j++)
             expectWithinAbsoluteError(c[j], expectedFirCoefficients[j], maxRelError * std::abs(expectedFirCoefficients[j]));
     }
 };

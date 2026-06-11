@@ -8,7 +8,7 @@
 class RootsToCoefficientsTest : public juce::UnitTest
 {
 public:
-    RootsToCoefficientsTest() : UnitTest("RootsToCoefficientsTest", "Math") 
+    RootsToCoefficientsTest() : UnitTest("RootsToCoefficientsTest", "Math")
 	{
 	}
 
@@ -39,7 +39,7 @@ public:
 			processor,
 			{ {1, 5, 0}, {1, -2, 0} },
 			{ 1, -3, -10 });
-		
+
 		performTest(
 			"1 1-order complex roots",
 			processor,
@@ -61,16 +61,16 @@ private:
 		std::vector<double> expectedCoefficients)
 	{
 		beginTest(testName);
-		
+
 		for (auto r : roots)
 			jassert(r[0] > 0);
 
 		auto* state = processor.filterState.get();
 		TestHelper::makeFilterState(state, roots, 1);
 		auto res = RootsToCoefficients::CalculatePolynomialCoefficientsFrom(state->zeros);
-		
+
 		expectEquals(res.size(), expectedCoefficients.size());
-		for (int i = 0; i < res.size(); i++)
+		for (size_t i = 0; i < res.size(); i++)
 			expectEquals(res[i], expectedCoefficients[i]);
 	}
 };

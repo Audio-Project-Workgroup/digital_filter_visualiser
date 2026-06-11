@@ -272,7 +272,7 @@ juce::dsp::IIR::Coefficients<float>* ProcessorChainModifier::calculateIirCoeffic
 	else // 2-order filter
 	{
 		// Coefficients should be shifted in order not to decrement delay.
-		if (b0 == 0)
+		if (juce::exactlyEqual(b0, 0.f))
 		{
 			b0 = b1;
 			b1 = b2;
