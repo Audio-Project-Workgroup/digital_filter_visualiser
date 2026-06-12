@@ -94,14 +94,31 @@ static inline ProfileSite* profileSiteArrayBase(void) { return(&__start_dfvPROFL
 static inline u64 profileSiteArrayCount(void) { return(u64(&__stop_dfvPROFL - &__start_dfvPROFL - 1)); }
 
 #elif COMPILER_GCC || COMPILER_CLANG
-#  define SECTION(name) __attribute__((section(name), used, aligned(1)))
+
+#  if OS_LINUX
+#    define SECTION(name) __attribute__((section(name), used, aligned(1)))
+#  elif OS_MAC
+#    define SECTION(name) __attribute__((section("__DATA," name), used, aligned(1)))
+#  else
+#    error SECTION() not implemented for this OS
+#  endif
+
 #  define PROFILE_SECTION SECTION("dfvPROFL")
 #  define FULL_FUNCTION_NAME __PRETTY_FUNCTION__
 #  define PROFILE_SITE_NIL &profile__nil
+
 static PROFILE_SECTION ProfileSite profile__nil("nil");
-// TODO(ry): does this work on apple clang/macos as well?
+
+#  if OS_LINUX
 extern ProfileSite __start_dfvPROFL[];
 extern ProfileSite __stop_dfvPROFL[];
+#  elif OS_MAC
+extern ProfileSite __start_dfvPROFL[] asm("section$start$__DATA$dfvPROFL");
+extern ProfileSite __stop_dfvPROFL[]  asm("section$end$__DATA$dfvPROFL");
+#  else
+#    error secition start/stop not implemented for this OS
+#  endif
+
 static inline ProfileSite* profileSiteArrayBase(void) { return(__start_dfvPROFL + 1); }
 static inline u64 profileSiteArrayCount(void) { return(u64(__stop_dfvPROFL - __start_dfvPROFL) - 1); }
 
