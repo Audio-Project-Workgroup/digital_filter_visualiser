@@ -2,6 +2,7 @@
 #include "RootsToCoefficientsTest.h"
 #include "ProcessorChainModifierTest.h"
 #include "PhaseFrequencyResponseTest.h"
+#include "CoefficientsToRootsTest.h"
 
 //==============================================================================
 int main (int argc, char* argv[])
