@@ -111,11 +111,12 @@ std::vector<std::pair<c128, int>> CoefficientsToRoots::QR(std::vector<double> co
             {
                 norm += v[k] * v[k];
             }
-            norm = std::sqrt(norm);
+            
+            double normReciprocal = 1.0 / std::sqrt(norm);
             
             for (size_t k = 0; k < shift_idx; ++k)
             {
-                Q[k * degree + col] = v[k] / norm;
+                Q[k * degree + col] = v[k] * normReciprocal;
             }
         }
 
@@ -219,17 +220,20 @@ void CoefficientsToRoots::extractRoots(std::vector<std::pair<c128, int>> & roots
             // solve with discriminant
             const double discriminant = (a+d)*(a+d) - 4.0*det;
 
+            const double halfSum = 0.5 * (a + d);
+            const double halfSqrt = 0.5 * std::sqrt(std::abs(discriminant));
+
             if ( discriminant >= 0.0)
             {
                 // tow real roots
-                addRoot(c128(((a+d) + std::sqrt(discriminant)) / 2.0, 0.0));
-                addRoot(c128(((a+d) - std::sqrt(discriminant)) / 2.0, 0.0));
+                addRoot(c128(halfSum + halfSqrt, 0.0));
+                addRoot(c128(halfSum - halfSqrt, 0.0));
             }
             else
             {
                 // Complex conjugate pair
-                const double re = (a+d) / 2.0;
-                const double im = std::sqrt(-discriminant) / 2.0;
+                const double re = halfSum;
+                const double im = halfSqrt;
                 addRoot(c128(re,im));
                 // addRoot(c128(re,-im)); // Note: this is added automatically later using FilterState::add method. Commenting this, removes the bug of overlapping roots.
             }
