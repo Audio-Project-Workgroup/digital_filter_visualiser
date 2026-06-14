@@ -49,5 +49,5 @@ class CoefficientsToRoots
 		
 		/*	Extracts roots from the eigenvalues of the converged quasi-triangular QR matrix and merges duplicates. 
 			For more details see description of QR method */
-		static void extractRoots(std::vector<std::pair<c128, int>> &, const std::vector<std::vector<double>>&, size_t);
+		static void extractRoots(std::vector<std::pair<c128, int>> &, const std::vector<double>&, size_t);
 };
