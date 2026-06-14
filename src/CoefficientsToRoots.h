@@ -32,7 +32,7 @@ class CoefficientsToRoots
 							- else then root has a complex conjugate (conjugate is not appended on returned vector, as this is done automatically when using FilterState::add to add that root in the Value tree)
 			Returns complex roots paired with their corresponding order.
 		 */
-		static std::vector<std::pair<c128, int>> QR(std::vector<double> coefs); // TODO change return type to bool --> for when there is a pole outside the unit. Check will be done outside of this.
+		static std::vector<std::pair<c128, int>> QR(std::vector<double> coefs);
 	private:
 
 		// TODO Finetune these parameters
