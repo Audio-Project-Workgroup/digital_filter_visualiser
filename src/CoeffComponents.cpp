@@ -134,7 +134,6 @@ juce::Component* CoefficientsComponent::refreshComponentForCell(int row, int col
     return label;
 }
 
-
 void CoefficientsComponent::updateFilterStateOnCoefEdit(int row, int col, double value)
 {
     // calculate roots through the coefficient2roots function && notify other listeners about this change
@@ -164,6 +163,27 @@ void CoefficientsComponent::updateFilterStateOnCoefEdit(int row, int col, double
     else if (col == 3)
     {
         auto poles =  CoefficientsToRoots::QR(this->fbcoeffs);
+
+        // check stability 
+        auto filterStable = [&]() -> bool {
+            for (auto& [r, order] : poles)
+            {
+                const double re = r.real();
+                const double im = r.imag();
+                const double magnitude { std::sqrt ( re * re + im * im) };
+                if ( magnitude >= processor->filterState->maxPoleMagnitude)
+                    return false;
+            }
+            return true;
+        };
+
+        if (!filterStable())
+        {
+            // @TODO handle that case, reporting back to the user a message about the causality violation
+            // unstable filter, do nothing & return
+            return;
+        }
+
 
         size_t prev_sz = static_cast<size_t>(processor->filterState->poles.size());
 
