@@ -74,7 +74,7 @@ private:
     void performTest(
         const juce::String testName,
         AudioPluginAudioProcessor& processor, 
-        std::vector<std::array<double, 3>> roots,
+        std::vector<TestRootSpecification> roots,
         double angle,
         double expectedGain,
         double expectedPhase)

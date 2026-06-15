@@ -43,6 +43,24 @@ FilterState(juce::ValueTree treeToUse, juce::UndoManager *umToUse)
   polesNode.addListener(this);
 }
 
+void FilterState::
+clear(void)
+{
+  for(int i = zeros.size(); --i >= 0;)
+  {
+	auto z = zeros[i];
+	remove(z);
+  }
+  for(int i = poles.size(); --i >= 0;)
+  {
+	auto p = poles[i];
+	remove(p);
+  }
+
+  jassert(totalOrder == 0);
+  jassert(finiteZerosOrder == 0);
+}
+
 FilterRoot::Ptr FilterState::
 add(s32 newOrder)
 {

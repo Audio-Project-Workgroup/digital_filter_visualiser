@@ -64,7 +64,7 @@ public:
         performTest(
             "1-order complex zero, 1-order complex pole, delay",
             processor,
-            { { 1, 0.5, 0.5 } , { -1, -0.1, -0.1 }, { -2, 0, 0 } },
+            { { -1, -0.1, -0.1 }, { -2, 0, 0 } , { 1, 0.5, 0.5 } },
             1,
             2,
             { { 1, -1, 0.5, 0.2, 0.02 } },
@@ -73,7 +73,7 @@ public:
         performTest(
             "1-order complex zero, 1-order real pole, delay",
             processor,
-            { { 1, 0.5, 0.5 } , { -1, -0.1, 0 }, { -2, 0, 0 } },
+            { { -1, -0.1, 0 }, { -2, 0, 0 } , { 1, 0.5, 0.5 } },
             1,
             1,
             { { 1, 0, 0.1 } },
@@ -82,7 +82,7 @@ public:
         performTest(
             "1-order complex zero, 2-order real pole, delay",
             processor,
-            { { 1, 0.5, 0.5 } , { -2, -0.1, 0 }, { -2, 0, 0 } },
+            { { -2, -0.1, 0 }, { -2, 0, 0 } , { 1, 0.5, 0.5 } },
             1,
             2,
             { { 1, -1, 0.5, 0.2, 0.01 } },
@@ -131,7 +131,7 @@ private:
     void performTest(
         const juce::String testName,
         AudioPluginAudioProcessor& processor,
-        std::vector<std::array<double, 3>> roots,
+        std::vector<TestRootSpecification> roots,
         float gain,
         int expectedDelay,
         std::vector<std::vector<float>> expectedIirCoefficients,

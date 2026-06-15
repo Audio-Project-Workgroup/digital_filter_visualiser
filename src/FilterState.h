@@ -109,7 +109,7 @@ struct FilterRoot
     value.im.referTo(node, IDs::ValueIm, um);
     order.referTo(node, IDs::Order, um);
     flags = 0;
-  }
+  } 
 
   /** returns true if the root is on the real axis */
   bool isReal(void)
@@ -196,6 +196,10 @@ private:
 struct FilterState : private juce::ValueTree::Listener
 {
   FilterState(juce::ValueTree treeToUse, juce::UndoManager *umToUse);
+
+  /** Clears all zeros and poles from the filter state, setting the order to zero.
+   */
+  void clear(void);
 
   /** Add a new root with given order.
    * Positive order adds a zero, negative order adds a pole.

@@ -57,13 +57,13 @@ private:
 	void performTest(
 		const juce::String testName,
 		AudioPluginAudioProcessor& processor,
-		std::vector<std::array<double, 3>> roots,
+		std::vector<TestRootSpecification> roots,
 		std::vector<double> expectedCoefficients)
 	{
 		beginTest(testName);
 
 		for (auto r : roots)
-			jassert(r[0] > 0);
+			jassert(r.order > 0);
 
 		auto* state = processor.filterState.get();
 		TestHelper::makeFilterState(state, roots, 1);
