@@ -6,6 +6,7 @@ build
 src/TAGS
 src/JUCE
 src/out
+.DS_Store
 .vs
 tests/.vs
 additional.cmake

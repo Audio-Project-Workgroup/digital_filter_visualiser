@@ -135,7 +135,7 @@ void PhaseFrequencyResponseViewer::paint(juce::Graphics& g)
     const bool isLogScale = logScaleButton.getToggleState();
     std::vector<double> angles, amplitudes, phases;
     PhaseFrequencyResponseCalculator::calculate(
-        processor->filterState.get(), 
+        processor->filterState.get(),
         minFreq,
         sampleRate,
         isLogScale, true, width, angles, amplitudes, phases);
@@ -225,7 +225,7 @@ void PhaseFrequencyResponseViewer::paintPlot(
             textHeight,
             juce::Justification::centredLeft);
 
-        const float maxFreq = sampleRate / 2;
+        const float maxFreq = static_cast<float>(sampleRate / 2.0);
         const float logMaxFreq = std::log10(maxFreq);
         const float logMinFreq = std::log10(minFreq);
         const float freqCoeff = width / (logMaxFreq - logMinFreq);
@@ -233,7 +233,7 @@ void PhaseFrequencyResponseViewer::paintPlot(
         int freq = static_cast<int>(minFreq * 10);
         while (freq < maxFreq)
         {
-            int x = freqCoeff * (std::log10(freq) - logMinFreq) + plotPaddingLeft;
+            int x = static_cast<int>(freqCoeff * (std::log10(freq) - logMinFreq) + plotPaddingLeft);
             g.setColour(gridColour);
             g.drawLine(x, yTop, x, yBottom);
             if (xRight - x > textWidth)

@@ -109,6 +109,7 @@ void ButtonPanel::chooseFileAndSave(std::shared_ptr<juce::XmlElement> xml)
     std::function<void(const juce::FileChooser& fc)> function =
         [this, xml](const juce::FileChooser& fc)
         {
+		    juce::ignoreUnused(this);
             try
             {
                 juce::File file = fc.getResult();

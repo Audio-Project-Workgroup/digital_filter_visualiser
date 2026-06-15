@@ -54,7 +54,7 @@ void CoefficientsComponent::resized()
 
 int CoefficientsComponent::getNumRows()
 {
-    return fbcoeffs.size();
+    return static_cast<int>(fbcoeffs.size());
 }
 
 void CoefficientsComponent::paintRowBackground(juce::Graphics& g, int row, int w, int h, bool rowIsSelected)
@@ -130,8 +130,9 @@ juce::Component* CoefficientsComponent::refreshComponentForCell(int row, int col
     {
         value = ffcoeffs[static_cast<size_t>(row)];
     }
-    else if (col == 3)
+    else // col == 3
     {
+		jassert(col == 3);
         value = fbcoeffs[static_cast<size_t>(row)];
     }
     label->setText(juce::String(value), juce::dontSendNotification );
@@ -183,7 +184,7 @@ void CoefficientsComponent::updateCoeffTable()
     fbcoeffs = RootsToCoefficients::CalculatePolynomialCoefficientsFrom(
         processor->filterState->poles);
     ffcoeffs = RootsToCoefficients::CalculatePolynomialCoefficientsFrom(
-		processor->filterState->zeros, fbcoeffs.size());
+		processor->filterState->zeros, static_cast<int>(fbcoeffs.size()));
     coeffTable.updateContent();
 }
 

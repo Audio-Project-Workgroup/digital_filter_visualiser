@@ -32,8 +32,8 @@ resized(void)
 {
   auto area = getLocalBounds();
   auto constexpr margin = 5;
-  auto numeratorBounds = area.removeFromTop(0.5*getHeight()).reduced(margin);
-  auto denominatorBounds = area.removeFromTop(0.5*getHeight()).reduced(margin);
+  auto numeratorBounds = area.removeFromTop(int(0.5*getHeight())).reduced(margin);
+  auto denominatorBounds = area.removeFromTop(int(0.5*getHeight())).reduced(margin);
   numeratorView.setBounds(numeratorBounds);
   denominatorView.setBounds(denominatorBounds);
 
@@ -50,7 +50,7 @@ paint(juce::Graphics &g)
   auto constexpr margin = 5;
   auto constexpr barThicknessPixels = 2;
   g.setColour(juce::Colours::white);
-  g.fillRect(margin, 0.5*getHeight(), getWidth() - margin, barThicknessPixels);
+  g.fillRect(margin, int(0.5*getHeight()), getWidth() - margin, barThicknessPixels);
 }
 
 void EquationViewer::
@@ -98,7 +98,7 @@ updateCoeffs(void)
     RootsToCoefficients::CalculatePolynomialCoefficientsFrom(processor->filterState->poles);
   auto ffCoeffs =
     RootsToCoefficients::CalculatePolynomialCoefficientsFrom(processor->filterState->zeros,
-							     fbCoeffs.size());
+															 int(fbCoeffs.size()));
 
   denominatorText.setTextFromCoeffs(fbCoeffs);
   numeratorText.setTextFromCoeffs(ffCoeffs,
@@ -116,7 +116,7 @@ mouseWheelMove(juce::MouseEvent const &e, juce::MouseWheelDetails const &w)
   auto const viewPosition = viewport->getViewPosition();
   auto const newX = viewPosition.x + scrollAmp*w.deltaY;
   auto const newY = viewPosition.y;
-  viewport->setViewPosition(newX, newY);
+  viewport->setViewPosition(int(newX), int(newY));
 }
 
 void EquationViewer::EquationText::

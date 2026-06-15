@@ -221,8 +221,8 @@ void AudioPluginAudioProcessor::processBlock (juce::AudioBuffer<SampleType>& buf
         }
     }
 
-    const auto totalNumInputChannels = static_cast<size_t>(getTotalNumInputChannels());
-    const auto totalNumOutputChannels = static_cast<size_t>(getTotalNumOutputChannels());
+    const auto totalNumInputChannels = getTotalNumInputChannels();
+    const auto totalNumOutputChannels = getTotalNumOutputChannels();
     const int numSamples = buffer.getNumSamples();
     if (numSamples <= 0)
         return;
@@ -234,7 +234,7 @@ void AudioPluginAudioProcessor::processBlock (juce::AudioBuffer<SampleType>& buf
     // when they first compile a plugin, but obviously you don't need to keep
     // this code if your algorithm always overwrites all the output channels.
     for (auto i = totalNumInputChannels; i < totalNumOutputChannels; ++i)
-        buffer.clear(i, 0, numSamples);
+        buffer.clear(static_cast<int>(i), 0, numSamples);
 
     if (isPendingStateReady.load())
     {
@@ -244,15 +244,15 @@ void AudioPluginAudioProcessor::processBlock (juce::AudioBuffer<SampleType>& buf
         juce::dsp::AudioBlock<SampleType> block(buffer);
         juce::dsp::AudioBlock<SampleType> crossFadeBlock(crossFadeBuffer);
 
-        for (size_t ch = 0; ch < totalNumInputChannels; ch++)
+        for (int ch = 0; ch < totalNumInputChannels; ch++)
         {
             crossFadeBuffer.copyFrom(ch, 0, buffer.getReadPointer(ch), numSamples);
 
-            auto oldBlock = block.getSingleChannelBlock(ch);
+            auto oldBlock = block.getSingleChannelBlock(static_cast<size_t>(ch));
             juce::dsp::ProcessContextReplacing<SampleType> oldContext(oldBlock);
             activeProc->getUnchecked(ch)->process(oldContext);
 
-            auto newBlock = crossFadeBlock.getSingleChannelBlock(ch);
+            auto newBlock = crossFadeBlock.getSingleChannelBlock(static_cast<size_t>(ch));
             juce::dsp::ProcessContextReplacing<SampleType> newContext(newBlock);
             pendingState->getUnchecked(ch)->process(newContext);
 
@@ -271,9 +271,9 @@ void AudioPluginAudioProcessor::processBlock (juce::AudioBuffer<SampleType>& buf
         auto* proc = activeState.load();
         juce::dsp::AudioBlock<SampleType> block(buffer);
 
-        for (size_t ch = 0; ch < totalNumInputChannels; ch++)
+        for (int ch = 0; ch < totalNumInputChannels; ch++)
         {
-            auto channelBlock = block.getSingleChannelBlock(ch);
+            auto channelBlock = block.getSingleChannelBlock(static_cast<size_t>(ch));
             juce::dsp::ProcessContextReplacing<SampleType> context(channelBlock);
             proc->getUnchecked(ch)->process(context);
         }

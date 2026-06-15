@@ -29,7 +29,7 @@ public:
             "Delay",
             processor,
             { { -3, 0.0, 0.0 } , { -4, 0.0, 0.0 } },
-            0.2,
+            0.2f,
             7,
             {},
             { 1 });
@@ -58,7 +58,7 @@ public:
             { { -1, -0.1, -0.1 } },
             1,
             2,
-            { { 1, 0, 0, 0.2, 0.02 } },
+            { { 1, 0, 0, 0.2f, 0.02f } },
             { 1 });
 
         performTest(
@@ -67,7 +67,7 @@ public:
             { { -1, -0.1, -0.1 }, { -2, 0, 0 } , { 1, 0.5, 0.5 } },
             1,
             2,
-            { { 1, -1, 0.5, 0.2, 0.02 } },
+            { { 1, -1, 0.5, 0.2f, 0.02f } },
             { 1 });
 
         performTest(
@@ -76,7 +76,7 @@ public:
             { { -1, -0.1, 0 }, { -2, 0, 0 } , { 1, 0.5, 0.5 } },
             1,
             1,
-            { { 1, 0, 0.1 } },
+            { { 1, 0, 0.1f } },
             { 1, -1, 0.5 });
 
         performTest(
@@ -85,7 +85,7 @@ public:
             { { -2, -0.1, 0 }, { -2, 0, 0 } , { 1, 0.5, 0.5 } },
             1,
             2,
-            { { 1, -1, 0.5, 0.2, 0.01 } },
+            { { 1, -1, 0.5, 0.2f, 0.01f } },
             { 1 });
 
         performTest(
@@ -94,7 +94,7 @@ public:
             { { -2, 0.5, 0.5 } , { 1, -0.1, 0 } },
             1,
             3,
-            { { 1, 0, 0, -1, 0.5 }, { 1, 0.1, 0, -1, 0.5 } },
+            { { 1, 0, 0, -1, 0.5 }, { 1, 0.1f, 0, -1, 0.5 } },
             { 1 });
 
         performTest(
@@ -108,7 +108,7 @@ public:
             1,
             8,
             {
-                { 1, 0, 0, 0.2, 0.01 }, // 2
+                { 1, 0, 0, 0.2f, 0.01f }, // 2
                 { 1, 0, 0, -1, 0.5 },   // 0
                 { 1, 0, 0, -1, 0.5 },   // 0
             },
@@ -118,7 +118,7 @@ public:
 private:
     juce::dsp::ProcessSpec spec{ 48000, 512, 1 }; // 1 channel for each mono processor
     const int _channelNumber = 2;
-    const float maxRelError = 1e-6;
+    const float maxRelError = 1e-6f;
 
     void prepareProcState(std::atomic<FullState<float>*>& procState, int channelNumber)
     {
@@ -189,13 +189,13 @@ private:
         expectEquals(state->iirCascade.size(), (int)expectedIirCoefficients.size());
         for (size_t i = 0; i < static_cast<size_t>(state->iirCascade.size()); i++)
         {
-            auto& c = state->iirCascade[i]->coefficients.get()->coefficients;
+		    auto& c = state->iirCascade[static_cast<int>(i)]->coefficients.get()->coefficients;
             std::vector<float> rrr;
             for (int j = 0; j < c.size(); j++)
                 rrr.push_back(c[j]);
             expectEquals(c.size(), (int)expectedIirCoefficients[i].size());
             for (size_t j = 0; j < static_cast<size_t>(c.size()); j++)
-                expectWithinAbsoluteError(c[j], expectedIirCoefficients[i][j], maxRelError * std::abs(expectedIirCoefficients[i][j]));
+			    expectWithinAbsoluteError(c[static_cast<int>(j)], expectedIirCoefficients[i][j], maxRelError * std::abs(expectedIirCoefficients[i][j]));
         }
 
         auto& c = state->firFilter->coefficients.get()->coefficients;
@@ -204,7 +204,7 @@ private:
         for (int j = 0; j < c.size(); j++)
             rrr.push_back(c[j]);
         for (size_t j = 0; j < static_cast<size_t>(c.size()); j++)
-            expectWithinAbsoluteError(c[j], expectedFirCoefficients[j], maxRelError * std::abs(expectedFirCoefficients[j]));
+		    expectWithinAbsoluteError(c[static_cast<int>(j)], expectedFirCoefficients[j], maxRelError * std::abs(expectedFirCoefficients[j]));
     }
 };
 

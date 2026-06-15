@@ -27,6 +27,7 @@ void ProcessorChainModifier::rootsToJuceCoeffs(
 	int zerosBiquadSize = 0;
 	for (auto* item : state->zeros)
 		zerosBiquadSize += item->order.get();
+	juce::ignoreUnused(zerosBiquadSize);
 
 	// 1. Sort non-null poles by priority for pairing with zeros
 	// (they should be cascaded in reverse order);
@@ -37,14 +38,14 @@ void ProcessorChainModifier::rootsToJuceCoeffs(
 
 	for (std::size_t i = 0; i < polesSize; i++)
 	{
-		auto* pole = state->poles[i];
+		auto* pole = state->poles[static_cast<int>(i)];
 		if (!pole->isAtZero())
 			polesIndexesWithKeys.push_back({ i, evaluatePole(pole) });
 		delayCount -= pole->order.get() * (pole->isReal() ? 1 : 2);
 	}
 	for (std::size_t i = 0; i < zerosSize; i++)
 	{
-		auto* zero = state->zeros[i];
+		auto* zero = state->zeros[static_cast<int>(i)];
 		delayCount -= zero->order.get() * (zero->isReal() ? 1 : 2);
 	}
 
@@ -63,7 +64,7 @@ void ProcessorChainModifier::rootsToJuceCoeffs(
 	int bestZeroIndex = -1;
 	for (std::size_t i = 0; i < nonNullPolesSize; i++)
 	{
-		auto* pole = state->poles[polesIndexesWithKeys[i].index];
+		auto* pole = state->poles[static_cast<int>(polesIndexesWithKeys[i].index)];
 		const int poleOrder = std::abs(pole->order.get());
 
 		for (int j = 0; j < poleOrder; j++)
@@ -149,7 +150,7 @@ void ProcessorChainModifier::rootsToJuceCoeffs(
 		proc->firFilter->prepare(spec);
 
 		//4d. Gain
-		proc->gain.setGainLinear(state->gain.get());
+		proc->gain.setGainLinear(static_cast<float>(state->gain.get()));
 		proc->gain.prepare(spec);
 	}
 }
@@ -212,7 +213,7 @@ int ProcessorChainModifier::findBestZeroIndexPairForPole(
 	double currentMin = 100.0; // greater than maximum possible delta
 	for (std::size_t i = 0; i < usedZerosSize; i++)
 	{
-		auto* zero = zeros[i];
+		auto* zero = zeros[static_cast<int>(i)];
 		// Zero is already used with its order
 		if (usedZeros[i] == zero->order.get())
 			continue;
@@ -226,7 +227,7 @@ int ProcessorChainModifier::findBestZeroIndexPairForPole(
 		const double currentDelta = std::abs(pole->value.get() - zero->value.get());
 		if (currentDelta < currentMin)
 		{
-			currentBestIndex = i;
+			currentBestIndex = static_cast<int>(i);
 			currentMin = currentDelta;
 		}
 	}
@@ -301,14 +302,14 @@ void ProcessorChainModifier::calculatePolynomialCoefficients(
 
 	if (rootIsReal && !shouldBeTakenTwice)
 	{
-		c2 = -re;
+		c2 = static_cast<float>(-re);
 		c1 = 1.0;
 		c0 = 0;
 		return;
 	}
 
-	c2 = re * re + im * im;
-	c1 = -2.0 * re;
+	c2 = static_cast<float>(re * re + im * im);
+	c1 = static_cast<float>(-2.0 * re);
 	c0 = 1.0;
 }
 

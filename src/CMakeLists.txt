@@ -64,14 +64,39 @@ target_link_libraries(
   juce::juce_recommended_warning_flags
 )
 
-juce_add_console_app(DigitalFilterVisualizer_Tests
-    PRODUCT_NAME "DigitalFilterVisualizer_Tests"
+function(add_console_app target)
+  # like `juce_add_console_app` but it doesn't redefine
+  # `JUCE_STANDALONE_APPLICATION` when linking against shared plugin code
+  cmake_parse_arguments(JUCE_ARG "_NO_RESOURCERC" "" "" ${ARGN})
+
+  add_executable(${target})
+
+  if(CMAKE_SYSTEM_NAME STREQUAL "Windows")
+	target_compile_definitions(${target} PRIVATE _CONSOLE=1)
+  endif()
+
+  _juce_initialise_target(${target} ${ARGN})
+
+  if(NOT JUCE_ARG__NO_RESOURCERC)
+	set_target_properties(${target} PROPERTIES JUCE_TARGET_KIND_STRING "ConsoleApp")
+	_juce_write_configure_time_info(${target})
+	_juce_add_resources_rc(${target} ${target})
+	_juce_add_xcode_entitlements(${target} ${target})
+  endif()
+endfunction()
+
+add_console_app(DigitalFilterVisualizer_Tests
+  PRODUCT_NAME "DigitalFilterVisualizer_Tests"
 )
 
-target_sources(DigitalFilterVisualizer_Tests 
-	PRIVATE 
+set_target_properties(DigitalFilterVisualizer_Tests PROPERTIES
+  OUTPUT_NAME "DigitalFilterVisualizer_Tests"
+  RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/DigitalFilterVisualizer_Tests_artefacts/$<CONFIG>"
+)
+
+target_sources(DigitalFilterVisualizer_Tests
+	PRIVATE
 	../tests/Main.cpp
-    PluginProcessor.cpp
 )
 
 target_link_libraries(DigitalFilterVisualizer_Tests

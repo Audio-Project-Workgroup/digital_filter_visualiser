@@ -16,13 +16,13 @@ public:
     void runTest() override
     {
         AudioPluginAudioProcessor processor; // shouldn't be a field of this class as its static object is defined.
-        
+
         performTest(
             "No roots",
             processor,
             {},
             0.123,
-            1, 
+            1,
             0);
 
         // If a pole is outside 0.99 * unitCircleRadius then pole creating is blocked;
@@ -32,17 +32,17 @@ public:
             processor,
             { {-1, -1 / std::sqrt(2), 1 / std::sqrt(2)} },
             0.75 * pi,
-            1, 
+            1,
             0);
 
-        // When adding a single complex zero, 
+        // When adding a single complex zero,
         // a conjugated zero and a 2-order pole in (0; 0) are authomatically added.
         performTest(
             "Zero in the same point",
             processor,
             { {1, -1 / std::sqrt(2), 1 / std::sqrt(2)} },
             0.75 * pi,
-            0, 
+            0,
             0); // phase should not be checked as amplitude is 0 dB.
 
         performTest(
@@ -50,8 +50,8 @@ public:
             processor,
             { {-1, -1 / std::sqrt(2), 0} },
             0.75 * pi,
-            std::sqrt(2), 
-            -0.5 * pi); 
+            std::sqrt(2),
+            -0.5 * pi);
 
         performTest(
             "1 2-order pole",
@@ -73,7 +73,7 @@ public:
 private:
     void performTest(
         const juce::String testName,
-        AudioPluginAudioProcessor& processor, 
+        AudioPluginAudioProcessor& processor,
         std::vector<TestRootSpecification> roots,
         double angle,
         double expectedGain,
@@ -85,7 +85,7 @@ private:
         double amplitude, phase;
         PhaseFrequencyResponseCalculator::calculateForAngle(
             state, phaseUnitCoeff, phaseAmplitude, angle, amplitude, phase);
-        
+
         double amplitudeDb = juce::Decibels::gainToDecibels(expectedGain);
         expectWithinAbsoluteError(amplitude, amplitudeDb, maxRelError * std::abs(amplitudeDb));
         if (expectedGain > 0) // otherwise, phase response is not defined
@@ -95,7 +95,7 @@ private:
     const double pi = juce::MathConstants<double>::pi;
     const double phaseUnitCoeff = 1.0;
     const double phaseAmplitude = pi;
-    const float maxRelError = 1e-6;
+    const float maxRelError = 1e-6f;
 };
 
 static PhaseFrequencyResponseTest phaseFrequencyResponseTest;

@@ -5,6 +5,11 @@
 #include "types.h"
 #include "profile.h"
 
+#if COMPILER_CLANG
+#  pragma clang diagnostic push
+#  pragma clang diagnostic ignored "-Winconsistent-missing-destructor-override"
+#endif
+
 namespace IDs
 {
   const juce::Identifier FilterState("FILTER_STATE");
@@ -94,9 +99,9 @@ struct FilterRoot
 
   struct CachedOrder : juce::CachedValue<int>
   {
-    CachedOrder& operator=(const int &order)
+    CachedOrder& operator=(const int &_order)
     {
-      juce::CachedValue<int>::operator=(order);
+      juce::CachedValue<int>::operator=(_order);
       return(*this);
     }
 
@@ -109,7 +114,7 @@ struct FilterRoot
     value.im.referTo(node, IDs::ValueIm, um);
     order.referTo(node, IDs::Order, um);
     flags = 0;
-  } 
+  }
 
   /** returns true if the root is on the real axis */
   bool isReal(void)
@@ -190,7 +195,7 @@ struct FilterRoot
   void isActive(bool set) { set ? flags |= RootInteractionFlags_isActive : flags &= ~RootInteractionFlags_isActive; }
 
 private:
-  JUCE_DECLARE_WEAK_REFERENCEABLE(FilterRoot);
+  JUCE_DECLARE_WEAK_REFERENCEABLE(FilterRoot)
 };
 
 struct FilterState : private juce::ValueTree::Listener

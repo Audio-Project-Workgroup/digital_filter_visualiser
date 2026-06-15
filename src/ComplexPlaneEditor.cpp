@@ -363,7 +363,7 @@ updateBounds(c128 value)
   auto pixelX = value.real();
   auto pixelY = isConjugate ? -value.imag() : value.imag();
   editor->pixelsFromWorldUnits.transformPoint(pixelX, pixelY);
-  setCentrePosition(pixelX, pixelY);
+  setCentrePosition(int(pixelX), int(pixelY));
 }
 
 void ComplexPlaneEditor::RootPoint::
@@ -644,18 +644,18 @@ paint(juce::Graphics &g)
       auto const axisThicknessWorld = axisThicknessPixels * unitsPerPixel;
 
       g.fillRect(juce::Rectangle<float>()
-		 .withSize(axisThicknessWorld, topWorld - bottomWorld)
-		 .withCentre(juce::Point<float>(0.f, 0.5f*(topWorld + bottomWorld))));
+				 .withSize(float(axisThicknessWorld), float(topWorld - bottomWorld))
+				 .withCentre(juce::Point<float>(0.f, 0.5f*float(topWorld + bottomWorld))));
 
       if(pointHoveringOverAxis) g.setColour(axisHighlightColor);
       g.fillRect(juce::Rectangle<float>()
-		 .withSize(rightWorld - leftWorld, axisThicknessWorld)
-		 .withCentre(juce::Point<float>(0.5f*(rightWorld + leftWorld), 0.f)));
+				 .withSize(float(rightWorld - leftWorld), float(axisThicknessWorld))
+				 .withCentre(juce::Point<float>(0.5f*float(rightWorld + leftWorld), 0.f)));
     }
 
     // NOTE(ry): draw unit circle
     g.setColour(circleColor);
-    g.drawEllipse(-1, -1, 2, 2, circleThicknessPixels * unitsPerPixel);
+    g.drawEllipse(-1, -1, 2, 2, float(circleThicknessPixels * unitsPerPixel));
 
     // NOTE(ry): draw lines
     {
@@ -670,8 +670,8 @@ paint(juce::Graphics &g)
         if(-eps >= lineX || lineX >= eps)
         {
 	  g.fillRect(juce::Rectangle<float>()
-		     .withSize(lineThicknessWorld, topWorld - bottomWorld)
-		     .withCentre(juce::Point<float>(lineX, 0.5f*(topWorld + bottomWorld))));
+				 .withSize(float(lineThicknessWorld), float(topWorld - bottomWorld))
+				 .withCentre(juce::Point<float>(float(lineX), 0.5f*float(topWorld + bottomWorld))));
 	}
       }
 
@@ -683,8 +683,8 @@ paint(juce::Graphics &g)
         if(-eps >= lineY || lineY >= eps)
         {
 	  g.fillRect(juce::Rectangle<float>()
-		     .withSize(rightWorld - leftWorld, lineThicknessWorld)
-		     .withCentre(juce::Point<float>(0.5f*(rightWorld + leftWorld), lineY)));
+				 .withSize(float(rightWorld - leftWorld), float(lineThicknessWorld))
+				 .withCentre(juce::Point<float>(0.5f*float(rightWorld + leftWorld), float(lineY))));
 	}
       }
     }
@@ -721,8 +721,8 @@ paint(juce::Graphics &g)
 			    localBounds.getRight() - std::min(textRightOffsetPixels,
 							      localBounds.getWidth()));
       imLabelY += axisLabelFontHeightPixels;
-      g.drawSingleLineText("Re", reLabelX, reLabelY);
-      g.drawSingleLineText("Im", imLabelX, imLabelY);
+      g.drawSingleLineText("Re", int(reLabelX), int(reLabelY));
+      g.drawSingleLineText("Im", int(imLabelX), int(imLabelY));
     }
 
     // NOTE(ry): draw grid line labels
@@ -745,9 +745,9 @@ paint(juce::Graphics &g)
 							 localBounds.getHeight()),
 			   localBounds.getBottom());
         if(eps <= labelX || labelX <= -eps)
-        { g.drawSingleLineText(juce::String(labelX), drawX + textAxisSpacingX, drawY); }
+        { g.drawSingleLineText(juce::String(labelX), int(drawX + textAxisSpacingX), int(drawY)); }
         else
-        { g.drawSingleLineText(juce::String(0), drawX + textAxisSpacingX, drawY); }
+        { g.drawSingleLineText(juce::String(0), int(drawX + textAxisSpacingX), int(drawY)); }
       }
 
       for(auto labelY = std::floor(bottomWorld/unitsPerLine)*unitsPerLine;
@@ -765,9 +765,9 @@ paint(juce::Graphics &g)
 							     localBounds.getWidth()));
 
         if(eps <= labelY || labelY <= -eps)
-        { g.drawSingleLineText(juce::String(labelY), drawX, drawY + textAxisSpacingY); }
+        { g.drawSingleLineText(juce::String(labelY), int(drawX), int(drawY + textAxisSpacingY)); }
         else
-        { g.drawSingleLineText(juce::String(0), drawX, drawY + textAxisSpacingY); }
+        { g.drawSingleLineText(juce::String(0), int(drawX), int(drawY + textAxisSpacingY)); }
       }
     }
   }
@@ -794,9 +794,9 @@ updateTransforms(void)
   auto localBounds = getLocalBounds().toDouble();
   auto regionCenter = localBounds.getCentre();
   pixelsFromWorldUnits = juce::AffineTransform()
-    .translated(-worldCenter.x, -worldCenter.y)
-    .scaled(pixelsPerUnit, -pixelsPerUnit)
-    .translated(regionCenter.x, regionCenter.y);
+    .translated(float(-worldCenter.x), float(-worldCenter.y))
+    .scaled(float(pixelsPerUnit), float(-pixelsPerUnit))
+    .translated(float(regionCenter.x), float(regionCenter.y));
   worldUnitsFromPixels = pixelsFromWorldUnits.inverted();
 }
 
