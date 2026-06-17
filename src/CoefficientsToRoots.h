@@ -4,6 +4,8 @@
 #include <vector>
 #include <utility>
 
+#define DEBUG_C2R
+
 class CoefficientsToRoots
 {
 	/*	
@@ -46,6 +48,9 @@ class CoefficientsToRoots
 		/* 	Threshold for considering two roots with negligible diff the same. 
 			Expressed in % after scaling differences, since zeros may lie outside the unit circle. */
 		static constexpr double tolerance = 5e-2; 
+
+		/*	Method added to debug - will be removed when cleaning out the files */
+		static void printCheck(const std::vector<double> &, int);
 		
 		/*	Extracts roots from the eigenvalues of the converged quasi-triangular QR matrix and merges duplicates. 
 			For more details see description of QR method */
