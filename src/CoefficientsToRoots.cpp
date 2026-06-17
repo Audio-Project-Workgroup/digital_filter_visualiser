@@ -5,6 +5,7 @@
 #include "CoefficientsToRoots.h"
 
 #include <algorithm>
+#include <iostream>
 #include <cmath>
 
 std::vector<std::pair<c128, int>> CoefficientsToRoots::QR(std::vector<double> coefs)
@@ -42,6 +43,7 @@ std::vector<std::pair<c128, int>> CoefficientsToRoots::QR(std::vector<double> co
 
     // build companion Matrix
     std::vector<double> A(degree * degree, 0.0);
+    std::cout<<"Building companion matrix with degree "<<degree<<std::endl;
     // Build companion matrix (Hessenberg form)
     for (size_t i=0; i< degree; i++)
     {
@@ -53,6 +55,11 @@ std::vector<std::pair<c128, int>> CoefficientsToRoots::QR(std::vector<double> co
             A[j * degree + i] = 1.0;  // fill subdiagonal entries         
         }
     }
+
+        
+    std::cout<<"// Check companion matrix"<<std::endl;
+    printCheck(A, degree);
+
 
     // QR algorithm
     std::vector<double> Q(degree * degree);
@@ -171,9 +178,26 @@ std::vector<std::pair<c128, int>> CoefficientsToRoots::QR(std::vector<double> co
     return roots;
 }
 
+void CoefficientsToRoots::printCheck(const std::vector<double> &matrix, int n)
+{
+    for (size_t i=0; i< n; i++)
+    {
+        for (size_t j=0; j<n; j++)
+        {
+            std::cout<<matrix[i * n + j]<<" ";
+        }
+        std::cout<<std::endl;
+    }
+}
+
 void CoefficientsToRoots::extractRoots(std::vector<std::pair<c128, int>> & roots, const std::vector<double>& M, size_t degree)
 {
-        
+
+    std::cout<<"// Check Roots"<<std::endl;
+    CoefficientsToRoots::printCheck(M, degree);
+    
+    // std::vector<std::pair<c128, int>> roots;
+
     auto addRoot = [&](c128 newVal) {
         for (auto& [val, order] : roots)
         {
@@ -240,4 +264,11 @@ void CoefficientsToRoots::extractRoots(std::vector<std::pair<c128, int>> & roots
             i += 2;
         }
     }
+
+#ifdef DEBUG_C2R
+    std::cout<<"Calculated Roots: ";
+    for (auto root : roots)
+        std::cout<<"("<<root.first.real()<<","<<root.first.imag()<<") - "<<root.second<<", ";
+    std::cout<<std::endl;
+#endif
 }
