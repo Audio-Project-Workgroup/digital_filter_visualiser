@@ -4,6 +4,8 @@
 //
 //  Created by Elizabeth Aryslanova on 02/06/2026.
 //
+#pragma once
+
 #include <vector>
 #include <complex>
 
