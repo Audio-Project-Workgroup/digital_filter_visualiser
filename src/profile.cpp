@@ -1,6 +1,59 @@
 // NOTE(ry): implementation
 
+static ProfileConfig profileConfig{
+  ProfileFormat::tui,
+  {&std::cerr,
+#if OS_WINDOWS
+   [](void *data){
+	 juce::ignoreUnused(data);
+	 OutputDebugStringA(profileGetLog());
+	 OutptuDebugStringA('\n');
+   }
+#else
+   [](void *data){
+	 auto outStream = reinterpret_cast<std::ostream*>(data);
+	 *outStream << std::string_view(profileFlushLog());
+   }
+#endif
+  }
+};
+
+static void
+profileConfigure(ProfileConfig cfg)
+{
+  profileConfig = cfg;
+}
+
 thread_local Profiler threadProfiler = {};
+
+struct ProfilerLog
+{
+  size_t logAt;
+  char logBuffer[1 << 15];
+};
+
+thread_local ProfilerLog threadProfilerLog = {};
+
+static char*
+profileFlushLog(void)
+{
+  threadProfilerLog.logAt = 0;
+  return threadProfilerLog.logBuffer;
+}
+
+static void
+profileLogFormatString(const char *fmt, ...)
+{
+  va_list args;
+  va_start(args, fmt);
+
+  size_t bytesRemaining = sizeof(threadProfilerLog.logBuffer) - threadProfilerLog.logAt;
+  char *buffer = threadProfilerLog.logBuffer + threadProfilerLog.logAt;
+  int bytesWritten = vsnprintf(buffer, bytesRemaining, fmt, args);
+  threadProfilerLog.logAt += size_t(bytesWritten);
+
+  va_end(args);
+}
 
 static u64 tscRead(void);
 static u64 tscGetFreq(void);
@@ -156,17 +209,20 @@ ProfiledScope::
   {
     r64 tscElapsed_us = 1000000.0 * (r64)tscElapsed / (r64)Profiler::tscFreq;
     r64 tscElapsedExclusive_us = 1000000.0 * (r64)(site->tscElapsedRoot - site->tscElapsedChildren) / (r64)Profiler::tscFreq;
-    DBG(site->label << " elapsed: " << tscElapsedExclusive_us << " us (" << tscElapsed_us << " us w/ children)");
+
+	profileLogFormatString("%s elapsed: %.2f us (%.2f us w/ children)\n",
+						   site->label, tscElapsedExclusive_us, tscElapsed_us);
 
     for(u32 siteIdx = 0; siteIdx < Profiler::siteCount; ++siteIdx)
     {
       auto *profSite = Profiler::sites + siteIdx;
       if(profSite->usedThreadProfiler != &threadProfiler ||
-	 profSite == this->site)
+		 profSite == this->site)
       { continue; }
 
       r64 siteTscElapsed_us = 1000000.0 * (r64)profSite->tscElapsed / (r64)Profiler::tscFreq;
-      DBG(profSite->label << " elapsed: " << siteTscElapsed_us << " us (hit count = " << profSite->hitCount << ")");
+	  profileLogFormatString("%s elapsed: %.2f us (hit count = %lu)\n",
+							 profSite->label, siteTscElapsed_us, profSite->hitCount);
 
       profSite->tscElapsedMax = std::max(profSite->tscElapsedMax, profSite->tscElapsed);
       profSite->tscElapsed = 0;
@@ -176,6 +232,8 @@ ProfiledScope::
       profSite->bytesAllocated = 0;
       profSite->usedThreadProfiler = nullptr;
     }
+
+	profileConfig.dst.onTopScopeExit(profileConfig.dst.userData);
 
     site->tscElapsedMax = std::max(site->tscElapsedMax, site->tscElapsed);
     site->tscElapsed = 0;

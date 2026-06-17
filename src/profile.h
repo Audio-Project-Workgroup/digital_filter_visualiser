@@ -1,3 +1,47 @@
+enum class ProfileFormat : u32
+{
+  tui, /** output in format suitable for terminal displays */
+  csv, /** output in csv format, suitable for an external tool */
+};
+
+using ProfileDestinationProc = void (*)(void *);
+struct ProfileDestination
+{
+  /** data that will be passed to the `onTopScopeExit` callback */
+  void *userData;
+
+  /** function to call when a thread has finished executing its first profiled scope and all profiling data is ready to be dumped */
+  ProfileDestinationProc onTopScopeExit;
+};
+
+struct ProfileConfig
+{
+  /** what format the output should be */
+  ProfileFormat fmt;
+
+  /** what to do when the profiler writes its data */
+  ProfileDestination dst;
+};
+
+/** pass an instance of `ProfileConfig` to control the profiler output format
+    and destination.
+
+    Example Usage:
+    ```
+    ProfileConfig cfg = {};
+    cfg.fmt = ProfileFormat::tui;
+    cfg.dst.userData = &std::cerr;
+    cfg.dst.onTopScopeExit = [](void *data){
+        auto outStream = reinterpret_cast<std::ostream*>(data);
+        *outStream << std::string_view(profileFlushLog());
+    };
+    ```
+*/
+static inline void profileConfigure(ProfileConfig cfg);
+
+/** returns a pointer to the start of the profile log for the current thread and resets the log */
+static inline char* profileFlushLog(void);
+
 struct ProfileSite;
 struct ProfiledScope;
 struct Profiler
