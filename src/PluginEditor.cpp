@@ -8,6 +8,7 @@
 #include "PlayerComponent.cpp"
 #include "ButtonPanel.cpp"
 #include "EquationViewer.cpp"
+#include "CoeffToRootsAberth.cpp"
 
 //==============================================================================
 AudioPluginAudioProcessorEditor::AudioPluginAudioProcessorEditor (AudioPluginAudioProcessor& p)
