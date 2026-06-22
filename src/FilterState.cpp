@@ -96,26 +96,20 @@ add(s32 newOrder, c128 newValue)
 
   // NOTE(ry): if there is already a root at the desired location, we don't add
   // a new one, and instead increment the existing root's order
-  if(isPole)
+  for(auto *p : poles)
   {
-    for(auto *p : poles)
+    if(p->value == newValue)
     {
-      if(p->value == newValue)
-      {
-	p->order += newOrder;
-	return(p);
-      }
+      p->order += newOrder;
+      return p;
     }
   }
-  else
+  for(auto *z : zeros)
   {
-    for(auto *z : zeros)
+    if(z->value == newValue)
     {
-      if(z->value == newValue)
-      {
-	z->order += newOrder;
-	return(z);
-      }
+      z->order += newOrder;
+      return z;
     }
   }
 
