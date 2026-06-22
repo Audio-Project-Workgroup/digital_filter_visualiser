@@ -211,17 +211,17 @@ ProfiledScope::
   {
     // NOTE(ry): top scope for thread exited, dump data for all sites this thread hit
 
+    std::array sectionNames{
+      std::string("Site Label"),
+      std::string("Elapsed Exculsive (us)"),
+      std::string("Elapsed With Children (us)"),
+      std::string("Hit Count"),
+    };
     switch(profileConfig.fmt)
     {
       case ProfileFormat::tui:
       {
 	// NOTE(ry): headings
-	std::array sectionNames{
-	  std::string("Site Label"),
-	  std::string("Elapsed Exculsive (us)"),
-	  std::string("Elapsed With Children (us)"),
-	  std::string("Hit Count"),
-	};
 	profileLogFormatString("%-*s | %*s | %*s | %*s \n",
 			       Profiler::maxSiteLabelLength, sectionNames[0].c_str(),
 			       sectionNames[1].size(), sectionNames[1].c_str(),
@@ -290,7 +290,69 @@ ProfiledScope::
 
       case ProfileFormat::csv:
       {
+	// NOTE(ry): header
+	profileLogFormatString("%s,%s,%s,%s\r\n",
+			       sectionNames[0].c_str(),
+			       sectionNames[1].c_str(),
+			       sectionNames[2].c_str(),
+			       sectionNames[3].c_str());
 
+	// NOTE(ry): root site output
+	r64 tscElapsed_us = 1000000.0 * (r64)site->tscElapsed * Profiler::tscPeriod;
+	r64 tscElapsedExclusive_us = 1000000.0 * (r64)(site->tscElapsedRoot - site->tscElapsedChildren) * Profiler::tscPeriod;
+	if(!juce::approximatelyEqual(tscElapsed_us, tscElapsedExclusive_us))
+	{
+	  profileLogFormatString("\"%s\",%f,%f,%lu\r\n",
+				 site->label,
+				 tscElapsedExclusive_us,
+				 tscElapsed_us,
+				 site->hitCount);
+	}
+	else
+	{
+	  profileLogFormatString("\"%s\",%f,%s,%lu\r\n",
+				 site->label,
+				 tscElapsedExclusive_us,
+				 "-",
+				 site->hitCount);
+	}
+
+	// NOTE(ry): root site children output
+	for(u32 siteIdx = 0; siteIdx < Profiler::siteCount; ++siteIdx)
+	{
+	  auto *profSite = Profiler::sites + siteIdx;
+	  if(profSite->usedThreadProfiler != &threadProfiler ||
+	     profSite == this->site)
+	  { continue; }
+
+	  r64 siteTscElapsed_us = 1000000.0 * (r64)profSite->tscElapsed * Profiler::tscPeriod;
+	  r64 siteTscElapsedExclusive_us = 1000000.0 * (r64)(profSite->tscElapsedRoot - profSite->tscElapsedChildren) * Profiler::tscPeriod;
+	  if(!juce::approximatelyEqual(siteTscElapsed_us, siteTscElapsedExclusive_us))
+	  {
+	    profileLogFormatString("\"%s\",%f,%f,%lu\r\n",
+				   profSite->label,
+				   siteTscElapsedExclusive_us,
+				   siteTscElapsed_us,
+				   profSite->hitCount);
+	  }
+	  else
+	  {
+	    profileLogFormatString("\"%s\",%f,%s,%lu\r\n",
+				   profSite->label,
+				   siteTscElapsedExclusive_us,
+				   "-",
+				   profSite->hitCount);
+	  }
+
+	  // NOTE(ry): compute persistent statistics for root site children, clear transient data
+	  profSite->tscElapsedMax = std::max(profSite->tscElapsedMax, profSite->tscElapsed);
+	  profSite->tscElapsed = 0;
+	  profSite->tscElapsedChildren = 0;
+	  profSite->tscElapsedRoot = 0;
+	  profSite->hitCount = 0;
+	  profSite->bytesAllocated = 0;
+	  profSite->usedThreadProfiler = nullptr;
+	}
       }break;
     }
 
