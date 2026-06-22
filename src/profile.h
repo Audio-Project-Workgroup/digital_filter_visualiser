@@ -51,6 +51,8 @@ struct Profiler
   static ProfileSite *sites;
   static u64 siteCount;
   static u64 tscFreq;
+  static size_t maxSiteLabelLength;
+  static r64 tscPeriod;
 
   // TODO(ry): indices instead of pointers
   ProfileSite *currentParent;
@@ -66,7 +68,9 @@ struct Profiler
 struct ProfileSite
 {
   explicit ProfileSite(char const *_label) : label(_label)
-  {}
+  {
+    Profiler::maxSiteLabelLength = std::max(Profiler::maxSiteLabelLength, std::strlen(label));
+  }
 
   char const *label;
 
