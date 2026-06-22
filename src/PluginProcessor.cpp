@@ -52,10 +52,10 @@ AudioPluginAudioProcessor::~AudioPluginAudioProcessor()
 	for(u32 siteIdx = 0; siteIdx < Profiler::siteCount; ++siteIdx)
 	{
 		auto *profSite = Profiler::sites + siteIdx;
-		if(profSite->label)
+		if(!profSite->label.empty())
 		{
 			r64 siteMaxTscElapsed_us = 1e6 * (r64)profSite->tscElapsedMax / (r64)Profiler::tscFreq;
-			DBG(profSite->label << " elapsed: " << siteMaxTscElapsed_us << " us");
+			DBG(profSite->label.data() << " elapsed: " << siteMaxTscElapsed_us << " us");
 		}
 	}
 }

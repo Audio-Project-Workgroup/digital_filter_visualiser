@@ -67,12 +67,12 @@ struct Profiler
  */
 struct ProfileSite
 {
-  explicit ProfileSite(char const *_label) : label(_label)
+  explicit ProfileSite(std::string_view _label) : label(_label)
   {
-    Profiler::maxSiteLabelLength = std::max(Profiler::maxSiteLabelLength, std::strlen(label));
+    Profiler::maxSiteLabelLength = std::max(Profiler::maxSiteLabelLength, label.size());
   }
 
-  char const *label;
+  std::string_view label;
 
   /** the cumulative elapsed time stamp count accross all calls */
   u64 tscElapsed;
@@ -103,6 +103,15 @@ struct ProfiledScope
   ProfileSite *parent;
 };
 
+static constexpr std::string_view
+profileChopFullFunctionName(const char *fullNameCstr)
+{
+  auto view = std::string_view(fullNameCstr);
+  view = view.substr(0, view.find_first_of('('));
+  view = view.substr(view.find_last_of(' ') + 1);
+  return view;
+}
+
 // NOTE(ry): public interface
 
 #if defined(DISABLE_PROFILING)
@@ -114,7 +123,7 @@ struct ProfiledScope
 #  define PROFILE_SCOPE(name)\
   static PROFILE_SECTION ProfileSite GLUE(profile__site__, __LINE__)(name); \
   ProfiledScope GLUE(profile__scope__, __LINE__)(&GLUE(profile__site__, __LINE__));
-#  define PROFILE_FUNCTION() PROFILE_SCOPE(FULL_FUNCTION_NAME)
+#  define PROFILE_FUNCTION() PROFILE_SCOPE(profileChopFullFunctionName(FULL_FUNCTION_NAME))
 #endif
 
 // NOTE(ry): internal

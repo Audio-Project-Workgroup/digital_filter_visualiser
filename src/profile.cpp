@@ -233,16 +233,16 @@ ProfiledScope::
 	r64 tscElapsedExclusive_us = 1000000.0 * (r64)(site->tscElapsedRoot - site->tscElapsedChildren) * Profiler::tscPeriod;
 	if(!juce::exactlyEqual(tscElapsed_us, tscElapsedExclusive_us))
 	{
-	  profileLogFormatString("%-*s | %*.2f | %*.2f | %*lu \n",
-				 Profiler::maxSiteLabelLength, site->label,
+	  profileLogFormatString("%-*.*s | %*.2f | %*.2f | %*lu \n",
+				 Profiler::maxSiteLabelLength, site->label.size(), site->label.data(),
 				 sectionNames[1].size(), tscElapsedExclusive_us,
 				 sectionNames[2].size(), tscElapsed_us,
 				 sectionNames[3].size(), site->hitCount);
 	}
 	else
 	{
-	  profileLogFormatString("%-*s | %*.2f | %*s | %*lu \n",
-				 Profiler::maxSiteLabelLength, site->label,
+	  profileLogFormatString("%-*.*s | %*.2f | %*s | %*lu \n",
+				 Profiler::maxSiteLabelLength, site->label.size(), site->label.data(),
 				 sectionNames[1].size(), tscElapsedExclusive_us,
 				 sectionNames[2].size(), "-",
 				 sectionNames[3].size(), site->hitCount);
@@ -260,16 +260,16 @@ ProfiledScope::
 	  r64 siteTscElapsedExclusive_us = 1000000.0 * (r64)(profSite->tscElapsedRoot - profSite->tscElapsedChildren) * Profiler::tscPeriod;
 	  if(!juce::approximatelyEqual(siteTscElapsed_us, siteTscElapsedExclusive_us))
 	  {
-	    profileLogFormatString("%-*s | %*.2f | %*.2f | %*lu \n",
-				   Profiler::maxSiteLabelLength, profSite->label,
+	    profileLogFormatString("%-*.*s | %*.2f | %*.2f | %*lu \n",
+				   Profiler::maxSiteLabelLength, profSite->label.size(), profSite->label.data(),
 				   sectionNames[1].size(), siteTscElapsedExclusive_us,
 				   sectionNames[2].size(), siteTscElapsed_us,
 				   sectionNames[3].size(), profSite->hitCount);
 	  }
 	  else
 	  {
-	    profileLogFormatString("%-*s | %*.2f | %*s | %*lu \n",
-				   Profiler::maxSiteLabelLength, profSite->label,
+	    profileLogFormatString("%-*.*s | %*.2f | %*s | %*lu \n",
+				   Profiler::maxSiteLabelLength, profSite->label.size(), profSite->label.data(),
 				   sectionNames[1].size(), siteTscElapsedExclusive_us,
 				   sectionNames[2].size(), "-",
 				   sectionNames[3].size(), profSite->hitCount);
@@ -302,16 +302,16 @@ ProfiledScope::
 	r64 tscElapsedExclusive_us = 1000000.0 * (r64)(site->tscElapsedRoot - site->tscElapsedChildren) * Profiler::tscPeriod;
 	if(!juce::approximatelyEqual(tscElapsed_us, tscElapsedExclusive_us))
 	{
-	  profileLogFormatString("\"%s\",%f,%f,%lu\r\n",
-				 site->label,
+	  profileLogFormatString("\"%.*s\",%f,%f,%lu\r\n",
+				 site->label.size(), site->label.data(),
 				 tscElapsedExclusive_us,
 				 tscElapsed_us,
 				 site->hitCount);
 	}
 	else
 	{
-	  profileLogFormatString("\"%s\",%f,%s,%lu\r\n",
-				 site->label,
+	  profileLogFormatString("\"%.*s\",%f,%s,%lu\r\n",
+				 site->label.size(), site->label.data(),
 				 tscElapsedExclusive_us,
 				 "-",
 				 site->hitCount);
