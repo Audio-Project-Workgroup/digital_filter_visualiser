@@ -1,24 +1,30 @@
 // NOTE(ry): implementation
 
+#if OS_WINDOWS
+#  include <windows.h>
+#endif
+
+#include <stdarg.h>
+
 static ProfileConfig profileConfig{
   ProfileFormat::tui,
   {&std::cerr,
 #if OS_WINDOWS
    [](void *data){
-         juce::ignoreUnused(data);
-         OutputDebugStringA(profileGetLog());
-         OutptuDebugStringA('\n');
+     juce::ignoreUnused(data);
+     OutputDebugStringA(profileFlushLog());
+     OutptuDebugStringA("\n");
    }
 #else
    [](void *data){
-         auto outStream = reinterpret_cast<std::ostream*>(data);
-         *outStream << std::string_view(profileFlushLog());
+     auto outStream = reinterpret_cast<std::ostream*>(data);
+     *outStream << std::string_view(profileFlushLog());
    }
 #endif
   }
 };
 
-static void
+static inline void
 profileConfigure(ProfileConfig cfg)
 {
   profileConfig = cfg;
@@ -34,7 +40,7 @@ struct ProfilerLog
 
 thread_local ProfilerLog threadProfilerLog = {};
 
-static char*
+static inline char*
 profileFlushLog(void)
 {
   threadProfilerLog.logAt = 0;
@@ -221,138 +227,138 @@ ProfiledScope::
     {
       case ProfileFormat::tui:
       {
-	// NOTE(ry): headings
-	profileLogFormatString("%-*s | %*s | %*s | %*s \n",
-			       Profiler::maxSiteLabelLength, sectionNames[0].c_str(),
-			       sectionNames[1].size(), sectionNames[1].c_str(),
-			       sectionNames[2].size(), sectionNames[2].c_str(),
-			       sectionNames[3].size(), sectionNames[3].c_str());
+        // NOTE(ry): headings
+        profileLogFormatString("%-*s | %*s | %*s | %*s \n",
+                               Profiler::maxSiteLabelLength, sectionNames[0].c_str(),
+                               sectionNames[1].size(), sectionNames[1].c_str(),
+                               sectionNames[2].size(), sectionNames[2].c_str(),
+                               sectionNames[3].size(), sectionNames[3].c_str());
 
-	// NOTE(ry): root site output
-	r64 tscElapsed_us = 1000000.0 * (r64)tscElapsed * Profiler::tscPeriod;
-	r64 tscElapsedExclusive_us = 1000000.0 * (r64)(site->tscElapsedRoot - site->tscElapsedChildren) * Profiler::tscPeriod;
-	if(!juce::exactlyEqual(tscElapsed_us, tscElapsedExclusive_us))
-	{
-	  profileLogFormatString("%-*.*s | %*.2f | %*.2f | %*lu \n",
-				 Profiler::maxSiteLabelLength, site->label.size(), site->label.data(),
-				 sectionNames[1].size(), tscElapsedExclusive_us,
-				 sectionNames[2].size(), tscElapsed_us,
-				 sectionNames[3].size(), site->hitCount);
-	}
-	else
-	{
-	  profileLogFormatString("%-*.*s | %*.2f | %*s | %*lu \n",
-				 Profiler::maxSiteLabelLength, site->label.size(), site->label.data(),
-				 sectionNames[1].size(), tscElapsedExclusive_us,
-				 sectionNames[2].size(), "-",
-				 sectionNames[3].size(), site->hitCount);
-	}
+        // NOTE(ry): root site output
+        r64 tscElapsed_us = 1000000.0 * (r64)tscElapsed * Profiler::tscPeriod;
+        r64 tscElapsedExclusive_us = 1000000.0 * (r64)(site->tscElapsedRoot - site->tscElapsedChildren) * Profiler::tscPeriod;
+        if(!juce::exactlyEqual(tscElapsed_us, tscElapsedExclusive_us))
+        {
+          profileLogFormatString("%-*.*s | %*.2f | %*.2f | %*lu \n",
+                                 Profiler::maxSiteLabelLength, site->label.size(), site->label.data(),
+                                 sectionNames[1].size(), tscElapsedExclusive_us,
+                                 sectionNames[2].size(), tscElapsed_us,
+                                 sectionNames[3].size(), site->hitCount);
+        }
+        else
+        {
+          profileLogFormatString("%-*.*s | %*.2f | %*s | %*lu \n",
+                                 Profiler::maxSiteLabelLength, site->label.size(), site->label.data(),
+                                 sectionNames[1].size(), tscElapsedExclusive_us,
+                                 sectionNames[2].size(), "-",
+                                 sectionNames[3].size(), site->hitCount);
+        }
 
-	// NOTE(ry): root site children output
-	for(u32 siteIdx = 0; siteIdx < Profiler::siteCount; ++siteIdx)
-	{
-	  auto *profSite = Profiler::sites + siteIdx;
-	  if(profSite->usedThreadProfiler != &threadProfiler ||
-	     profSite == this->site)
-	  { continue; }
+        // NOTE(ry): root site children output
+        for(u32 siteIdx = 0; siteIdx < Profiler::siteCount; ++siteIdx)
+        {
+          auto *profSite = Profiler::sites + siteIdx;
+          if(profSite->usedThreadProfiler != &threadProfiler ||
+             profSite == this->site)
+          { continue; }
 
-	  r64 siteTscElapsed_us = 1000000.0 * (r64)profSite->tscElapsed * Profiler::tscPeriod;
-	  r64 siteTscElapsedExclusive_us = 1000000.0 * (r64)(profSite->tscElapsedRoot - profSite->tscElapsedChildren) * Profiler::tscPeriod;
-	  if(!juce::approximatelyEqual(siteTscElapsed_us, siteTscElapsedExclusive_us))
-	  {
-	    profileLogFormatString("%-*.*s | %*.2f | %*.2f | %*lu \n",
-				   Profiler::maxSiteLabelLength, profSite->label.size(), profSite->label.data(),
-				   sectionNames[1].size(), siteTscElapsedExclusive_us,
-				   sectionNames[2].size(), siteTscElapsed_us,
-				   sectionNames[3].size(), profSite->hitCount);
-	  }
-	  else
-	  {
-	    profileLogFormatString("%-*.*s | %*.2f | %*s | %*lu \n",
-				   Profiler::maxSiteLabelLength, profSite->label.size(), profSite->label.data(),
-				   sectionNames[1].size(), siteTscElapsedExclusive_us,
-				   sectionNames[2].size(), "-",
-				   sectionNames[3].size(), profSite->hitCount);
-	  }
+          r64 siteTscElapsed_us = 1000000.0 * (r64)profSite->tscElapsed * Profiler::tscPeriod;
+          r64 siteTscElapsedExclusive_us = 1000000.0 * (r64)(profSite->tscElapsedRoot - profSite->tscElapsedChildren) * Profiler::tscPeriod;
+          if(!juce::approximatelyEqual(siteTscElapsed_us, siteTscElapsedExclusive_us))
+          {
+            profileLogFormatString("%-*.*s | %*.2f | %*.2f | %*lu \n",
+                                   Profiler::maxSiteLabelLength, profSite->label.size(), profSite->label.data(),
+                                   sectionNames[1].size(), siteTscElapsedExclusive_us,
+                                   sectionNames[2].size(), siteTscElapsed_us,
+                                   sectionNames[3].size(), profSite->hitCount);
+          }
+          else
+          {
+            profileLogFormatString("%-*.*s | %*.2f | %*s | %*lu \n",
+                                   Profiler::maxSiteLabelLength, profSite->label.size(), profSite->label.data(),
+                                   sectionNames[1].size(), siteTscElapsedExclusive_us,
+                                   sectionNames[2].size(), "-",
+                                   sectionNames[3].size(), profSite->hitCount);
+          }
 
-	  // NOTE(ry): compute persistent statistics for root site children, clear transient data
-	  profSite->tscElapsedMax = std::max(profSite->tscElapsedMax, profSite->tscElapsed);
-	  profSite->tscElapsed = 0;
-	  profSite->tscElapsedChildren = 0;
-	  profSite->tscElapsedRoot = 0;
-	  profSite->hitCount = 0;
-	  profSite->bytesAllocated = 0;
-	  profSite->usedThreadProfiler = nullptr;
-	}
+          // NOTE(ry): compute persistent statistics for root site children, clear transient data
+          profSite->tscElapsedMax = std::max(profSite->tscElapsedMax, profSite->tscElapsed);
+          profSite->tscElapsed = 0;
+          profSite->tscElapsedChildren = 0;
+          profSite->tscElapsedRoot = 0;
+          profSite->hitCount = 0;
+          profSite->bytesAllocated = 0;
+          profSite->usedThreadProfiler = nullptr;
+        }
 
-	profileLogFormatString("\n");
+        profileLogFormatString("\n");
       }break;
 
       case ProfileFormat::csv:
       {
-	// NOTE(ry): header
-	profileLogFormatString("%s,%s,%s,%s\r\n",
-			       sectionNames[0].c_str(),
-			       sectionNames[1].c_str(),
-			       sectionNames[2].c_str(),
-			       sectionNames[3].c_str());
+        // NOTE(ry): header
+        profileLogFormatString("%s,%s,%s,%s\r\n",
+                               sectionNames[0].c_str(),
+                               sectionNames[1].c_str(),
+                               sectionNames[2].c_str(),
+                               sectionNames[3].c_str());
 
-	// NOTE(ry): root site output
-	r64 tscElapsed_us = 1000000.0 * (r64)site->tscElapsed * Profiler::tscPeriod;
-	r64 tscElapsedExclusive_us = 1000000.0 * (r64)(site->tscElapsedRoot - site->tscElapsedChildren) * Profiler::tscPeriod;
-	if(!juce::approximatelyEqual(tscElapsed_us, tscElapsedExclusive_us))
-	{
-	  profileLogFormatString("\"%.*s\",%f,%f,%lu\r\n",
-				 site->label.size(), site->label.data(),
-				 tscElapsedExclusive_us,
-				 tscElapsed_us,
-				 site->hitCount);
-	}
-	else
-	{
-	  profileLogFormatString("\"%.*s\",%f,%s,%lu\r\n",
-				 site->label.size(), site->label.data(),
-				 tscElapsedExclusive_us,
-				 "-",
-				 site->hitCount);
-	}
+        // NOTE(ry): root site output
+        r64 tscElapsed_us = 1000000.0 * (r64)site->tscElapsed * Profiler::tscPeriod;
+        r64 tscElapsedExclusive_us = 1000000.0 * (r64)(site->tscElapsedRoot - site->tscElapsedChildren) * Profiler::tscPeriod;
+        if(!juce::approximatelyEqual(tscElapsed_us, tscElapsedExclusive_us))
+        {
+          profileLogFormatString("\"%.*s\",%f,%f,%lu\r\n",
+                                 site->label.size(), site->label.data(),
+                                 tscElapsedExclusive_us,
+                                 tscElapsed_us,
+                                 site->hitCount);
+        }
+        else
+        {
+          profileLogFormatString("\"%.*s\",%f,%s,%lu\r\n",
+                                 site->label.size(), site->label.data(),
+                                 tscElapsedExclusive_us,
+                                 "-",
+                                 site->hitCount);
+        }
 
-	// NOTE(ry): root site children output
-	for(u32 siteIdx = 0; siteIdx < Profiler::siteCount; ++siteIdx)
-	{
-	  auto *profSite = Profiler::sites + siteIdx;
-	  if(profSite->usedThreadProfiler != &threadProfiler ||
-	     profSite == this->site)
-	  { continue; }
+        // NOTE(ry): root site children output
+        for(u32 siteIdx = 0; siteIdx < Profiler::siteCount; ++siteIdx)
+        {
+          auto *profSite = Profiler::sites + siteIdx;
+          if(profSite->usedThreadProfiler != &threadProfiler ||
+             profSite == this->site)
+          { continue; }
 
-	  r64 siteTscElapsed_us = 1000000.0 * (r64)profSite->tscElapsed * Profiler::tscPeriod;
-	  r64 siteTscElapsedExclusive_us = 1000000.0 * (r64)(profSite->tscElapsedRoot - profSite->tscElapsedChildren) * Profiler::tscPeriod;
-	  if(!juce::approximatelyEqual(siteTscElapsed_us, siteTscElapsedExclusive_us))
-	  {
-	    profileLogFormatString("\"%s\",%f,%f,%lu\r\n",
-				   profSite->label,
-				   siteTscElapsedExclusive_us,
-				   siteTscElapsed_us,
-				   profSite->hitCount);
-	  }
-	  else
-	  {
-	    profileLogFormatString("\"%s\",%f,%s,%lu\r\n",
-				   profSite->label,
-				   siteTscElapsedExclusive_us,
-				   "-",
-				   profSite->hitCount);
-	  }
+          r64 siteTscElapsed_us = 1000000.0 * (r64)profSite->tscElapsed * Profiler::tscPeriod;
+          r64 siteTscElapsedExclusive_us = 1000000.0 * (r64)(profSite->tscElapsedRoot - profSite->tscElapsedChildren) * Profiler::tscPeriod;
+          if(!juce::approximatelyEqual(siteTscElapsed_us, siteTscElapsedExclusive_us))
+          {
+            profileLogFormatString("\"%s\",%f,%f,%lu\r\n",
+                                   profSite->label,
+                                   siteTscElapsedExclusive_us,
+                                   siteTscElapsed_us,
+                                   profSite->hitCount);
+          }
+          else
+          {
+            profileLogFormatString("\"%s\",%f,%s,%lu\r\n",
+                                   profSite->label,
+                                   siteTscElapsedExclusive_us,
+                                   "-",
+                                   profSite->hitCount);
+          }
 
-	  // NOTE(ry): compute persistent statistics for root site children, clear transient data
-	  profSite->tscElapsedMax = std::max(profSite->tscElapsedMax, profSite->tscElapsed);
-	  profSite->tscElapsed = 0;
-	  profSite->tscElapsedChildren = 0;
-	  profSite->tscElapsedRoot = 0;
-	  profSite->hitCount = 0;
-	  profSite->bytesAllocated = 0;
-	  profSite->usedThreadProfiler = nullptr;
-	}
+          // NOTE(ry): compute persistent statistics for root site children, clear transient data
+          profSite->tscElapsedMax = std::max(profSite->tscElapsedMax, profSite->tscElapsed);
+          profSite->tscElapsed = 0;
+          profSite->tscElapsedChildren = 0;
+          profSite->tscElapsedRoot = 0;
+          profSite->hitCount = 0;
+          profSite->bytesAllocated = 0;
+          profSite->usedThreadProfiler = nullptr;
+        }
       }break;
     }
 
