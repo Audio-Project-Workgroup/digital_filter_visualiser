@@ -1,4 +1,3 @@
-
 EquationViewer::
 EquationViewer(AudioPluginAudioProcessor *p)
   :processor(p)
@@ -98,11 +97,11 @@ updateCoeffs(void)
     RootsToCoefficients::CalculatePolynomialCoefficientsFrom(processor->filterState->poles);
   auto ffCoeffs =
     RootsToCoefficients::CalculatePolynomialCoefficientsFrom(processor->filterState->zeros,
-															 int(fbCoeffs.size()));
+                                                             int(fbCoeffs.size()));
 
   denominatorText.setTextFromCoeffs(fbCoeffs);
   numeratorText.setTextFromCoeffs(ffCoeffs,
-				  processor->filterState->totalOrder - processor->filterState->finiteZerosOrder);
+				  fbCoeffs.size() - ffCoeffs.size());
 
   repaint();
 }
@@ -167,12 +166,12 @@ paint(juce::Graphics &g)
   // NOTE(ry): resize component according to new text size
   auto const bb = arr.getBoundingBox(0, arr.getNumGlyphs(), true);
   setBounds(getBounds().withWidth(std::max(getParentWidth(),
-					   bb.getSmallestIntegerContainer().getWidth())));
+                                  bb.getSmallestIntegerContainer().getWidth())));
 
   // NOTE(ry): center and draw text
   arr.justifyGlyphs(0, arr.getNumGlyphs(),
-		    bb.getX(), bb.getY(), getBounds().getWidth(), bb.getHeight(),
-		    juce::Justification(juce::Justification::horizontallyCentred));
+                    bb.getX(), bb.getY(), getBounds().getWidth(), bb.getHeight(),
+                    juce::Justification(juce::Justification::horizontallyCentred));
   arr.draw(g);
 }
 
@@ -198,15 +197,15 @@ setTextFromCoeffs(std::vector<double> const &coeffs, size_t firstNonzeroIndex)
       // TODO(ry): add whitespace, truncate nearly-integer coeffs, omit if coeff ~= 1
       if(coeff > 0.0 && idx > firstNonzeroIndex)
       {
-	text << "+";
+        text << "+";
       }
       text << juce::String(coeff, numDecimalPlaces);
       if(order != 0)
       {
-	// NOTE(ry): the exponent is between the '^' and 'v' characters. the
-	// escape characters are only used to find the range of exponent
-	// glyphs. they are removed when drawing the text
-	text << "z^" << juce::String(order) << "v";
+        // NOTE(ry): the exponent is between the '^' and 'v' characters. the
+        // escape characters are only used to find the range of exponent
+        // glyphs. they are removed when drawing the text
+        text << "z^" << juce::String(order) << "v";
       }
     }
   }
