@@ -1,6 +1,7 @@
 // NOTE(ry): implementation
 
 #if OS_WINDOWS
+#  define NOMINMAX
 #  include <windows.h>
 #endif
 
@@ -13,7 +14,7 @@ static ProfileConfig profileConfig{
    [](void *data){
      juce::ignoreUnused(data);
      OutputDebugStringA(profileFlushLog());
-     OutptuDebugStringA("\n");
+     OutputDebugStringA("\n");
    }
 #else
    [](void *data){
