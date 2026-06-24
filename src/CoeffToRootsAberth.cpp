@@ -35,6 +35,44 @@ Aberth::c_vector Aberth::solve(const vector& coefficients)
         previous_guesses = new_guesses; // it is expensive
         iteration_counter++;
     }
+
+    // take new_guesses and remove conjugate pairs!
+    c_vector routes(n, 0);     // n - number of routes
+    std::complex<float> conjugate;
+    int guesses_size;
+    float distance;
+    int smallest_index;
+
+    for (int i = 0; i < n; i++)     // go through the guesses
+    {
+        guesses_size = static_cast<int>(new_guesses.size());
+        if (guesses_size > i)         // if index is not out of bounds
+        {
+            if (abs(std::imag(new_guesses[i])) <= epsilon) // zero the imaginary part
+            {
+                new_guesses[i] = std::complex<double> (new_guesses[i].real(), 0.0);
+            }
+
+            else  // does guess have the imaginary part
+            {
+                conjugate = std::conj(new_guesses[i]);
+                smallest_index = i+1;
+                if (guesses_size > i+1)
+                {
+                    for (int j = i+2; j < guesses_size; j++)
+                    {
+                        distance = std::abs(conjugate - new_guesses[j]);
+                        if ( distance < std::abs(conjugate - new_guesses[smallest_index]))
+                        {
+                            smallest_index = j;
+                        }
+                    }
+                }
+                // take the number with the smallest distance and remove it from the guesses list
+                new_guesses.erase(new_guesses.begin() + smallest_index);
+            }
+        }
+    }
     return new_guesses;
 }
 
