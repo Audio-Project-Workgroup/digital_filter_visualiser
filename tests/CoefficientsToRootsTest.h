@@ -111,7 +111,7 @@ private:
 	void performTest(
 		const juce::String testName,
 		AudioPluginAudioProcessor& processor,
-		std::vector<std::array<double, 3>> givenRoots)
+		std::vector<TestRootSpecification> givenRoots)
 	{
 		beginTest(testName);
 		
@@ -119,17 +119,17 @@ private:
 		size_t zeros_orderTolerance{0}, poles_orderTolerance{0};
 		for (auto r : givenRoots)
 		{
-			int order = static_cast<int>(r[0]) * (r[2] == 0 ? 1 : 2);
+			int order = static_cast<int>(r.order) * (r.valIm == 0 ? 1 : 2);
 			jassert(std::abs(order) > 0);
 			if (order>0)
 			{
 				zeros_order+=order;
-				zeros_orderTolerance+= (r[0] / RootOrderToleranceStep);	// TODO: consider log scale growth instead of linear
+				zeros_orderTolerance+= (r.order / RootOrderToleranceStep);	// TODO: consider log scale growth instead of linear
 			}
 			else
 			{
 				poles_order+=order;
-				poles_orderTolerance+= (std::abs(r[0]) / RootOrderToleranceStep);	// TODO: consider log scale growth instead of linear
+				poles_orderTolerance+= (std::abs(r.order) / RootOrderToleranceStep);	// TODO: consider log scale growth instead of linear
 			}
 		}
 		// causality
