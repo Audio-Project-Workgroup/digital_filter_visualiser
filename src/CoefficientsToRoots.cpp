@@ -63,7 +63,7 @@ std::vector<std::pair<c128, int>> CoefficientsToRoots::QR(std::vector<double> co
     while(shift_idx > 1)
     {
 
-        if (++iter > degree * MaxIterations) break;
+        if (++iter > MaxIterations) break;
 
 
         // Reset R,Q
@@ -157,11 +157,13 @@ std::vector<std::pair<c128, int>> CoefficientsToRoots::QR(std::vector<double> co
         if (std::abs(A[(shift_idx-1)* degree + (shift_idx-2)]) < Epsilon)
         {
             shift_idx--;
+            iter = 0;
         }
         // check the entry above the 2x2 block in search of complex conjugate pairs
         else if (shift_idx > 2 && std::abs(A[(shift_idx-2) * degree + (shift_idx-3)]) < Epsilon)
         {
             shift_idx -= 2;
+            iter = 0;
         }
 
     }
