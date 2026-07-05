@@ -95,7 +95,7 @@ std::vector<std::pair<c128, int>> CoefficientsToRoots::QR(std::vector<double> co
                 double dot_product {0.0};
                 for (size_t curr_row = 0; curr_row < shift_idx; ++curr_row)
                 {
-                    dot_product += Q[curr_row * degree + curr_col] * A[curr_row * degree + col];
+                    dot_product += Q[curr_row * degree + curr_col] * v[curr_row];
                 }
 
                 // .. and subtract it from the current column vector
