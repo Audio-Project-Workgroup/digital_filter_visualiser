@@ -3,6 +3,7 @@
 #include "ProcessorChainModifierTest.h"
 #include "PhaseFrequencyResponseTest.h"
 #include "CoefficientsToRootsTest.h"
+#include "CoefficientsToRootsDistanceTest.h"
 
 //==============================================================================
 int main (int argc, char* argv[])
