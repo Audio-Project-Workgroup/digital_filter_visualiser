@@ -16,6 +16,9 @@ int main (int argc, char* argv[])
     runner.runAllTests();
 
     std::cout << "\n===== All tests complete =====\n"<<std::endl;
+
+    CoefficientsToRootsTest::printReport();
+    std::cout<<"\n------------------------------\n"<<std::endl;
     CoefficientsToRootsDistanceTest::printReport();
 
     return 0;

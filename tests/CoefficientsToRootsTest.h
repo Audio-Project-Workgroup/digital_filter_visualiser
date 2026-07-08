@@ -107,6 +107,14 @@ public:
 		performTest("32:1 real pole order 32",							processor, { {-32,-0.5,0} } );
 	}
 
+	static void printReport()
+	{
+		std::cout<<"CoefficientsToRootsTest Report:"<<std::endl;
+		std::cout<<"Total tests : "<<totalNumAllTests<<std::endl;
+		std::cout<<"Total number of warnigns : "<<totalNumWarnings<<"/"<<totalNumAllTests<<std::endl;
+		std::cout<<"Total missed root orders - all tests : "<<totalMissedRootOrdersAllTests<<std::endl;
+	}
+
 private:
 	void performTest(
 		const juce::String testName,
@@ -158,9 +166,15 @@ private:
 			const size_t absDiff {static_cast<size_t>(std::abs(static_cast<int>(zeros_order) - curr_order))};
 		    expectLessOrEqual( absDiff, zeros_orderTolerance);
 			if (absDiff)
+			{
 				std::cout<<"Warning : computation error { total order = "<<zeros_order<<" != "<<curr_order<< " by "<<absDiff<<"}"<<std::endl;
+				totalMissedRootOrdersAllTests += absDiff;
+				totalNumWarnings ++;
+			}
+			totalNumAllTests++;
         }
 		
+		// TODO : fix this condition. In case that a test contains only zeros, or the order of zeros exceeds order of poles, then default poles at 0,0 will be added.
 		if (!state->poles.isEmpty())
         {
             auto fbcoeffs = RootsToCoefficients::CalculatePolynomialCoefficientsFrom(state->poles);
@@ -177,14 +191,19 @@ private:
 			const size_t absDiff {static_cast<size_t>(std::abs(static_cast<int>(poles_order) - curr_order))};
 		    expectLessOrEqual( absDiff , poles_orderTolerance);
 			if (absDiff)
+			{
 				std::cout<<"Warning : computation error { total order = "<<poles_order<<" != "<<curr_order<< " by "<<absDiff<<"}"<<std::endl;
-			
+				totalMissedRootOrdersAllTests += absDiff;
+				totalNumWarnings ++;
+			}
 
+			totalNumAllTests++;
         }
 	}
 
 	/* Empirical value : Root computatation accuracy degrades for roots of higher-order as their order increases. This step allows 1 order of error per 4 orders.*/
 	static constexpr int RootOrderToleranceStep {4};
+    static inline int totalMissedRootOrdersAllTests, totalNumAllTests {0}, totalNumWarnings {0};
 };
 
 static CoefficientsToRootsTest coeffsToRootsTest;
