@@ -14,5 +14,9 @@ int main (int argc, char* argv[])
     juce::ScopedJuceInitialiser_GUI libraryInitialiser; // for proper processor initialization in test classes
     juce::UnitTestRunner runner;
     runner.runAllTests();
+
+    std::cout << "\n===== All tests complete =====\n"<<std::endl;
+    CoefficientsToRootsDistanceTest::printReport();
+
     return 0;
 }
