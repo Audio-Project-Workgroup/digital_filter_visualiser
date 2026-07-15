@@ -111,7 +111,7 @@ public:
 	{
 		std::cout<<"CoefficientsToRootsTest Report:"<<std::endl;
 		std::cout<<"Total tests : "<<totalNumAllTests<<std::endl;
-		std::cout<<"Total number of warnigns : "<<totalNumWarnings<<"/"<<totalNumAllTests<<std::endl;
+		std::cout<<"Total failing unit-tests : "<<totalFailingUnitTests<<"/"<<totalNumAllTests<<std::endl;
 		std::cout<<"Total missed root orders - all tests : "<<totalMissedRootOrdersAllTests<<std::endl;
 	}
 
@@ -124,7 +124,6 @@ private:
 		beginTest(testName);
 		
 		int zeros_order{0}, poles_order{0};
-		size_t zeros_orderTolerance{0}, poles_orderTolerance{0};
 		for (auto r : givenRoots)
 		{
 			int order = static_cast<int>(r.order) * (r.valIm == 0 ? 1 : 2);
@@ -132,20 +131,18 @@ private:
 			if (order>0)
 			{
 				zeros_order+=order;
-				zeros_orderTolerance+= (r.order / RootOrderToleranceStep);	// TODO: consider log scale growth instead of linear
 			}
 			else
 			{
 				poles_order+=order;
-				poles_orderTolerance+= (std::abs(r.order) / RootOrderToleranceStep);	// TODO: consider log scale growth instead of linear
 			}
 		}
 		// causality
 		if (zeros_order > -poles_order)
 			poles_order = -zeros_order;
 
-		std::cout<<"zeros_orderTolerance "<<zeros_orderTolerance<<std::endl;
-		std::cout<<"poles_orderTolerance "<<poles_orderTolerance<<std::endl;
+		std::cout<<"zeros_orderTolerance "<<ExpectedPossibleRootOrderError<<std::endl;
+		std::cout<<"poles_orderTolerance "<<ExpectedPossibleRootOrderError<<std::endl;
 		
 		auto* state = processor.filterState.get();
 		TestHelper::makeFilterState(state, givenRoots, 1);
@@ -164,12 +161,12 @@ private:
 			
 			// expectEquals( static_cast<int>(zeros_order), curr_order );
 			const size_t absDiff {static_cast<size_t>(std::abs(static_cast<int>(zeros_order) - curr_order))};
-		    expectLessOrEqual( absDiff, zeros_orderTolerance);
+		    expectLessOrEqual( absDiff, ExpectedPossibleRootOrderError);
 			if (absDiff)
 			{
-				std::cout<<"Warning : computation error { total order = "<<zeros_order<<" != "<<curr_order<< " by "<<absDiff<<"}"<<std::endl;
+				std::cout<<"Error { total order = "<<zeros_order<<" != "<<curr_order<< " by "<<absDiff<<"}"<<std::endl;
 				totalMissedRootOrdersAllTests += absDiff;
-				totalNumWarnings ++;
+				totalFailingUnitTests ++;
 			}
 			totalNumAllTests++;
         }
@@ -189,21 +186,21 @@ private:
 
 			// expectEquals( static_cast<int>(poles_order), curr_order );
 			const size_t absDiff {static_cast<size_t>(std::abs(static_cast<int>(poles_order) - curr_order))};
-		    expectLessOrEqual( absDiff , poles_orderTolerance);
+		    expectLessOrEqual( absDiff , ExpectedPossibleRootOrderError);
 			if (absDiff)
 			{
-				std::cout<<"Warning : computation error { total order = "<<poles_order<<" != "<<curr_order<< " by "<<absDiff<<"}"<<std::endl;
+				std::cout<<"Error { total order = "<<poles_order<<" != "<<curr_order<< " by "<<absDiff<<"}"<<std::endl;
 				totalMissedRootOrdersAllTests += absDiff;
-				totalNumWarnings ++;
+				totalFailingUnitTests ++;
 			}
 
 			totalNumAllTests++;
         }
 	}
 
-	/* Empirical value : Root computatation accuracy degrades for roots of higher-order as their order increases. This step allows 1 order of error per 4 orders.*/
-	static constexpr int RootOrderToleranceStep {4};
-    static inline int totalMissedRootOrdersAllTests, totalNumAllTests {0}, totalNumWarnings {0};
+	/* Empirical value : The expected possible computation error is 1 order. i.e. given a root of order k, the computed root may result in a root of order k-1.*/
+	static constexpr size_t ExpectedPossibleRootOrderError {1};
+    static inline int totalMissedRootOrdersAllTests, totalNumAllTests {0}, totalFailingUnitTests {0};
 };
 
 static CoefficientsToRootsTest coeffsToRootsTest;
