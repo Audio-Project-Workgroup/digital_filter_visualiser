@@ -38,9 +38,9 @@ Aberth::c_vector Aberth::solve(const vector& coefficients)
 
     // take new_guesses and remove conjugate pairs!
     c_vector routes(n, 0);     // n - number of routes
-    std::complex<float> conjugate;
+    std::complex<double> conjugate;
     int guesses_size;
-    float distance;
+    double distance;
     int smallest_index;
 
     for (int i = 0; i < n; i++)     // go through the guesses
@@ -80,7 +80,7 @@ Aberth::vector Aberth::polynomial_coefficients(const vector& coefficients)
 {
     // get rid of 0 in the beginning
     const auto coeff_length = static_cast<int>(coefficients.size());
-    std::vector<float> polynomial = coefficients;
+    std::vector<double> polynomial = coefficients;
     int to_remove = -1;
 
     for (int i = 0; i < coeff_length; i++)
@@ -103,7 +103,7 @@ Aberth::vector Aberth::polynomial_coefficients(const vector& coefficients)
 Aberth::vector Aberth::derivative_coefficients(const vector& polynomial, const int n)
 {
     const auto p_length = static_cast<int>(polynomial.size());
-    std::vector<float> dp(p_length-1);
+    std::vector<double> dp(p_length-1);
     for (int i = 0; i < p_length-1; i++)
     {
         dp[i] = polynomial[i+1] * (i+1);
@@ -115,13 +115,13 @@ Aberth::vector Aberth::derivative_coefficients(const vector& polynomial, const i
 Aberth::c_vector Aberth::initial_guesses(const vector& polynomial)
 {
     const int n = static_cast<int>(polynomial.size()) - 1;
-    const float theta = 2 * M_PI / n;
-    const float offset = theta / (n+1);
-    const float radius = std::pow(abs(polynomial[0] / polynomial[n]), 1/n);
-    const std::complex<float> j(0.0, 1.0);
+    const double theta = 2 * M_PI / n;
+    const double offset = theta / (n+1);
+    const double radius = std::pow(abs(polynomial[0] / polynomial[n]), 1/n);
+    const std::complex<double> j(0.0, 1.0);
 
     // initial guesses calculation
-    std::vector<std::complex<float>> guesses(n);
+    std::vector<std::complex<double>> guesses(n);
     for (int i = 0; i < n; i++)
     {
         // guesses[k] =(radius * cmath.exp( 1j * (k * theta + offset)))
@@ -134,9 +134,9 @@ Aberth::c_vector Aberth::newton_coefficients(const vector& polynomial, const vec
 {
     // unites p_of_rn and newton_coeff
     const int n = static_cast<int>(polynomial.size()) - 1;
-    std::vector<std::complex<float>>  coeff(n);
-    std::complex<float> p_rn = 0;
-    std::complex<float> dp_rn = 0;
+    std::vector<std::complex<double>>  coeff(n);
+    std::complex<double> p_rn = 0;
+    std::complex<double> dp_rn = 0;
 
     for (int i = 0; i < n; i++) // loop over guesses
     {
@@ -145,10 +145,10 @@ Aberth::c_vector Aberth::newton_coefficients(const vector& polynomial, const vec
 
         for( int k = 0; k < n; k++)
         {
-            p_rn += static_cast<std::complex<float>>(std::pow(guesses[i], k)) * polynomial[k];
-            dp_rn += static_cast<std::complex<float>>(std::pow(guesses[i], k)) * derivative[k];
+            p_rn += static_cast<std::complex<double>>(std::pow(guesses[i], k)) * polynomial[k];
+            dp_rn += static_cast<std::complex<double>>(std::pow(guesses[i], k)) * derivative[k];
         }
-        p_rn += static_cast<std::complex<float>>(std::pow(guesses[i], n)) * polynomial[n];
+        p_rn += static_cast<std::complex<double>>(std::pow(guesses[i], n)) * polynomial[n];
 
         coeff[i] = p_rn / dp_rn;
     }
@@ -159,16 +159,16 @@ Aberth::c_vector Aberth::newton_coefficients(const vector& polynomial, const vec
 Aberth::c_vector Aberth::thing_in_parenths(const c_vector& guesses)
 {
     const int n = static_cast<int>(guesses.size());
-    std::vector<std::complex<float>> paren_content(n);
+    std::vector<std::complex<double>> paren_content(n);
 
     for (int i = 0; i < n; i++ )
     {
-        std::complex<float> rn_sum = 0;
+        std::complex<double> rn_sum = 0;
         for (int k = 0; k < n; k++)
         {
             if (i != k)
             {
-                rn_sum += 1.0f / (guesses[i] - guesses[k]);
+                rn_sum += 1.0 / (guesses[i] - guesses[k]);
             }
         }
         paren_content[i] = rn_sum;
@@ -179,12 +179,12 @@ Aberth::c_vector Aberth::thing_in_parenths(const c_vector& guesses)
 Aberth::c_vector Aberth::update_guesses(const vector& polynomial, const vector& derivative, const c_vector& guesses, c_vector& new_guesses)
 {
     const int n = static_cast<int>(guesses.size());
-    std::vector<std::complex<float>> parenths = thing_in_parenths(guesses);
-    std::vector<std::complex<float>> newton = newton_coefficients(polynomial, derivative, guesses);
+    std::vector<std::complex<double>> parenths = thing_in_parenths(guesses);
+    std::vector<std::complex<double>> newton = newton_coefficients(polynomial, derivative, guesses);
 
     for (int i = 0; i < n; i++)
     {
-        new_guesses[i] = guesses[i] - newton[i] / (1.0f - newton[i]*parenths[i]);
+        new_guesses[i] = guesses[i] - newton[i] / (1.0 - newton[i]*parenths[i]);
     }
     return new_guesses;
 }
