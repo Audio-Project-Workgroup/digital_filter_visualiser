@@ -12,14 +12,14 @@
 class Aberth
 {
 public:
-    static std::vector<std::complex<float>> solve(const std::vector<float>& coefficients);
+    static std::vector<std::complex<double>> solve(const std::vector<double>& coefficients);
 
 private:
-    inline static constexpr float epsilon = 0.00001f;
+    inline static constexpr double epsilon = 0.00001f;
     inline static constexpr int max_iterations = 10000;
 
-    using vector = std::vector<float>;
-    using c_vector = std::vector<std::complex<float>>;
+    using vector = std::vector<double>;
+    using c_vector = std::vector<std::complex<double>>;
 
     static vector polynomial_coefficients(const vector& coefficients);
     static vector derivative_coefficients(const vector& polynomial, const int n);

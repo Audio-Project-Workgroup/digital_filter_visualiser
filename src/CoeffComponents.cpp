@@ -1,4 +1,6 @@
 #include "CoeffComponents.h"
+#include "RootsToCoefficients.h"
+#include "CoeffToRootsAberth.h"
 
 #include <iostream>
 #define COL_WIDTH 100 // TODO make this value relate to the global UI.
@@ -114,13 +116,7 @@ juce::Component* CoefficientsComponent::refreshComponentForCell(int row, int col
         // update data when editing finishes
         label->onTextChange = [this, row, col, label]{
             double value = label->getText().getDoubleValue();
-            if (col == 2)
-                ffcoeffs[static_cast<size_t>(row)] = value;
-            else if (col == 3)
-                fbcoeffs[static_cast<size_t>(row)] = value;
-
-            // TODO: calculate roots through the coefficient2roots function.
-            // TODO: notify other listeners about this change
+            updateFilterStateOnCoefEdit(row, col, value);
         };
     }
 
@@ -137,6 +133,97 @@ juce::Component* CoefficientsComponent::refreshComponentForCell(int row, int col
     }
     label->setText(juce::String(value), juce::dontSendNotification );
     return label;
+}
+
+void CoefficientsComponent::updateFilterStateOnCoefEdit(int row, int col, double value)
+{
+    // calculate roots through the coefficient2roots function && notify other listeners about this change
+
+    if (col == 2)
+        ffcoeffs[static_cast<size_t>(row)] = value;
+    else if (col == 3)
+        fbcoeffs[static_cast<size_t>(row)] = value;
+    
+    if (col == 2)
+    {
+        auto zeros = Aberth::solve(this->ffcoeffs);
+
+        while (!processor->filterState->zeros.isEmpty())
+        {
+            auto *r = processor->filterState->zeros.getFirst();
+            processor->filterState->remove(r);
+        }
+
+        for (size_t i=0 ; i< zeros.size(); i++)
+        {
+            auto &r = static_cast<c128>(zeros[i]);
+            auto order = 1;
+            processor->filterState->add(order, r);
+        }
+    }
+    else if (col == 3)
+    {
+        auto poles = Aberth::solve(this->fbcoeffs);
+
+        // check stability 
+        auto filterStable = [&]() -> bool {
+            for (auto &r : poles)
+            {
+                const double re = r.real();
+                const double im = r.imag();
+                const double magnitude { std::sqrt ( re * re + im * im) };
+                if ( magnitude >= processor->filterState->maxPoleMagnitude)
+                    return false;
+            }
+            return true;
+        };
+
+        if (!filterStable())
+        {
+            // @TODO handle that case, reporting back to the user a message about the causality violation
+            // unstable filter, do nothing & return
+            return;
+        }
+
+
+        size_t prev_sz = static_cast<size_t>(processor->filterState->poles.size());
+
+        for (size_t i=0 ; i< poles.size(); i++)
+        {
+            
+            auto &r = static_cast<c128>(poles[i]);
+            auto order = 1;
+            processor->filterState->add(-order, r);
+        }
+
+        auto isNewPole = [&](c128 val) -> std::pair<bool, int> {
+            int order = 1; // TODO --> CARE WITH THIS, CHECK THIS OUT FURTHER IF NEEDED. 
+            for (auto &r : poles) 
+            {
+                if (val.real() == r.real() && val.imag() == r.imag())
+                    return {true, order};
+            }
+            return {false, 0};
+        };
+        
+        for (size_t i=0 ; i< prev_sz; i++)
+        {
+            auto *r = processor->filterState->poles[i];
+            c128 key(c128(r->value.re.get(),r->value.im.get()));
+            auto [found, order] = isNewPole(key);
+
+            if ( found )
+            {
+                r->order= -order;
+            }
+            else
+            {
+                processor->filterState->remove(r);
+                i--;
+                prev_sz--;
+            } 
+        }
+    }    
 }
 
 void CoefficientsComponent::valueTreePropertyChanged (juce::ValueTree& node, const juce::Identifier& property)
