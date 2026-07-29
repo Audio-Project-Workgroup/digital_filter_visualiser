@@ -156,8 +156,8 @@ void CoefficientsComponent::updateFilterStateOnCoefEdit(int row, int col, double
 
         for (size_t i=0 ; i< zeros.size(); i++)
         {
-            const auto &r = static_cast<c128>(zeros[i]);
-            auto order = 1;
+            const auto &r = static_cast<c128>(zeros[i].first);
+            auto order = zeros[i].second;
             processor->filterState->add(order, r);
         }
     }
@@ -167,7 +167,7 @@ void CoefficientsComponent::updateFilterStateOnCoefEdit(int row, int col, double
 
         // check stability 
         auto filterStable = [&]() -> bool {
-            for (auto &r : poles)
+            for (auto &[r,order] : poles)
             {
                 const double re = r.real();
                 const double im = r.imag();
@@ -191,14 +191,13 @@ void CoefficientsComponent::updateFilterStateOnCoefEdit(int row, int col, double
         for (size_t i=0 ; i< poles.size(); i++)
         {
             
-            const auto &r = static_cast<c128>(poles[i]);
-            auto order = 1;
+            const auto &r = static_cast<c128>(poles[i].first);
+            auto order = poles[i].second;
             processor->filterState->add(-order, r);
         }
 
         auto isNewPole = [&](c128 val) -> std::pair<bool, int> {
-            int order = 1; // TODO --> CARE WITH THIS, CHECK THIS OUT FURTHER IF NEEDED. 
-            for (auto &r : poles) 
+            for (auto &[r,order] : poles) 
             {
                 if (val.real() == r.real() && val.imag() == r.imag())
                     return {true, order};
