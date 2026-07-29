@@ -9,7 +9,7 @@
 #include <math.h>
 //#include <iostream>
 
-Aberth::c_vector Aberth::solve(const vector& coefficients)
+Aberth::clustered_root_vector Aberth::solve(const vector& coefficients)
 {
     // helper variables
     bool keep_going = true;
