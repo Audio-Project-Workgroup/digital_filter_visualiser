@@ -156,7 +156,7 @@ void CoefficientsComponent::updateFilterStateOnCoefEdit(int row, int col, double
 
         for (size_t i=0 ; i< zeros.size(); i++)
         {
-            auto &r = static_cast<c128>(zeros[i]);
+            const auto &r = static_cast<c128>(zeros[i]);
             auto order = 1;
             processor->filterState->add(order, r);
         }
@@ -191,7 +191,7 @@ void CoefficientsComponent::updateFilterStateOnCoefEdit(int row, int col, double
         for (size_t i=0 ; i< poles.size(); i++)
         {
             
-            auto &r = static_cast<c128>(poles[i]);
+            const auto &r = static_cast<c128>(poles[i]);
             auto order = 1;
             processor->filterState->add(-order, r);
         }
