@@ -12,7 +12,8 @@
 class Aberth
 {
 public:
-    static std::vector<std::complex<double>> solve(const std::vector<double>& coefficients);
+    using clustered_root_vector = std::vector<std::pair<std::complex<double>, int>>;
+    static clustered_root_vector solve(const std::vector<double>& coefficients);
 
 private:
     inline static constexpr double epsilon = 0.00001f;

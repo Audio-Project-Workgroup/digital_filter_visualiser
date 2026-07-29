@@ -73,8 +73,33 @@ Aberth::c_vector Aberth::solve(const vector& coefficients)
             }
         }
     }
-    return new_guesses;
+
+    // cluster the routes
+    clustered_root_vector clustered_rootes;
+    clustered_rootes.emplace_back(new_guesses[0], 1);
+
+    for (int i = 1; i < new_guesses.size(); i++)
+    {
+        bool is_clustered = false;
+        for (auto& [val, order] : clustered_rootes)
+        {
+            if (std::abs(new_guesses[i] - val) < 2 * epsilon)
+            {
+                order++;
+                is_clustered = true;
+                break;
+            }
+        }
+
+        if (is_clustered == false)
+        {
+            clustered_rootes.emplace_back(new_guesses[i], 1);
+        }
+    }
+
+    return clustered_rootes;
 }
+
 
 Aberth::vector Aberth::polynomial_coefficients(const vector& coefficients)
 {
