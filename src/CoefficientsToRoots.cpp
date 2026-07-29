@@ -186,6 +186,7 @@ void CoefficientsToRoots::extractRoots(std::vector<std::pair<c128, int>> & roots
             if (diff_re / scale < tolerance && diff_im / scale < tolerance)
             {
                 order++;
+                val += (newVal - val) / static_cast<double>(order);
                 return;
             }
         }
