@@ -9,13 +9,14 @@
 
 std::vector<std::pair<c128, int>> CoefficientsToRoots::QR(std::vector<double> coefs)
 {
+    PROFILE_FUNCTION();
 
     // filter out leading zeros, increasing counter until the leading 1.0 is found.
     size_t degree = 0;
     while( degree < coefs.size() && coefs[degree] != 1.0)
         degree++;
     degree = coefs.size() - degree -1; // subtract 1 for the leading 1.0
- 
+
    // filter out trailing zeros increasing the order of root at Zero (usually for default poles)
     size_t orderAtZero = 0;
     for( int i = static_cast<int>(coefs.size()-1); i >= 0 && std::abs(coefs[(size_t)i]) == 0.0 ; --i)
@@ -50,14 +51,14 @@ std::vector<std::pair<c128, int>> CoefficientsToRoots::QR(std::vector<double> co
         A[i * degree + (degree-1)] = -coefs[coef_idx];  // fill last column with negative vals of coefs
         if (i!=degree-1)
         {
-            A[j * degree + i] = 1.0;  // fill subdiagonal entries         
+            A[j * degree + i] = 1.0;  // fill subdiagonal entries
         }
     }
 
     // QR algorithm
     std::vector<double> Q(degree * degree);
     std::vector<double> R(degree * degree);
-    
+
     size_t shift_idx {degree}, iter {0};
     std::vector<double> v(shift_idx); // vector for storing current column of A. Note: only the first {0 to (curr val of shift_idx - 1) } indexes are used per iteration.
     while(shift_idx > 1)
@@ -78,7 +79,7 @@ std::vector<std::pair<c128, int>> CoefficientsToRoots::QR(std::vector<double> co
 
         // subtract rayleigh quotient shift
         const double shift = A[(shift_idx - 1) * degree + (shift_idx - 1)];
-        for (size_t i = 0; i < shift_idx; ++i) 
+        for (size_t i = 0; i < shift_idx; ++i)
             A[i * degree + i] -= shift; // Decompose (Ak - sI)
 
         // step 1 - calculate Q : Q = A[col] - projections onto the previous Q[col]
@@ -111,9 +112,9 @@ std::vector<std::pair<c128, int>> CoefficientsToRoots::QR(std::vector<double> co
             {
                 norm += v[k] * v[k];
             }
-            
+
             double normReciprocal = 1.0 / std::sqrt(norm);
-            
+
             for (size_t k = 0; k < shift_idx; ++k)
             {
                 Q[k * degree + col] = v[k] * normReciprocal;
@@ -150,7 +151,7 @@ std::vector<std::pair<c128, int>> CoefficientsToRoots::QR(std::vector<double> co
 
 
         // step 4 add shift back in A and check sub-diagonal entries
-        for (size_t i = 0; i < shift_idx; ++i) 
+        for (size_t i = 0; i < shift_idx; ++i)
             A[i * degree + i] += shift;
 
         // check only the last subdiagonal entry (real eigenvalue)
@@ -175,20 +176,61 @@ std::vector<std::pair<c128, int>> CoefficientsToRoots::QR(std::vector<double> co
 
 void CoefficientsToRoots::extractRoots(std::vector<std::pair<c128, int>> & roots, const std::vector<double>& M, size_t degree)
 {
-        
+    PROFILE_FUNCTION();
+
     auto addRoot = [&](c128 newVal) {
         for (auto& [val, order] : roots)
         {
+#if 0
             double diff_re = std::abs(val.real() - newVal.real());
             double diff_im = std::abs(val.imag() - newVal.imag());
             double scale = std::abs(val) + std::abs(newVal) + 1e-7; // + 1e-7 to avoid division with zero
-
-            if (diff_re / scale < tolerance && diff_im / scale < tolerance)
+	    if (diff_re / scale < tolerance && diff_im / scale < tolerance)
             {
                 order++;
                 val += (newVal - val) / static_cast<double>(order);
                 return;
             }
+#else
+	    if ((juce::exactlyEqual(val.imag(), 0.0)) != (juce::exactlyEqual(newVal.imag(), 0.0)))
+	    {
+	      // NOTE(ry): comparing real with complex root
+	      double x = juce::exactlyEqual(val.imag(), 0.0) ? val.real() : newVal.real(); // real
+	      int x_order = juce::exactlyEqual(val.imag(), 0.0) ? order : 1;
+	      c128 z = juce::exactlyEqual(val.imag(), 0.0) ? newVal : val; // complex
+	      int z_order = juce::exactlyEqual(val.imag(), 0.0) ? 2 : 2*order;
+
+	      double diff = std::abs(z.real() - x);
+	      double err = diff / std::abs(val.real());
+	      if (err < tolerance && z.imag() < tolerance)
+	      {
+		// NOTE(ry): merge the complex with the real root, creating real root
+		// set order to twice the complex order plus the real order
+		// set val to the weighted average of the two roots
+		order = x_order + z_order;
+		val = c128((x_order*x + z_order*z.real()) / double(order), 0);
+		return;
+	      }
+	    }
+	    else
+	    {
+	      // NOTE(ry): comparing real with real complex with complex
+	      double diff_mag = std::abs(val - newVal);
+	      double err = diff_mag / (std::abs(val) + 1e-7);
+	      if (err < tolerance)
+	      {
+		// NOTE(ry): merge the roots
+		// set val to the weighted average of the two roots
+		// increment order by 1
+		double val_re = (order*val.real() + newVal.real()) / double(order + 1);
+		double val_im = (order*val.imag() + newVal.imag()) / double(order + 1);
+
+		val = c128(val_re, val_im);
+		order++;
+		return;
+	      }
+	    }
+#endif
         }
         roots.emplace_back(newVal, 1);
     };
@@ -196,7 +238,7 @@ void CoefficientsToRoots::extractRoots(std::vector<std::pair<c128, int>> & roots
     size_t i = 0;
     while (i < degree)
     {
-        
+
         if ( i == degree - 1 || std::abs(M[(i+1) * degree + i]) < Epsilon )
         {
             // Real eigenvalue on diagonal
@@ -210,8 +252,8 @@ void CoefficientsToRoots::extractRoots(std::vector<std::pair<c128, int>> & roots
             // https://www.physicsforums.com/threads/how-do-i-estimate-complex-eigenvalues.170108/post-1330547
             // https://www.mosismath.com/Eigenvalues/EigenvalsQR.html
             // det(A - λI) = 0
-            // =>  det| a-λ    b |  
-            //        |   c  d-λ | = 0 
+            // =>  det| a-λ    b |
+            //        |   c  d-λ | = 0
             // => (a-λ)(d-λ) - bc = 0
             // => λ^2 - (a+d)λ + (ad-bc) = 0
             // => λ^2 - (a+d)λ + detA = 0 --> solve with discriminant
