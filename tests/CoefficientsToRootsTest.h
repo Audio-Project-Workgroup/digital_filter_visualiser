@@ -124,82 +124,107 @@ private:
 		beginTest(testName);
 
 		int zeros_order{0}, poles_order{0};
+		int distinctZeroCount{0}, distinctPoleCount{0};
 		for (auto r : givenRoots)
 		{
 		    int order = static_cast<int>(r.order) * (juce::exactlyEqual(r.valIm, 0.0) ? 1 : 2);
-			jassert(std::abs(order) > 0);
-			if (order>0)
-			{
-				zeros_order+=order;
-			}
-			else
-			{
-				poles_order+=order;
-			}
+		    jassert(std::abs(order) > 0);
+		    if (order>0)
+		    {
+		        zeros_order+=order;
+			distinctZeroCount+=1;
+		    }
+		    else
+		    {
+		        poles_order+=order;
+			distinctPoleCount+=1;
+		    }
 		}
 		// causality
 		if (zeros_order > -poles_order)
 			poles_order = -zeros_order;
 
-		std::cout<<"zeros_orderTolerance "<<ExpectedPossibleRootOrderError<<std::endl;
-		std::cout<<"poles_orderTolerance "<<ExpectedPossibleRootOrderError<<std::endl;
-
 		auto* state = processor.filterState.get();
 		TestHelper::makeFilterState(state, givenRoots, 1);
 
-        if (!state->zeros.isEmpty())
-        {
-            auto ffcoeffs = RootsToCoefficients::CalculatePolynomialCoefficientsFrom(state->zeros);
-            auto newZeros = CoefficientsToRoots::QR(ffcoeffs);
+		if (!state->zeros.isEmpty())
+		{
+		    auto ffcoeffs = RootsToCoefficients::CalculatePolynomialCoefficientsFrom(state->zeros);
+		    auto newZeros = CoefficientsToRoots::QR(ffcoeffs);
 
-            // Expect to have the same order
-			int curr_order{0};
-			for (auto r : newZeros)
-			{
-			    curr_order += r.second * (juce::exactlyEqual(r.first.imag(), 0.0) ? 1 : 2);
-			}
+		    // Expect to have the same order
+		    int curr_order{0};
+		    for (auto r : newZeros)
+		    {
+		      curr_order += r.second * (juce::exactlyEqual(r.first.imag(), 0.0) ? 1 : 2);
+		    }
 
-			// expectEquals( static_cast<int>(zeros_order), curr_order );
-			const size_t absDiff {static_cast<size_t>(std::abs(static_cast<int>(zeros_order) - curr_order))};
-		    expectLessOrEqual( absDiff, ExpectedPossibleRootOrderError);
-			if (absDiff)
-			{
-				std::cout<<"Error { total order = "<<zeros_order<<" != "<<curr_order<< " by "<<absDiff<<"}"<<std::endl;
-				totalMissedRootOrdersAllTests += absDiff;
-				totalFailingUnitTests ++;
-			}
-			totalNumAllTests++;
-        }
+		    bool failed{false};
+
+		    const size_t absDiff{static_cast<size_t>(std::abs(static_cast<int>(zeros_order) - curr_order))};
+		    expectEquals(absDiff, size_t(0));
+		    if (absDiff)
+		    {
+		        std::cout<<"Error { total order = "<<zeros_order<<" != "<<curr_order<< " by "<<absDiff<<"}"<<std::endl;
+		        totalMissedRootOrdersAllTests += absDiff;
+		        failed = true;
+		    }
+
+		    const auto newZerosCount{static_cast<int>(newZeros.size())};
+		    const int countDiff{std::abs(newZerosCount - distinctZeroCount)};
+		    if (countDiff)
+		    {
+		        std::cout<<"Error { got "<<newZerosCount<<" distinct zeros, expected "<<distinctZeroCount<<" }"<<std::endl;
+		        failed = true;
+		    }
+
+		    if (failed)
+		    {
+		        ++totalFailingUnitTests;
+		    }
+		    totalNumAllTests++;
+		}
 
 		// TODO : fix this condition. In case that a test contains only zeros, or the order of zeros exceeds order of poles, then default poles at 0,0 will be added.
 		if (!state->poles.isEmpty())
-        {
-            auto fbcoeffs = RootsToCoefficients::CalculatePolynomialCoefficientsFrom(state->poles);
-			auto newPoles = CoefficientsToRoots::QR(fbcoeffs);
+		{
+		    auto fbcoeffs = RootsToCoefficients::CalculatePolynomialCoefficientsFrom(state->poles);
+		    auto newPoles = CoefficientsToRoots::QR(fbcoeffs);
 
-            // Expect to have the same order
-			int curr_order{0};
-			for (auto r : newPoles)
-			{
-			    curr_order -= r.second * (juce::exactlyEqual(r.first.imag(), 0.0) ? 1 : 2); // have to reverse sign, since pole-logic is outside GramSchmidt function
-			}
+		    // Expect to have the same order
+		    int curr_order{0};
+		    for (auto r : newPoles)
+		    {
+		      curr_order -= r.second * (juce::exactlyEqual(r.first.imag(), 0.0) ? 1 : 2); // have to reverse sign, since pole-logic is outside GramSchmidt function
+		    }
 
-			// expectEquals( static_cast<int>(poles_order), curr_order );
-			const size_t absDiff {static_cast<size_t>(std::abs(static_cast<int>(poles_order) - curr_order))};
-		    expectLessOrEqual( absDiff , ExpectedPossibleRootOrderError);
-			if (absDiff)
-			{
-				std::cout<<"Error { total order = "<<poles_order<<" != "<<curr_order<< " by "<<absDiff<<"}"<<std::endl;
-				totalMissedRootOrdersAllTests += absDiff;
-				totalFailingUnitTests ++;
-			}
+		    bool failed{false};
 
-			totalNumAllTests++;
-        }
+		    const size_t absDiff{static_cast<size_t>(std::abs(static_cast<int>(poles_order) - curr_order))};
+		    expectEquals(absDiff, size_t(0));
+		    if (absDiff)
+		    {
+		        std::cout<<"Error { total order = "<<poles_order<<" != "<<curr_order<< " by "<<absDiff<<"}"<<std::endl;
+		        totalMissedRootOrdersAllTests += absDiff;
+			failed = true;
+		    }
+
+		    const auto newPolesCount{static_cast<int>(newPoles.size())};
+		    const int countDiff{std::abs(newPolesCount - distinctPoleCount)};
+		    if (countDiff)
+		    {
+		        std::cout<<"Error { got "<<newPolesCount<<" distinct poles, expected "<<distinctPoleCount<<" }"<<std::endl;
+		        failed = true;
+		    }
+
+		    if (failed)
+		    {
+		        ++totalFailingUnitTests;
+		    }
+		    totalNumAllTests++;
+		}
 	}
 
-	/* Empirical value : The expected possible computation error is 1 order. i.e. given a root of order k, the computed root may result in a root of order k-1.*/
-	static constexpr size_t ExpectedPossibleRootOrderError {1};
     static inline int totalMissedRootOrdersAllTests, totalNumAllTests {0}, totalFailingUnitTests {0};
 };
 
