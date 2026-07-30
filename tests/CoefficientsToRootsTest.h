@@ -11,7 +11,7 @@
 class CoefficientsToRootsTest : public juce::UnitTest
 {
 public:
-    CoefficientsToRootsTest() : UnitTest("CoefficientsToRootsTest", "Math") 
+    CoefficientsToRootsTest() : UnitTest("CoefficientsToRootsTest", "Math")
 	{
 	}
 
@@ -122,11 +122,11 @@ private:
 		std::vector<TestRootSpecification> givenRoots)
 	{
 		beginTest(testName);
-		
+
 		int zeros_order{0}, poles_order{0};
 		for (auto r : givenRoots)
 		{
-			int order = static_cast<int>(r.order) * (r.valIm == 0 ? 1 : 2);
+		    int order = static_cast<int>(r.order) * (juce::exactlyEqual(r.valIm, 0.0) ? 1 : 2);
 			jassert(std::abs(order) > 0);
 			if (order>0)
 			{
@@ -143,7 +143,7 @@ private:
 
 		std::cout<<"zeros_orderTolerance "<<ExpectedPossibleRootOrderError<<std::endl;
 		std::cout<<"poles_orderTolerance "<<ExpectedPossibleRootOrderError<<std::endl;
-		
+
 		auto* state = processor.filterState.get();
 		TestHelper::makeFilterState(state, givenRoots, 1);
 
@@ -156,9 +156,9 @@ private:
 			int curr_order{0};
 			for (auto r : newZeros)
 			{
-				curr_order += r.second * (r.first.imag() == 0 ? 1 : 2);
+			    curr_order += r.second * (juce::exactlyEqual(r.first.imag(), 0.0) ? 1 : 2);
 			}
-			
+
 			// expectEquals( static_cast<int>(zeros_order), curr_order );
 			const size_t absDiff {static_cast<size_t>(std::abs(static_cast<int>(zeros_order) - curr_order))};
 		    expectLessOrEqual( absDiff, ExpectedPossibleRootOrderError);
@@ -170,7 +170,7 @@ private:
 			}
 			totalNumAllTests++;
         }
-		
+
 		// TODO : fix this condition. In case that a test contains only zeros, or the order of zeros exceeds order of poles, then default poles at 0,0 will be added.
 		if (!state->poles.isEmpty())
         {
@@ -181,7 +181,7 @@ private:
 			int curr_order{0};
 			for (auto r : newPoles)
 			{
-				curr_order -= r.second * (r.first.imag() == 0 ? 1 : 2); // have to reverse sign, since pole-logic is outside GramSchmidt function
+			    curr_order -= r.second * (juce::exactlyEqual(r.first.imag(), 0.0) ? 1 : 2); // have to reverse sign, since pole-logic is outside GramSchmidt function
 			}
 
 			// expectEquals( static_cast<int>(poles_order), curr_order );

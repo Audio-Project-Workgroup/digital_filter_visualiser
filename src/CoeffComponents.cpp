@@ -143,7 +143,7 @@ void CoefficientsComponent::updateFilterStateOnCoefEdit(int row, int col, double
         ffcoeffs[static_cast<size_t>(row)] = value;
     else if (col == 3)
         fbcoeffs[static_cast<size_t>(row)] = value;
-    
+
     if (col == 2)
     {
         auto zeros = CoefficientsToRoots::QR(this->ffcoeffs);
@@ -165,7 +165,7 @@ void CoefficientsComponent::updateFilterStateOnCoefEdit(int row, int col, double
     {
         auto poles =  CoefficientsToRoots::QR(this->fbcoeffs);
 
-        // check stability 
+        // check stability
         auto filterStable = [&]() -> bool {
             for (auto& [r, order] : poles)
             {
@@ -190,24 +190,24 @@ void CoefficientsComponent::updateFilterStateOnCoefEdit(int row, int col, double
 
         for (size_t i=0 ; i< poles.size(); i++)
         {
-            
+
             auto &r = poles[i].first;
             auto &order = poles[i].second;
             processor->filterState->add(-order, r);
         }
 
         auto isNewPole = [&](c128 val) -> std::pair<bool, int> {
-            for (auto& [r, order] : poles) 
+            for (auto& [r, order] : poles)
             {
-                if (val.real() == r.real() && val.imag() == r.imag())
+				if (val == r)
                     return {true, order};
             }
             return {false, 0};
         };
-        
+
         for (size_t i=0 ; i< prev_sz; i++)
         {
-            auto *r = processor->filterState->poles[i];
+            auto *r = processor->filterState->poles[static_cast<int>(i)];
             c128 key(c128(r->value.re.get(),r->value.im.get()));
             auto [found, order] = isNewPole(key);
 
@@ -220,9 +220,9 @@ void CoefficientsComponent::updateFilterStateOnCoefEdit(int row, int col, double
                 processor->filterState->remove(r);
                 i--;
                 prev_sz--;
-            } 
+            }
         }
-    }    
+    }
 }
 
 void CoefficientsComponent::valueTreePropertyChanged (juce::ValueTree& node, const juce::Identifier& property)
