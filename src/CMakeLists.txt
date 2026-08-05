@@ -31,6 +31,11 @@ target_sources(
   PluginProcessor.cpp
 )
 
+file(GLOB CPPSRCS RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} "*.cpp")
+file(GLOB HSRCS RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} "*.h")
+set(ALLSRCS "${CPPSRCS};${HSRCS}")
+add_custom_target(ALLFILES SOURCES ${ALLSRCS})
+
 target_compile_definitions(
   ${PROJECT_NAME}
   PUBLIC

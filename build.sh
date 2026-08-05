@@ -11,11 +11,16 @@ for arg in "$@"; do
     fi
 done
 
+CMAKE_GENERATOR_FLAGS=""
+if [[ "$OSTYPE" == "darwin"* ]]; then
+    CMAKE_GENERATOR_FLAGS+="-G Xcode"
+fi
+
 mkdir -p build
 pushd build > /dev/null
 
 BUILD_DIR=$PWD
-cmake -S $SRC_DIR -B $BUILD_DIR
+cmake $CMAKE_GENERATOR_FLAGS -S $SRC_DIR -B $BUILD_DIR
 cmake --build $BUILD_DIR $PARALLEL_BUILD
 STATUS=$?
 
