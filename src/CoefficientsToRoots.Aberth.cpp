@@ -63,10 +63,7 @@ void Aberth::zero_small_values(c_vector& new_guesses)
 
 void Aberth::clustering_rootes(c_vector& new_guesses, clustered_root_vector& clustered_rootes)
 {
-    clustered_rootes.emplace_back(new_guesses[0], 1);
-
     for (const auto& new_guess : new_guesses)
-//    for (size_t i = 1; i < new_guesses.size(); i++)
     {
         bool is_clustered = false;
 
