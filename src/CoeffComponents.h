@@ -1,6 +1,8 @@
 #pragma once
 
 #include "FilterState.h"
+#include "CoefficientsToRoots.h"
+
 #include <vector>
 #include <string>
 
@@ -18,6 +20,8 @@ class CoefficientsComponent final
         void resized() override;
 
     private:
+        static CoefficientsToRoots::SolverFn constexpr Solve = QRSolve;
+
         std::vector<double> ffcoeffs;
         std::vector<double> fbcoeffs;
         juce::TextButton titleButton;

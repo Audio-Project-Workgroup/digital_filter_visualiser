@@ -4,12 +4,12 @@
 //
 //  Created by Elizabeth Aryslanova on 02/06/2026.
 //
-#include "CoeffToRootsAberth.h"
+#include "CoefficientsToRoots.Aberth.h"
 #define _USE_MATH_DEFINES
 #include <math.h>
 //#include <iostream>
 
-Aberth::clustered_root_vector Aberth::solve(const vector& coefficients)
+Aberth::clustered_root_vector Aberth::Solve(Coefficients coefficients)
 {
     // helper variables
     bool keep_going = true;
@@ -69,23 +69,23 @@ void Aberth::clustering_rootes(c_vector& new_guesses, clustered_root_vector& clu
 //    for (size_t i = 1; i < new_guesses.size(); i++)
     {
         bool is_clustered = false;
-        
+
         for (auto& [val, order] : clustered_rootes)
         {
             if (std::abs(new_guess - val) < 2000.0f * epsilon)
             {
                 order++;
-                
+
                 if (val.imag() > epsilon)
                 {
                     double val_real = (new_guess.real() + val.real()) * 0.5;
                     double val_imag = (new_guess.imag() + val.imag()) * 0.5;
-                    
+
                     val = std::complex<double> (val_real, val_imag);
                 }
-                
+
                 is_clustered = true;
-                
+
                 break;
             }
         }
@@ -103,13 +103,13 @@ void Aberth::remove_conjugates(c_vector& new_guesses)
     int n = static_cast<int>(new_guesses.size());
     for (int i = n - 1; i >= 0; i--)
     {
-        if ( new_guesses[i].imag() < 0 )
+        if (new_guesses[static_cast<size_t>(i)].imag() < 0)
         {
             new_guesses.erase(new_guesses.begin() + i);
         }
     }
 }
-       
+
 
 
 Aberth::vector Aberth::polynomial_coefficients(const vector& coefficients)
@@ -121,7 +121,7 @@ Aberth::vector Aberth::polynomial_coefficients(const vector& coefficients)
 
     for (size_t i = 0; i < coeff_length; i++)
     {
-        if (polynomial[i] < epsilon) to_remove = i;
+        if (polynomial[i] < epsilon) to_remove = static_cast<int>(i);
         else break;
     }
 
@@ -243,4 +243,3 @@ bool Aberth::continue_condition(const c_vector& prev_guesses, const c_vector& ne
     }
     return !do_i_stop;
 }
-

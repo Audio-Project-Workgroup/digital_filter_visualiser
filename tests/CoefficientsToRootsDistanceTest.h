@@ -11,7 +11,7 @@
 class CoefficientsToRootsDistanceTest : public juce::UnitTest
 {
 public:
-    CoefficientsToRootsDistanceTest() : UnitTest("CoefficientsToRootsDistanceTest", "Math") 
+    CoefficientsToRootsDistanceTest() : UnitTest("CoefficientsToRootsDistanceTest", "Math")
 	{
 	}
 
@@ -99,20 +99,20 @@ private:
 		std::vector<TestRootSpecification> givenRoots)
 	{
 		beginTest(testName);
-				
+
 		auto* state = processor.filterState.get();
 		TestHelper::makeFilterState(state, givenRoots, 1);
 
         if (!state->zeros.isEmpty())
         {
             auto ffcoeffs = RootsToCoefficients::CalculatePolynomialCoefficientsFrom(state->zeros);
-            auto newZeros = CoefficientsToRoots::QR(ffcoeffs);
+            auto newZeros = QRSolve(ffcoeffs);
 
 			double totalDistance {0}, worstDistance{0};
 			auto zero = state->zeros[0]; // these are one-zero tests
 			for (auto r : newZeros)
 			{
-				double distance = std::abs(r.first - std::complex<double>(zero->value.re.get(), zero->value.im.get())); 
+				double distance = std::abs(r.value - std::complex<double>(zero->value.re.get(), zero->value.im.get()));
 				totalDistance += distance;
 				worstDistance = std::max(worstDistance, distance);
 			}
@@ -121,28 +121,28 @@ private:
 			std::cout<<"Report Distance (zeros):"<<std::endl;
 			std::cout<<"Mean distance :"<<meanDistance<<std::endl;
 			std::cout<<"Worst distance :"<<worstDistance<<std::endl;
-			
+
 			if (meanDistance > DistanceTolerance)
 			{
 				std::cout<<"Warning : computation error { meanDistance > DistanceTolerance  : "<<meanDistance<<" > "<<DistanceTolerance<< " }"<<std::endl;
 				totalNumWarnings++;
 			}
-			
+
 			totalDistanceAllTests += meanDistance;
 			totalNumAllTests++;
 			std::cout<<"totalDistanceAllTests:" <<totalDistanceAllTests<<", totalNumAllTests:" <<totalNumAllTests<<std::endl;
         }
-		
+
 		else if (!state->poles.isEmpty()) // else if make these pole  / zero tests mutually exlusive. Cause these are one-root tests.
         {
             auto fbcoeffs = RootsToCoefficients::CalculatePolynomialCoefficientsFrom(state->poles);
-			auto newPoles = CoefficientsToRoots::QR(fbcoeffs);
+	    auto newPoles = QRSolve(fbcoeffs);
 
 			double totalDistance {0}, worstDistance{0};
 			auto pole = state->poles[0]; // these are one-pole tests
 			for (auto r : newPoles)
 			{
-				double distance = std::abs(r.first - std::complex<double>(pole->value.re.get(), pole->value.im.get())); 
+				double distance = std::abs(r.value - std::complex<double>(pole->value.re.get(), pole->value.im.get()));
 				totalDistance += distance;
 				worstDistance = std::max(worstDistance, distance);
 			}
@@ -157,7 +157,7 @@ private:
 				std::cout<<"Warning : computation error { meanDistance > DistanceTolerance  : "<<meanDistance<<" > "<<DistanceTolerance<< " }"<<std::endl;
 				totalNumWarnings++;
 			}
-				
+
 
 			totalDistanceAllTests += meanDistance;
 			totalNumAllTests++;

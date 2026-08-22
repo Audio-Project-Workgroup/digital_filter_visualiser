@@ -11,7 +11,6 @@
 #include "ButtonPanel.h"
 #include "EquationViewer.h"
 #include "StateSerializer.h"
-#include "CoeffToRootsAberth.h"
 
 //==============================================================================
 class AudioPluginAudioProcessorEditor final : public juce::AudioProcessorEditor

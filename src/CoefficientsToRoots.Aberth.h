@@ -12,8 +12,9 @@
 class Aberth
 {
 public:
-    using clustered_root_vector = std::vector<std::pair<std::complex<double>, int>>;
-    static clustered_root_vector solve(const std::vector<double>& coefficients);
+    using clustered_root_vector = CoefficientsToRoots::SolutionSet;
+    static clustered_root_vector Solve(CoefficientsToRoots::Coefficients coefficients);
+
 
 private:
     inline static constexpr double epsilon = 0.000001f;
@@ -36,4 +37,4 @@ private:
     Aberth() = delete; // This class can't be instantiated, it's just a holder for static methods..
 };
 
-
+SOLVER_DEFINE(Aberth)

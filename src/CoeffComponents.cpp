@@ -138,7 +138,6 @@ juce::Component* CoefficientsComponent::refreshComponentForCell(int row, int col
 void CoefficientsComponent::updateFilterStateOnCoefEdit(int row, int col, double value)
 {
     // calculate roots through the coefficient2roots function && notify other listeners about this change
-
     if (col == 2)
         ffcoeffs[static_cast<size_t>(row)] = value;
     else if (col == 3)
@@ -146,7 +145,7 @@ void CoefficientsComponent::updateFilterStateOnCoefEdit(int row, int col, double
 
     if (col == 2)
     {
-        auto zeros = CoefficientsToRoots::QR(this->ffcoeffs);
+        auto zeros = Solve(this->ffcoeffs);
 
         while (!processor->filterState->zeros.isEmpty())
         {
@@ -156,14 +155,14 @@ void CoefficientsComponent::updateFilterStateOnCoefEdit(int row, int col, double
 
         for (size_t i=0 ; i< zeros.size(); i++)
         {
-            auto &r = zeros[i].first;
-            auto &order = zeros[i].second;
+            auto &r = zeros[i].value;
+            auto &order = zeros[i].order;
             processor->filterState->add(order, r);
         }
     }
     else if (col == 3)
     {
-        auto poles =  CoefficientsToRoots::QR(this->fbcoeffs);
+        auto poles = Solve(this->fbcoeffs);
 
         // check stability
         auto filterStable = [&]() -> bool {
@@ -191,8 +190,8 @@ void CoefficientsComponent::updateFilterStateOnCoefEdit(int row, int col, double
         for (size_t i=0 ; i< poles.size(); i++)
         {
 
-            auto &r = poles[i].first;
-            auto &order = poles[i].second;
+            auto &r = poles[i].value;
+            auto &order = poles[i].order;
             processor->filterState->add(-order, r);
         }
 

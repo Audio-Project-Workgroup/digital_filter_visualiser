@@ -150,13 +150,13 @@ private:
 		if (!state->zeros.isEmpty())
 		{
 		    auto ffcoeffs = RootsToCoefficients::CalculatePolynomialCoefficientsFrom(state->zeros);
-		    auto newZeros = CoefficientsToRoots::QR(ffcoeffs);
+		    auto newZeros = QRSolve(ffcoeffs);
 
 		    // Expect to have the same order
 		    int curr_order{0};
 		    for (auto r : newZeros)
 		    {
-		      curr_order += r.second * (juce::exactlyEqual(r.first.imag(), 0.0) ? 1 : 2);
+		      curr_order += r.order * (juce::exactlyEqual(r.value.imag(), 0.0) ? 1 : 2);
 		    }
 
 		    bool failed{false};
@@ -189,13 +189,13 @@ private:
 		if (!state->poles.isEmpty())
 		{
 		    auto fbcoeffs = RootsToCoefficients::CalculatePolynomialCoefficientsFrom(state->poles);
-		    auto newPoles = CoefficientsToRoots::QR(fbcoeffs);
+		    auto newPoles = QRSolve(fbcoeffs);
 
 		    // Expect to have the same order
 		    int curr_order{0};
 		    for (auto r : newPoles)
 		    {
-		      curr_order -= r.second * (juce::exactlyEqual(r.first.imag(), 0.0) ? 1 : 2); // have to reverse sign, since pole-logic is outside GramSchmidt function
+		      curr_order -= r.order * (juce::exactlyEqual(r.value.imag(), 0.0) ? 1 : 2); // have to reverse sign, since pole-logic is outside GramSchmidt function
 		    }
 
 		    bool failed{false};
