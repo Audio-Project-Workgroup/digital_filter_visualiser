@@ -18,12 +18,12 @@ Aberth::clustered_root_vector Aberth::solve(const vector& coefficients)
 
     // polynomial
     vector polynomial (polynomial_coefficients(coefficients));
-    auto polynomial_length = static_cast<int>(polynomial.size());
-    int n = polynomial_length - 1;
-    c_vector new_guesses(n); // TO-DO add the size
+    size_t polynomial_length = polynomial.size();
+    size_t n = polynomial_length - 1;
+    c_vector new_guesses(n);
 
     // derivative
-    vector derivative (derivative_coefficients(polynomial, n));
+    vector derivative (derivative_coefficients(polynomial));
     // initial guesses
     c_vector previous_guesses (initial_guesses(polynomial));
 
@@ -36,81 +36,92 @@ Aberth::clustered_root_vector Aberth::solve(const vector& coefficients)
         iteration_counter++;
     }
 
-    // take new_guesses and remove conjugate pairs!
-    c_vector routes(n, 0);     // n - number of routes
-    std::complex<double> conjugate;
-    int guesses_size;
-    double distance;
-    int smallest_index;
+    zero_small_values(new_guesses);
+    remove_conjugates(new_guesses);
+    // clustering routes
+    clustered_root_vector clustered_rootes;
+    clustering_rootes(new_guesses, clustered_rootes);
+    return clustered_rootes;
+}
 
-    for (int i = 0; i < n; i++)     // go through the guesses
+
+void Aberth::zero_small_values(c_vector& new_guesses)
+{
+    for (size_t i = 1; i < new_guesses.size(); i++)
     {
-        guesses_size = static_cast<int>(new_guesses.size());
-        if (guesses_size > i)         // if index is not out of bounds
+        if (abs(std::imag(new_guesses[i])) <= 20.0f * epsilon) // zero the imaginary part
         {
-            if (abs(std::imag(new_guesses[i])) <= epsilon) // zero the imaginary part
-            {
-                new_guesses[i] = std::complex<double> (new_guesses[i].real(), 0.0);
-            }
-
-            else  // does guess have the imaginary part
-            {
-                conjugate = std::conj(new_guesses[i]);
-                smallest_index = i+1;
-                if (guesses_size > i+1)
-                {
-                    for (int j = i+2; j < guesses_size; j++)
-                    {
-                        distance = std::abs(conjugate - new_guesses[j]);
-                        if ( distance < std::abs(conjugate - new_guesses[smallest_index]))
-                        {
-                            smallest_index = j;
-                        }
-                    }
-                }
-                // take the number with the smallest distance and remove it from the guesses list
-                new_guesses.erase(new_guesses.begin() + smallest_index);
-            }
+            new_guesses[i] = std::complex<double> (new_guesses[i].real(), 0.0);
+        }
+        if (abs(std::real(new_guesses[i])) <= 20.0f * epsilon) // zero the real part
+        {
+            new_guesses[i] = std::complex<double> (0.0, new_guesses[i].imag());
         }
     }
+}
 
-    // cluster the routes
-    clustered_root_vector clustered_rootes;
+
+void Aberth::clustering_rootes(c_vector& new_guesses, clustered_root_vector& clustered_rootes)
+{
     clustered_rootes.emplace_back(new_guesses[0], 1);
 
-    for (int i = 1; i < new_guesses.size(); i++)
+    for (const auto& new_guess : new_guesses)
+//    for (size_t i = 1; i < new_guesses.size(); i++)
     {
         bool is_clustered = false;
+        
         for (auto& [val, order] : clustered_rootes)
         {
-            if (std::abs(new_guesses[i] - val) < 2 * epsilon)
+            if (std::abs(new_guess - val) < 2000.0f * epsilon)
             {
                 order++;
+                
+                if (val.imag() > epsilon)
+                {
+                    double val_real = (new_guess.real() + val.real()) * 0.5;
+                    double val_imag = (new_guess.imag() + val.imag()) * 0.5;
+                    
+                    val = std::complex<double> (val_real, val_imag);
+                }
+                
                 is_clustered = true;
+                
                 break;
             }
         }
-
         if (is_clustered == false)
         {
-            clustered_rootes.emplace_back(new_guesses[i], 1);
+            clustered_rootes.emplace_back(new_guess, 1);
         }
     }
-
-    return clustered_rootes;
 }
+
+
+
+void Aberth::remove_conjugates(c_vector& new_guesses)
+{
+    int n = static_cast<int>(new_guesses.size());
+    for (int i = n - 1; i >= 0; i--)
+    {
+        if ( new_guesses[i].imag() < 0 )
+        {
+            new_guesses.erase(new_guesses.begin() + i);
+        }
+    }
+}
+       
 
 
 Aberth::vector Aberth::polynomial_coefficients(const vector& coefficients)
 {
     // get rid of 0 in the beginning
-    const auto coeff_length = static_cast<int>(coefficients.size());
+    const size_t coeff_length = coefficients.size();
     std::vector<double> polynomial = coefficients;
     int to_remove = -1;
 
-    for (int i = 0; i < coeff_length; i++)
+    for (size_t i = 0; i < coeff_length; i++)
     {
-        if (polynomial[i] == 0) to_remove = i;
+        if (polynomial[i] < epsilon) to_remove = i;
         else break;
     }
 
@@ -125,11 +136,11 @@ Aberth::vector Aberth::polynomial_coefficients(const vector& coefficients)
     return polynomial;
 }
 
-Aberth::vector Aberth::derivative_coefficients(const vector& polynomial, const int n)
+Aberth::vector Aberth::derivative_coefficients(const vector& polynomial)
 {
-    const auto p_length = static_cast<int>(polynomial.size());
+    const size_t p_length = polynomial.size();
     std::vector<double> dp(p_length-1);
-    for (int i = 0; i < p_length-1; i++)
+    for (size_t i = 0; i < p_length-1; i++)
     {
         dp[i] = polynomial[i+1] * (i+1);
     }
@@ -139,7 +150,7 @@ Aberth::vector Aberth::derivative_coefficients(const vector& polynomial, const i
 
 Aberth::c_vector Aberth::initial_guesses(const vector& polynomial)
 {
-    const int n = static_cast<int>(polynomial.size()) - 1;
+    const size_t n = polynomial.size() - 1;
     const double theta = 2 * M_PI / n;
     const double offset = theta / (n+1);
     const double radius = std::pow(abs(polynomial[0] / polynomial[n]), 1/n);
@@ -147,7 +158,7 @@ Aberth::c_vector Aberth::initial_guesses(const vector& polynomial)
 
     // initial guesses calculation
     std::vector<std::complex<double>> guesses(n);
-    for (int i = 0; i < n; i++)
+    for (size_t i = 0; i < n; i++)
     {
         // guesses[k] =(radius * cmath.exp( 1j * (k * theta + offset)))
         guesses[i] = radius * std::exp(j * (i * theta + offset));
@@ -158,17 +169,17 @@ Aberth::c_vector Aberth::initial_guesses(const vector& polynomial)
 Aberth::c_vector Aberth::newton_coefficients(const vector& polynomial, const vector& derivative, const c_vector& guesses)
 {
     // unites p_of_rn and newton_coeff
-    const int n = static_cast<int>(polynomial.size()) - 1;
+    const size_t n = polynomial.size() - 1;
     std::vector<std::complex<double>>  coeff(n);
     std::complex<double> p_rn = 0;
     std::complex<double> dp_rn = 0;
 
-    for (int i = 0; i < n; i++) // loop over guesses
+    for (size_t i = 0; i < n; i++) // loop over guesses
     {
         p_rn = 0;
         dp_rn = 0;
 
-        for( int k = 0; k < n; k++)
+        for( size_t k = 0; k < n; k++)
         {
             p_rn += static_cast<std::complex<double>>(std::pow(guesses[i], k)) * polynomial[k];
             dp_rn += static_cast<std::complex<double>>(std::pow(guesses[i], k)) * derivative[k];
@@ -183,13 +194,13 @@ Aberth::c_vector Aberth::newton_coefficients(const vector& polynomial, const vec
 
 Aberth::c_vector Aberth::thing_in_parenths(const c_vector& guesses)
 {
-    const int n = static_cast<int>(guesses.size());
+    const size_t n = guesses.size();
     std::vector<std::complex<double>> paren_content(n);
 
-    for (int i = 0; i < n; i++ )
+    for (size_t i = 0; i < n; i++ )
     {
         std::complex<double> rn_sum = 0;
-        for (int k = 0; k < n; k++)
+        for (size_t k = 0; k < n; k++)
         {
             if (i != k)
             {
@@ -203,11 +214,11 @@ Aberth::c_vector Aberth::thing_in_parenths(const c_vector& guesses)
 
 Aberth::c_vector Aberth::update_guesses(const vector& polynomial, const vector& derivative, const c_vector& guesses, c_vector& new_guesses)
 {
-    const int n = static_cast<int>(guesses.size());
+    const size_t n = guesses.size();
     std::vector<std::complex<double>> parenths = thing_in_parenths(guesses);
     std::vector<std::complex<double>> newton = newton_coefficients(polynomial, derivative, guesses);
 
-    for (int i = 0; i < n; i++)
+    for (size_t i = 0; i < n; i++)
     {
         new_guesses[i] = guesses[i] - newton[i] / (1.0 - newton[i]*parenths[i]);
     }
@@ -217,9 +228,9 @@ Aberth::c_vector Aberth::update_guesses(const vector& polynomial, const vector& 
 bool Aberth::continue_condition(const c_vector& prev_guesses, const c_vector& new_guesses)
 {
     bool do_i_stop = true;
-    const int n = static_cast<int>(prev_guesses.size());
+    const size_t n = prev_guesses.size();
 
-    for (int i = 0; i < n; i++)
+    for (size_t i = 0; i < n; i++)
     {
         if (abs(new_guesses[i]-prev_guesses[i]) < epsilon )
         {
