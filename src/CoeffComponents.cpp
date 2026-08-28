@@ -6,26 +6,34 @@
 #define COL_WIDTH 100 // TODO make this value relate to the global UI.
 
 CoefficientsComponent::CoefficientsComponent(AudioPluginAudioProcessor* p)
-    : isExpanded(bool(DEFAULT_IS_EXPANDED))
-    , processor(p)
+    : processor(p)
 {
-    titleButton.setButtonText(TABLE_TITLE);
-    titleButton.onClick = [this]{ toggleCollapseExpand(); };
-    addAndMakeVisible(titleButton);
+    titleLabel.setText(TABLE_TITLE, juce::dontSendNotification);
+    titleLabel.setJustificationType(juce::Justification::centred);
+    addAndMakeVisible(titleLabel);
 
     //setupCoefficient's table
     coeffTable.setModel(this); // pass ownership to the class.
     addAndMakeVisible(coeffTable);
     coeffTable.setHeader(std::make_unique<CoeffTableHeader>());
     juce::TableHeaderComponent& tbComp = coeffTable.getHeader();
-    tbComp.addColumn("#", 1, int(COL_WIDTH/3));
-    tbComp.addColumn("FF", 2, int(COL_WIDTH));
-    tbComp.addColumn("FB", 3, int(COL_WIDTH));
+    tbComp.addColumn("Delay", 1, int(COL_WIDTH/3));
+    tbComp.addColumn("FeedForward", 2, int(COL_WIDTH));
+    tbComp.addColumn("FeedBack", 3, int(COL_WIDTH));
     tbComp.setStretchToFitActive(true); // expand columns to fill the entire width of the component
-    coeffTable.setVisible(isExpanded);
 
     processor->filterState->addListener(this);
     processor->filterState->syncListener(this);
+}
+
+void CoefficientsComponent::paint(juce::Graphics& g)
+{
+    auto labelBounds = titleLabel.getBounds().toFloat();
+    g.setColour(coeffTable.findColour(coeffTable.backgroundColourId));
+    g.fillRoundedRectangle(labelBounds, 7);
+    g.setColour(juce::Colours::grey);
+    g.drawRoundedRectangle(labelBounds, 7, 1.5);
+    juce::Component::paint(g);
 }
 
 // Note:    Apart from any other reasons that may occur throughout future dev updates,..
@@ -34,24 +42,16 @@ CoefficientsComponent::CoefficientsComponent(AudioPluginAudioProcessor* p)
 //          ..the destructor should be defined, and consequently align explicitly to the rule of 5.
 // CoefficientsComponent::~CoefficientsComponent() {}
 
-void CoefficientsComponent::toggleCollapseExpand()
-{
-    isExpanded = !isExpanded;
-    coeffTable.setVisible(isExpanded);
-}
-
 void CoefficientsComponent::resized()
 {
 	PROFILE_FUNCTION();
 
     // TODO adjust dims and position based on area or neighbor components --> should call something like getChildren() + getName() but seems fragile quering approach
     auto area = getLocalBounds();
-    constexpr int button_height {30};
-    //constexpr int button_width {150};
-    //constexpr int width_besideExportButton {102};
-    titleButton.setBounds(0, 0, getWidth(), button_height);
+    constexpr int height {30};
+    titleLabel.setBounds(0, 0, getWidth(), height);
     constexpr int offsetFromBottom {35};
-    coeffTable.setBounds(0, button_height, getWidth(), area.getHeight()-offsetFromBottom);
+    coeffTable.setBounds(0, height, getWidth(), area.getHeight()-offsetFromBottom);
 }
 
 int CoefficientsComponent::getNumRows()

@@ -16,7 +16,7 @@ class CoefficientsComponent final
 {
     public:
         CoefficientsComponent(AudioPluginAudioProcessor*);
-
+        void paint(juce::Graphics& g) override;
         void resized() override;
 
     private:
@@ -24,9 +24,8 @@ class CoefficientsComponent final
 
         std::vector<double> ffcoeffs;
         std::vector<double> fbcoeffs;
-        juce::TextButton titleButton;
+        juce::Label titleLabel;
         juce::TableListBox coeffTable;
-        bool isExpanded;
         AudioPluginAudioProcessor *processor;
 
         void toggleCollapseExpand();
@@ -49,23 +48,12 @@ class CoefficientsComponent final
         // will be used for single cell edits
         // void sendPropertyChangeMessage (const Identifier& property);
 
-        // provide tooltips for Table headers on hover
         class CoeffTableHeader
             : public juce::TableHeaderComponent
-            , public juce::TooltipClient
         {
             public:
-                juce::String getTooltip() override
-                {
-                    auto pos = getMouseXYRelative();
-                    const auto idx = static_cast<size_t>(getColumnIdAtX(pos.x));
-                    return (idx > 0 && idx <= tooltips.size()) ? tooltips[idx-1] : "";
-                }
-
 	        // NOTE(ry): columns are not clickable
 	        // TODO(ry): make columns not highlight on mouse hover, since they are not clickable
 	        void columnClicked(int, juce::ModifierKeys const &) override {}
-            private:
-                std::array<juce::String, 3> tooltips{"Delay", "FeedForward", "FeedBack"};
         };
 };
