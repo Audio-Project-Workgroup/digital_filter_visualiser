@@ -169,6 +169,8 @@ void QR::extractRoots(SolutionSet& roots, const std::vector<double>& M, size_t d
 {
     PROFILE_FUNCTION();
 
+
+
     auto addRoot = [&](c128 newVal) {
         for (auto& [val, order] : roots)
         {
@@ -276,4 +278,12 @@ void QR::extractRoots(SolutionSet& roots, const std::vector<double>& M, size_t d
             i += 2;
         }
     }
+
+#ifdef DEBUG_C2R
+    std::cout<<"Calculated Roots: ";
+    for (auto root : roots)
+        std::cout<<"("<<root.value.real()<<","<<root.value.imag()<<") - "<<root.order<<", ";
+    std::cout<<std::endl;
+#endif
+
 }
