@@ -80,6 +80,13 @@ void Aberth::clustering_rootes(c_vector& new_guesses, clustered_root_vector& clu
 
                     val = std::complex<double> (val_real, val_imag);
                 }
+                
+                else // when the cluster root is real, only average the real part and the Im = 0;
+                {
+                    double val_real = (new_guess.real() + val.real()) * 0.5;
+                    val = std::complex<double> (val_real, 0);
+                    order ++;
+                }
 
                 is_clustered = true;
 
