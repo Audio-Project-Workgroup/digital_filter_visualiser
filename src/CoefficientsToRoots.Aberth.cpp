@@ -24,17 +24,37 @@ Aberth::clustered_root_vector Aberth::Solve(Coefficients coefficients)
 
     // derivative
     vector derivative (derivative_coefficients(polynomial));
+    vector second_derivative (derivative_coefficients(derivative));
     // initial guesses
     c_vector previous_guesses (initial_guesses(polynomial));
+    
+    bool choose_method = 0; // 0 - Aberth; 1 - Schroder;
 
-    while (keep_going && (iteration_counter < max_iterations))
+    if (choose_method == 0) // aka Aberth
     {
-        update_guesses(polynomial, derivative, previous_guesses, new_guesses);
-        keep_going = continue_condition(previous_guesses, new_guesses);
+        while (keep_going && (iteration_counter < max_iterations))
+        {
+            update_guesses(polynomial, derivative, previous_guesses, new_guesses);
+            keep_going = continue_condition(previous_guesses, new_guesses);
 
-        previous_guesses = new_guesses; // it is expensive
-        iteration_counter++;
+            previous_guesses = new_guesses; // it is expensive
+            iteration_counter++;
+        }
     }
+    
+    if (choose_method == 1) // aka Schroder
+    {
+        while (keep_going && (iteration_counter < max_iterations))
+        {
+            update_guesses_schroder(polynomial, derivative, second_derivative, previous_guesses, new_guesses);
+            keep_going = continue_condition(previous_guesses, new_guesses);
+
+            previous_guesses = new_guesses; // it is expensive
+            iteration_counter++;
+        }
+        
+    }
+
 
     zero_small_values(new_guesses);
     remove_conjugates(new_guesses);
@@ -43,6 +63,8 @@ Aberth::clustered_root_vector Aberth::Solve(Coefficients coefficients)
     clustering_rootes(new_guesses, clustered_rootes);
     return clustered_rootes;
 }
+
+
 
 
 void Aberth::zero_small_values(c_vector& new_guesses)
@@ -195,6 +217,23 @@ Aberth::c_vector Aberth::newton_coefficients(const vector& polynomial, const vec
     return coeff;
 }
 
+Aberth::c_vector Aberth::p_of_rn(const vector& polynomial, const c_vector& guesses)
+{
+
+    const size_t n = polynomial.size()-1;
+    std::complex<double> p_rn = 0;
+
+    for (size_t i = 0; i < n; i++) // loop over guesses
+    {
+        p_rn = 0;
+        for( size_t k = 0; k < n+1; k++)
+        {
+            p_rn += static_cast<std::complex<double>>(std::pow(guesses[i], k)) * polynomial[k];
+        }
+    }
+    return p_rn;
+}
+
 
 Aberth::c_vector Aberth::thing_in_parenths(const c_vector& guesses)
 {
@@ -216,7 +255,7 @@ Aberth::c_vector Aberth::thing_in_parenths(const c_vector& guesses)
     return paren_content;
 }
 
-Aberth::c_vector Aberth::update_guesses(const vector& polynomial, const vector& derivative, const c_vector& guesses, c_vector& new_guesses)
+void Aberth::update_guesses(const vector& polynomial, const vector& derivative, const c_vector& guesses, c_vector& new_guesses)
 {
     const size_t n = guesses.size();
     std::vector<std::complex<double>> parenths = thing_in_parenths(guesses);
@@ -226,8 +265,25 @@ Aberth::c_vector Aberth::update_guesses(const vector& polynomial, const vector& 
     {
         new_guesses[i] = guesses[i] - newton[i] / (1.0 - newton[i]*parenths[i]);
     }
-    return new_guesses;
 }
+
+
+void Aberth::update_guesses_schroder(const vector& polynomial, const vector& derivative, const vector& second_derivative, const vector& previous_guesses, vector& new_guesses)
+{
+    const size_t n = guesses.size();
+    std::vector<std::complex<double>> p_rn = p_of_rn(polynomial, guesses);
+    std::vector<std::complex<double>> dp_rn = p_of_rn(derivative, guesses);
+    std::vector<std::complex<double>> ddp_rn = p_of_rn(second_derivative, guesses);
+
+    for (size_t i = 0; i < n; i++)
+    {
+        new_guesses[i] = guesses[i] - newton[i] / (1.0 - newton[i]*parenths[i]);
+        new_guesses[i] = guesses[i] - p_rn[i] * dp_rn[i] / (dp_rn[i] * dp_rn[i] - p_rn[i] * ddp_rn[i]);
+    }
+}
+
+
+
 
 bool Aberth::continue_condition(const c_vector& prev_guesses, const c_vector& new_guesses)
 {

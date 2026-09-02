@@ -30,8 +30,10 @@ private:
     static vector derivative_coefficients(const vector& polynomial);
     static c_vector initial_guesses(const vector& polynomial);
     static c_vector newton_coefficients(const vector& polynomial, const vector& derivative, const c_vector& guesses);
+    static c_vector Aberth::p_of_rn(const vector& polynomial, const c_vector& guesses);
     static c_vector thing_in_parenths(const c_vector& guesses);
-    static c_vector update_guesses(const vector& polynomial, const vector& derivative, const c_vector& guesses, c_vector& new_guesses);
+    static void update_guesses(const vector& polynomial, const vector& derivative, const c_vector& guesses, c_vector& new_guesses);
+    static void update_guesses_schroder(const vector& polynomial, const vector& derivative, const vector& second_derivative, const vector& previous_guesses, vector& new_guesses);
     static bool continue_condition(const c_vector& prev_guesses, const c_vector& new_guesses);
 
     Aberth() = delete; // This class can't be instantiated, it's just a holder for static methods..
