@@ -220,16 +220,20 @@ Aberth::c_vector Aberth::newton_coefficients(const vector& polynomial, const vec
 Aberth::c_vector Aberth::p_of_rn(const vector& polynomial, const c_vector& guesses)
 {
 
-    const size_t n = polynomial.size()-1;
-    std::complex<double> p_rn = 0;
+    const size_t n = polynomial.size();
+    const size_t n_guess = guesses.size();
+    std::vector<std::complex<double>>  p_rn(n_guess);
+    std::complex<double> p_rn_i = 0;
 
-    for (size_t i = 0; i < n; i++) // loop over guesses
+    for (size_t i = 0; i < n_guess; i++) // loop over guesses
     {
-        p_rn = 0;
-        for( size_t k = 0; k < n+1; k++)
+        p_rn_i = 0;
+        for( size_t k = 0; k < n; k++)
         {
-            p_rn += static_cast<std::complex<double>>(std::pow(guesses[i], k)) * polynomial[k];
+            p_rn_i += static_cast<std::complex<double>>(std::pow(guesses[i], k)) * polynomial[k];
         }
+        
+        p_rn[i] = p_rn_i;
     }
     return p_rn;
 }
@@ -268,7 +272,7 @@ void Aberth::update_guesses(const vector& polynomial, const vector& derivative, 
 }
 
 
-void Aberth::update_guesses_schroder(const vector& polynomial, const vector& derivative, const vector& second_derivative, const vector& previous_guesses, vector& new_guesses)
+void Aberth::update_guesses_schroder(const vector& polynomial, const vector& derivative, const vector& second_derivative, const c_vector& guesses, c_vector& new_guesses)
 {
     const size_t n = guesses.size();
     std::vector<std::complex<double>> p_rn = p_of_rn(polynomial, guesses);
@@ -277,7 +281,6 @@ void Aberth::update_guesses_schroder(const vector& polynomial, const vector& der
 
     for (size_t i = 0; i < n; i++)
     {
-        new_guesses[i] = guesses[i] - newton[i] / (1.0 - newton[i]*parenths[i]);
         new_guesses[i] = guesses[i] - p_rn[i] * dp_rn[i] / (dp_rn[i] * dp_rn[i] - p_rn[i] * ddp_rn[i]);
     }
 }
