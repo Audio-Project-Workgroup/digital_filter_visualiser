@@ -1,3 +1,5 @@
+QR::Matrix QR::Q, QR::R;
+
 SolutionSet QR::Solve(Coefficients coefs)
 {
     PROFILE_FUNCTION();
@@ -19,7 +21,7 @@ SolutionSet QR::Solve(Coefficients coefs)
     // append root at zero of "orderAtZero" order
     SolutionSet roots;
     if (orderAtZero>0)
-      roots.emplace_back(Root{c128(0.0, 0.0), static_cast<int>(orderAtZero)});
+        roots.emplace_back(Root{c128(0.0, 0.0), static_cast<int>(orderAtZero)});
 
     if (degree == 0 )
         // Returing root at (0,0) if any
@@ -28,7 +30,7 @@ SolutionSet QR::Solve(Coefficients coefs)
     if (degree==1)
     {
         // Returing 1 non-zero root + root at (0,0) if any
-      roots.emplace_back(Root{static_cast<c128>(-coefs[coefs.size() - 1]), 1});
+        roots.emplace_back(Root{static_cast<c128>(-coefs[coefs.size() - 1]), 1});
         return roots;
     }
 
@@ -47,8 +49,6 @@ SolutionSet QR::Solve(Coefficients coefs)
     }
 
     // QR algorithm
-    std::vector<double> Q(degree * degree);
-    std::vector<double> R(degree * degree);
 
     double state2x2[4]{};
     size_t shift_idx {degree}, iter {0};
@@ -68,90 +68,15 @@ SolutionSet QR::Solve(Coefficients coefs)
 	state2x2[2] = A[(shift_idx-1)*degree + shift_idx-2];
 	state2x2[3] = A[(shift_idx-1)*degree + shift_idx-1];
 
-        // Reset R,Q
-        for (size_t r = 0; r < shift_idx; ++r)
-        {
-            for (size_t c = 0; c < shift_idx; ++c)
-            {
-                R[r * degree + c] = 0.0;
-                Q[r * degree + c] = 0.0;
-            }
-        }
-
         // subtract rayleigh quotient shift
         const double shift = A[(shift_idx - 1) * degree + (shift_idx - 1)];
         for (size_t i = 0; i < shift_idx; ++i)
             A[i * degree + i] -= shift; // Decompose (Ak - sI)
 
-        // step 1 - calculate Q : Q = A[col] - projections onto the previous Q[col]
-        for (size_t col = 0 ; col < shift_idx; col++)
-        {
-            // set v with column A[col]
-            for (size_t row = 0 ; row< shift_idx; row++)
-                v[row] = A[row * degree + col];
+	// NOTE(ry): compute QR = A, A' = RQ using the default decomposition method
+	decomp(A, degree, shift_idx);
 
-            // subtract projection : v[col] = A[col] - proj onto the previous (<col) orthonormal colums of Q.
-            for (size_t curr_col = 0; curr_col < col; curr_col++)
-            {
-                // compute dot product ...
-                double dot_product {0.0};
-                for (size_t curr_row = 0; curr_row < shift_idx; ++curr_row)
-                {
-                    dot_product += Q[curr_row * degree + curr_col] * v[curr_row];
-                }
-
-                // .. and subtract it from the current column vector
-                for (size_t curr_row=0; curr_row < shift_idx; ++curr_row)
-                {
-                    v[curr_row] -= dot_product * Q[curr_row * degree + curr_col];
-                }
-            }
-
-            // normalize column of q
-            double norm = 0.0;
-            for (size_t k = 0; k < shift_idx; ++k)
-            {
-                norm += v[k] * v[k];
-            }
-
-            double normReciprocal = 1.0 / std::sqrt(norm);
-
-            for (size_t k = 0; k < shift_idx; ++k)
-            {
-                Q[k * degree + col] = v[k] * normReciprocal;
-            }
-        }
-
-        // step 2 - calculate R :  R = Q A
-        for (size_t row = 0; row < shift_idx; row++)
-        {
-            for (size_t col = 0; col < shift_idx; col++)
-            {
-                double sum {0.0};
-                for (size_t inner = 0; inner < shift_idx; inner++)
-                {
-                    sum += (Q[inner * degree + row] * A[inner * degree + col]);     // Q transposed
-                }
-                R[row* degree + col] = sum;
-            }
-        }
-
-        // step 3 - A = R Q
-        for (size_t row = 0; row < shift_idx; row++)
-        {
-            for (size_t col = 0; col < shift_idx; col++)
-            {
-                double sum {0.0};
-                for (size_t inner = 0; inner< shift_idx; ++inner)
-                {
-                    sum += R[row * degree + inner] * Q[inner * degree + col];
-                }
-                A[row* degree + col] = sum; // resetting A[row][col]
-            }
-        }
-
-
-        // step 4 add shift back in A and check sub-diagonal entries
+        // add shift back in A and check sub-diagonal entries
         for (size_t i = 0; i < shift_idx; ++i)
             A[i * degree + i] += shift;
 
@@ -177,6 +102,84 @@ SolutionSet QR::Solve(Coefficients coefs)
     // Extract roots — read diagonal
     extractRoots(roots, A, degree, coefs);
     return roots;
+}
+
+void QR::decompGramSchmidt(Matrix &A, size_t degree, size_t shift_idx)
+{
+    PROFILE_FUNCTION();
+
+    std::vector<double> v(shift_idx); // vector for storing current column of A. Note: only the first {0 to (curr val of shift_idx - 1) } indexes are used per iteration.
+
+    Q.resize(A.size());
+    R.resize(A.size());
+    std::fill(Q.begin(), Q.end(), 0.0);
+
+    // step 1 - calculate Q : Q = A[col] - projections onto the previous Q[col]
+    for (size_t col = 0 ; col < shift_idx; col++)
+    {
+	// set v with column A[col]
+	for (size_t row = 0 ; row< shift_idx; row++)
+	    v[row] = A[row * degree + col];
+
+	// subtract projection : v[col] = A[col] - proj onto the previous (<col) orthonormal colums of Q.
+	for (size_t curr_col = 0; curr_col < col; curr_col++)
+	{
+	    // compute dot product ...
+	    double dot_product {0.0};
+	    for (size_t curr_row = 0; curr_row < shift_idx; ++curr_row)
+	    {
+		dot_product += Q[curr_row * degree + curr_col] * v[curr_row];
+	    }
+
+	    // .. and subtract it from the current column vector
+	    for (size_t curr_row=0; curr_row < shift_idx; ++curr_row)
+	    {
+		v[curr_row] -= dot_product * Q[curr_row * degree + curr_col];
+	    }
+	}
+
+	// normalize column of q
+	double norm = 0.0;
+	for (size_t k = 0; k < shift_idx; ++k)
+	{
+	    norm += v[k] * v[k];
+	}
+
+	double normReciprocal = 1.0 / std::sqrt(norm);
+
+	for (size_t k = 0; k < shift_idx; ++k)
+	{
+	    Q[k * degree + col] = v[k] * normReciprocal;
+	}
+    }
+
+    // step 2 - calculate R :  R = Q A
+    for (size_t row = 0; row < shift_idx; row++)
+    {
+	for (size_t col = 0; col < shift_idx; col++)
+	{
+	    double sum {0.0};
+	    for (size_t inner = 0; inner < shift_idx; inner++)
+	    {
+		sum += (Q[inner * degree + row] * A[inner * degree + col]);     // Q transposed
+	    }
+	    R[row* degree + col] = sum;
+	}
+    }
+
+    // step 3 - A = R Q
+    for (size_t row = 0; row < shift_idx; row++)
+    {
+	for (size_t col = 0; col < shift_idx; col++)
+	{
+	    double sum {0.0};
+	    for (size_t inner = 0; inner< shift_idx; ++inner)
+	    {
+		sum += R[row * degree + inner] * Q[inner * degree + col];
+	    }
+	    A[row* degree + col] = sum; // resetting A[row][col]
+	}
+    }
 }
 
 void QR::extractRoots(SolutionSet& roots, const std::vector<double>& M, size_t degree, const Coefficients &coeffs)

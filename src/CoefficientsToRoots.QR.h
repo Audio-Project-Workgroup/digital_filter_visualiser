@@ -30,6 +30,13 @@ public:
   static SolutionSet Solve(Coefficients coeffs);
 private:
 
+  using Matrix = std::vector<double>;
+  static Matrix Q, R;
+
+  using DecompFn = void(*)(Matrix &, size_t, size_t);
+  static void decompGramSchmidt(Matrix &A, size_t degree, size_t shift_idx);
+  static constexpr DecompFn decomp = &decompGramSchmidt;
+
   // TODO Finetune these parameters
 
   /*	Threshold for detecting convergence (near-zero) of the subdiagonal elements in QR iteration.*/
