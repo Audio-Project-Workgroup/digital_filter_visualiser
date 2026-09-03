@@ -29,7 +29,8 @@ public:
   X("3:1 complex order 1 + 1 real order 1 a", { {-1, 0.3, 0.4}, {-1, -0.5, 0} } )\
   X("3:1 complex order 1 + 1 real order 1 b", { {-1, 0.3, 0.4}, {-1, 0.5, 0} } )\
   X("3:1 complex order 1 + 1 real order 1 c", { {-1, 0.3, 0.4}, {-1, -0.8, 0} } )\
-  X("3:2 real order 1 + 1 real order 2", { {-1,-0.5,0}, {-1,0.3,0}, {-2,0.2,0} })\
+  X("4:1 real order 4", { {-4, -0.33, 0} })\
+  X("4:2 real order 1 + 1 real order 2", { {-1,-0.5,0}, {-1,0.3,0}, {-2,0.2,0} })\
   X("4:4 real poles order 1", { {-1,-0.5,0}, {-1,0.3,0}, {-1,0.2,0}, {-1,0.1,0} } )\
   X("4:2 real poles order 2", { {-2,-0.5,0}, {-2,0.3,0} } )\
   X("4:2 complex poles order 1 a", { {-1,0.3,0.4}, {-1,-0.1,0.3} } )\
