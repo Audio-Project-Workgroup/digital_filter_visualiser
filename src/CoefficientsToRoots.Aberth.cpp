@@ -11,6 +11,8 @@
 
 Aberth::clustered_root_vector Aberth::Solve(Coefficients coefficients)
 {
+  PROFILE_FUNCTION();
+
     // helper variables
     bool keep_going = true;
     int iteration_counter = 0;
@@ -27,13 +29,14 @@ Aberth::clustered_root_vector Aberth::Solve(Coefficients coefficients)
     vector second_derivative (derivative_coefficients(derivative));
     // initial guesses
     c_vector previous_guesses (initial_guesses(polynomial));
-    
+
     bool choose_method = 0; // 0 - Aberth; 1 - Schroder;
 
     if (choose_method == 0) // aka Aberth
     {
         while (keep_going && (iteration_counter < max_iterations))
         {
+	    PROFILE_SCOPE("Aberth::Solve::loop");
             update_guesses(polynomial, derivative, previous_guesses, new_guesses);
             keep_going = continue_condition(previous_guesses, new_guesses);
 
@@ -41,7 +44,7 @@ Aberth::clustered_root_vector Aberth::Solve(Coefficients coefficients)
             iteration_counter++;
         }
     }
-    
+
     if (choose_method == 1) // aka Schroder
     {
         while (keep_going && (iteration_counter < max_iterations))
@@ -52,7 +55,7 @@ Aberth::clustered_root_vector Aberth::Solve(Coefficients coefficients)
             previous_guesses = new_guesses; // it is expensive
             iteration_counter++;
         }
-        
+
     }
 
 
@@ -69,6 +72,8 @@ Aberth::clustered_root_vector Aberth::Solve(Coefficients coefficients)
 
 void Aberth::zero_small_values(c_vector& new_guesses)
 {
+  PROFILE_FUNCTION();
+
     for (size_t i = 1; i < new_guesses.size(); i++)
     {
         if (abs(std::imag(new_guesses[i])) <= 20.0f * epsilon) // zero the imaginary part
@@ -85,6 +90,8 @@ void Aberth::zero_small_values(c_vector& new_guesses)
 
 void Aberth::clustering_rootes(c_vector& new_guesses, clustered_root_vector& clustered_rootes)
 {
+  PROFILE_FUNCTION();
+
     for (const auto& new_guess : new_guesses)
     {
         bool is_clustered = false;
@@ -102,7 +109,7 @@ void Aberth::clustering_rootes(c_vector& new_guesses, clustered_root_vector& clu
 
                     val = std::complex<double> (val_real, val_imag);
                 }
-                
+
                 else // when the cluster root is real, only average the real part and the Im = 0;
                 {
                     double val_real = (new_guess.real() + val.real()) * 0.5;
@@ -126,6 +133,8 @@ void Aberth::clustering_rootes(c_vector& new_guesses, clustered_root_vector& clu
 
 void Aberth::remove_conjugates(c_vector& new_guesses)
 {
+  PROFILE_FUNCTION();
+
     int n = static_cast<int>(new_guesses.size());
     for (int i = n - 1; i >= 0; i--)
     {
@@ -194,6 +203,8 @@ Aberth::c_vector Aberth::initial_guesses(const vector& polynomial)
 
 Aberth::c_vector Aberth::newton_coefficients(const vector& polynomial, const vector& derivative, const c_vector& guesses)
 {
+  PROFILE_FUNCTION();
+
     // unites p_of_rn and newton_coeff
     const size_t n = polynomial.size() - 1;
     std::vector<std::complex<double>>  coeff(n);
@@ -202,11 +213,15 @@ Aberth::c_vector Aberth::newton_coefficients(const vector& polynomial, const vec
 
     for (size_t i = 0; i < n; i++) // loop over guesses
     {
+      PROFILE_SCOPE("Aberth::newton_coefficients::outer_loop");
+
         p_rn = 0;
         dp_rn = 0;
 
         for( size_t k = 0; k < n; k++)
         {
+	  PROFILE_SCOPE("Aberth::newton_coefficients::inner_loop");
+
             p_rn += static_cast<std::complex<double>>(std::pow(guesses[i], k)) * polynomial[k];
             dp_rn += static_cast<std::complex<double>>(std::pow(guesses[i], k)) * derivative[k];
         }
@@ -232,7 +247,7 @@ Aberth::c_vector Aberth::p_of_rn(const vector& polynomial, const c_vector& guess
         {
             p_rn_i += static_cast<std::complex<double>>(std::pow(guesses[i], k)) * polynomial[k];
         }
-        
+
         p_rn[i] = p_rn_i;
     }
     return p_rn;
@@ -241,14 +256,20 @@ Aberth::c_vector Aberth::p_of_rn(const vector& polynomial, const c_vector& guess
 
 Aberth::c_vector Aberth::thing_in_parenths(const c_vector& guesses)
 {
+  PROFILE_FUNCTION();
+
     const size_t n = guesses.size();
     std::vector<std::complex<double>> paren_content(n);
 
     for (size_t i = 0; i < n; i++ )
     {
+      PROFILE_SCOPE("Aberth::thing_in_parenths::outer_loop");
+
         std::complex<double> rn_sum = 0;
         for (size_t k = 0; k < n; k++)
         {
+	  PROFILE_SCOPE("Aberth::thing_in_parenths::inner_loop");
+
             if (i != k)
             {
                 rn_sum += 1.0 / (guesses[i] - guesses[k]);
@@ -261,12 +282,16 @@ Aberth::c_vector Aberth::thing_in_parenths(const c_vector& guesses)
 
 void Aberth::update_guesses(const vector& polynomial, const vector& derivative, const c_vector& guesses, c_vector& new_guesses)
 {
+  PROFILE_FUNCTION();
+
     const size_t n = guesses.size();
     std::vector<std::complex<double>> parenths = thing_in_parenths(guesses);
     std::vector<std::complex<double>> newton = newton_coefficients(polynomial, derivative, guesses);
 
     for (size_t i = 0; i < n; i++)
     {
+      PROFILE_SCOPE("Aberth::update_guesses::loop");
+
         new_guesses[i] = guesses[i] - newton[i] / (1.0 - newton[i]*parenths[i]);
     }
 }
@@ -290,11 +315,15 @@ void Aberth::update_guesses_schroder(const vector& polynomial, const vector& der
 
 bool Aberth::continue_condition(const c_vector& prev_guesses, const c_vector& new_guesses)
 {
+  PROFILE_FUNCTION();
+
     bool do_i_stop = true;
     const size_t n = prev_guesses.size();
 
     for (size_t i = 0; i < n; i++)
     {
+      PROFILE_SCOPE("Aberth::continue_condition::loop");
+
         if (abs(new_guesses[i]-prev_guesses[i]) < epsilon )
         {
             do_i_stop = do_i_stop && true;
