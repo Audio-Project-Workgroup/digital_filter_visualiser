@@ -102,6 +102,131 @@ namespace CoefficientsToRoots
     }
   }
 
+  static c128
+  evaluatePolynomialAtRoot(const Coefficients &coeffs, Root pt)
+  {
+    // TODO: ensure pt.order is at most coeffs.size()
+
+    ComplexCoefficients quotientBacking(coeffs.size() - 1);
+    ComplexCoefficients ccoeffsBacking(coeffs.size() - 1);
+
+    ComplexCoefficients *quotient = &quotientBacking;
+    c128 result = dividePolynomial(coeffs, pt.value, *quotient);
+    DBG("intermediate remainder: (" << result.real() << ", " << result.imag() << ")");
+
+    ComplexCoefficients *ccoeffs = quotient;
+    quotient = &ccoeffsBacking;
+    quotient->resize(quotient->size() - 1);
+
+    for(int n = 1; n < pt.order; ++n)
+    {
+      result = divideComplexPolynomial(*ccoeffs, pt.value, *quotient);
+      DBG("intermediate remainder: (" << result.real() << ", " << result.imag() << ")");
+      std::swap(ccoeffs, quotient);
+      quotient->resize(quotient->size() - 1);
+    }
+
+    return result;
+  }
+
+  static bool
+  rootDividesPolynomial(const Coefficients &coeffs, Root pt)
+  {
+    if(pt.order > int(coeffs.size()))
+    { return false; } // a root can't divide a polynomial with a smaller order
+
+    ComplexCoefficients quotientBacking(coeffs.size() - 1);
+
+    ComplexCoefficients *quotient = &quotientBacking;
+    c128 lastRem = dividePolynomial(coeffs, pt.value, *quotient);
+
+    // NOTE(ry): if the order is 1, we can only compute 1 remainder, so we
+    // determine divisibility by its magnitude
+    // TODO(ry): is the first remainder sufficient by itself?
+    if(pt.order == 1)
+    {
+      double const eps = 1e-4;
+      bool result = std::abs(lastRem) < eps;
+      return result;
+    }
+
+    // NOTE(ry): otherwise, we determine divisibility from the sequence of
+    // remainders: if the remainders are decreasing, then the root does not
+    // divide the polynomial; if the remainders are increasing, then the root
+    // divides the polynomial
+
+    ComplexCoefficients ccoeffsBacking(coeffs.size() - 1);
+    ComplexCoefficients *ccoeffs = quotient;
+    quotient = &ccoeffsBacking;
+    quotient->resize(quotient->size() - 1);
+
+    // TODO(ry): is it sufficient to just check the first two terms, so we don't
+    // have a worst-case O(n^2) loop here?
+    for(int n = 1; n < pt.order; ++n)
+    {
+      c128 newRem = divideComplexPolynomial(*ccoeffs, pt.value, *quotient);
+      if((std::abs(lastRem) - std::abs(newRem)) > 0)
+      { return false; }
+
+      std::swap(ccoeffs, quotient);
+      quotient->resize(quotient->size() - 1);
+      lastRem = newRem;
+    }
+
+    return true;
+  }
+
+  // TODO(ry): is this too general? should we always assume pt1.order > pt0.order?
+  static const Root &
+  betterDivisorOfPolynomial(const Coefficients &coeffs, const Root &pt0, const Root &pt1)
+  {
+    jassert(std::max(pt0.order, pt1.order) <= int(coeffs.size()));
+
+    jassert(pt0.order > 0);
+    jassert(pt1.order > 0);
+    ComplexCoefficients remainders0(size_t(pt0.order));
+    ComplexCoefficients remainders1(size_t(pt1.order));
+
+    dividePolynomialByRoot(coeffs, pt0, remainders0);
+    dividePolynomialByRoot(coeffs, pt1, remainders1);
+
+    // NOTE(ry): score remainders
+    // the score is the largest ratio |rem(pt1.value)_k|/|rem(pt2.value)_k|.
+    // the idea is if the remaiders of pt1 are not larger than those of pt0,
+    // then we may say pt1 is a stronger divisor than pt0 since its order is
+    // larger.
+    // note that the remainders are stored in reverse order, so they can be used
+    // for polynomial evaluation (TODO: is that necessary?), so we have to look
+    // at different indices to compare corresponding remainders.
+
+    // TODO(ry): sould we always divide the value with larger order by the value with smaller order?
+    int minOrder = std::min(pt0.order, pt1.order);
+    int remDiff0, remDiff1;
+    if(minOrder == pt0.order)
+    {
+      remDiff0 = 0;
+      remDiff1 = pt1.order - pt0.order;
+    }
+    else // minOrder == pt1.order
+    {
+      remDiff0 = pt0.order - pt1.order;
+      remDiff1 = 0;
+    }
+    double const minDiv = 1e-5;
+    double score = 0.0;
+    // TODO(ry): do we need to look at _all_ the remainders, or is the constant term sufficient?
+    for(int i = 0; i < minOrder; ++i)
+    {
+      // TODO(ry): compare normalized remainders
+      double rem0 = std::abs(remainders0[static_cast<size_t>(i + remDiff0)]);
+      double rem1 = std::abs(remainders1[static_cast<size_t>(i + remDiff1)]);
+      score = std::max(score, rem1/std::max(rem0, minDiv));
+    }
+
+    double const tol = 3;
+    return (score < tol) ? pt1 : pt0;
+  }
+
   static Root
   mergeRoot(Root oldRoot, Root addedRoot)
   {

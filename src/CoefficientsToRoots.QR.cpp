@@ -175,15 +175,63 @@ SolutionSet QR::Solve(Coefficients coefs)
     }
 
     // Extract roots — read diagonal
-    extractRoots(roots, A, degree);
+    extractRoots(roots, A, degree, coefs);
     return roots;
 }
 
-void QR::extractRoots(SolutionSet& roots, const std::vector<double>& M, size_t degree)
+void QR::extractRoots(SolutionSet& roots, const std::vector<double>& M, size_t degree, const Coefficients &coeffs)
 {
     PROFILE_FUNCTION();
 
+  // DEBUG:
+  bool firstrun = 1;
+  int clusterCount = 1;
+  Root oldSolution{};
+  c128 lastrem{};
+  ComplexCoefficients remainders(degree);
+  remainders.resize(1);
+
     auto addRoot = [&](c128 newVal) {
+      // DEBUG:
+      Root newSolution;
+      if(firstrun)
+      {
+	newSolution = Root{newVal, 1};
+      }
+      else
+      {
+	newSolution = mergeRoot(oldSolution, Root{newVal, 1});
+      }
+      if(degree >= 32)
+      { int breakme = 1; }
+
+      if(!firstrun)
+      {
+	const Root &betterSoln = betterDivisorOfPolynomial(coeffs, oldSolution, newSolution);
+	if(&betterSoln == &oldSolution)
+	{
+	  DBG("old solution better, start of new cluster");
+	  roots.push_back(oldSolution);
+	  newSolution = Root{newVal, 1};
+	  ++clusterCount;
+	}
+	else
+	{
+	  DBG("new solution better, same cluster (" << newSolution.order << ")");
+	}
+      }
+
+      c128 rem = evaluatePolynomialAtRoot(coeffs, newSolution);
+      lastrem = rem;
+      c128 newRem = evaluatePolynomial(coeffs, newVal);
+      DBG("poly evaluated at (" << newVal.real() << ", " << newVal.imag() << ")" << " = " << "(" << newRem.real() << ", " << newRem.imag() << ")");
+
+      DBG("(" << newSolution.value.real() << ", " << newSolution.value.imag() << ")^" << newSolution.order << ((rootDividesPolynomial(coeffs, newSolution)) ? " divides" : " does not divide") << " polynomial");
+
+      firstrun = 0;
+      oldSolution = newSolution;
+
+#if 0
         for (auto& [val, order] : roots)
         {
 #if 0
@@ -238,6 +286,7 @@ void QR::extractRoots(SolutionSet& roots, const std::vector<double>& M, size_t d
 #endif
         }
         roots.emplace_back(newVal, 1);
+#endif
     };
 
     size_t i = 0;
@@ -289,4 +338,7 @@ void QR::extractRoots(SolutionSet& roots, const std::vector<double>& M, size_t d
             i += 2;
         }
     }
+
+    roots.push_back(oldSolution);
+    DBG("counted " << clusterCount << " clusters");
 }

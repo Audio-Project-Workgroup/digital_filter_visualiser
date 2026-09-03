@@ -53,6 +53,12 @@ namespace CoefficientsToRoots
   */
   [[maybe_unused]] static void dividePolynomialByRoot(const Coefficients &coeffs, Root pt, ComplexCoefficients &remainders);
 
+  static c128 evaluatePolynomialAtRoot(const Coefficients &coeffs, Root pt); // returns last remainder
+
+  static bool rootDividesPolynomial(const Coefficients &coeffs, Root pt); // determines if (x - pt.value)^pt.order divides the polynomial determined by coeffs
+
+  static const Root &betterDivisorOfPolynomial(const Coefficients &coeffs, const Root &pt0, const Root &pt1);
+
   /** returns the weighted average of `oldRoot` and `addedRoot`, adding their
       orders.
       if one is complex and the other is real, will treat the complex root as a
