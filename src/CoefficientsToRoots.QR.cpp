@@ -50,13 +50,23 @@ SolutionSet QR::Solve(Coefficients coefs)
     std::vector<double> Q(degree * degree);
     std::vector<double> R(degree * degree);
 
+    double state2x2[4]{};
     size_t shift_idx {degree}, iter {0};
     std::vector<double> v(shift_idx); // vector for storing current column of A. Note: only the first {0 to (curr val of shift_idx - 1) } indexes are used per iteration.
     while(shift_idx > 1)
     {
+        if (++iter > MaxIterations)
+	{
+	    DBG("hit MaxIterations " << MaxIterations << " for shift index " << shift_idx);
+	    shift_idx -= 1;
+	    iter = 0;
+	    continue;
+	}
 
-        if (++iter > MaxIterations) break;
-
+	state2x2[0] = A[(shift_idx-2)*degree + shift_idx-2];
+	state2x2[1] = A[(shift_idx-2)*degree + shift_idx-1];
+	state2x2[2] = A[(shift_idx-1)*degree + shift_idx-2];
+	state2x2[3] = A[(shift_idx-1)*degree + shift_idx-1];
 
         // Reset R,Q
         for (size_t r = 0; r < shift_idx; ++r)
@@ -148,16 +158,20 @@ SolutionSet QR::Solve(Coefficients coefs)
         // check only the last subdiagonal entry (real eigenvalue)
         if (std::abs(A[(shift_idx-1)* degree + (shift_idx-2)]) < Epsilon)
         {
-            shift_idx--;
-            iter = 0;
-        }
+	    if(std::abs(state2x2[1*2 + 0] - A[(shift_idx-1)*degree + (shift_idx-2)]) < Epsilon)
+	    {
+	        DBG("shift " << shift_idx << " converged after " << iter << " iterations (1x1)");
+                shift_idx--;
+                iter = 0;
+	    }
+	}
         // check the entry above the 2x2 block in search of complex conjugate pairs
         else if (shift_idx > 2 && std::abs(A[(shift_idx-2) * degree + (shift_idx-3)]) < Epsilon)
         {
-            shift_idx -= 2;
-            iter = 0;
-        }
-
+	    DBG("shift " << shift_idx << " converged after " << iter << " iterations (2x2)");
+	    shift_idx -= 2;
+	    iter = 0;
+	}
     }
 
     // Extract roots — read diagonal
@@ -229,7 +243,6 @@ void QR::extractRoots(SolutionSet& roots, const std::vector<double>& M, size_t d
     size_t i = 0;
     while (i < degree)
     {
-
         if ( i == degree - 1 || std::abs(M[(i+1) * degree + i]) < Epsilon )
         {
             // Real eigenvalue on diagonal
@@ -261,7 +274,7 @@ void QR::extractRoots(SolutionSet& roots, const std::vector<double>& M, size_t d
 
             if ( discriminant >= 0.0)
             {
-                // tow real roots
+                // two real roots
                 addRoot(c128(halfSum + halfSqrt, 0.0));
                 addRoot(c128(halfSum - halfSqrt, 0.0));
             }

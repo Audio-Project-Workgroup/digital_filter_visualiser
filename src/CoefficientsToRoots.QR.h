@@ -27,13 +27,13 @@ public:
 	Returns complex roots paired with their corresponding order.
   */
   //static std::vector<std::pair<c128, int>> QR(std::vector<double> coefs);
-  static CoefficientsToRoots::SolutionSet Solve(CoefficientsToRoots::Coefficients coeffs);
+  static SolutionSet Solve(Coefficients coeffs);
 private:
 
   // TODO Finetune these parameters
 
   /*	Threshold for detecting convergence (near-zero) of the subdiagonal elements in QR iteration.*/
-  static constexpr double Epsilon = 1e-12;
+  static constexpr double Epsilon = 1e-6;//1e-12;
 
   /*	Maximum QR iterations per eigenvalue block to prevent infinite loops.*/
   static constexpr size_t MaxIterations = 100;
