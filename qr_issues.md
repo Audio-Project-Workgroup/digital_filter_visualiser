@@ -23,17 +23,17 @@
   - see 6: 1 real order 4 + 2 real order 1 a, 6: 3 real order 2
 
 # FAILING TESTS:
--  4: 2 real order 1 + 1 real order 2
--  4: 4 real order 1
+-  ~~4: 2 real order 1 + 1 real order 2~~
+-  ~~4: 4 real order 1~~
 -  5: 5 real order 1 b
 -  5: 1 real order 1 + 2 complex order 1 a
 -  6: 1 real order 4 + 1 complex order 1 a
 -  6: 1 real order 4 + 2 real order 1 a
--  6: 1 real order 4 + 2 real order 1 b
+-  ~~6: 1 real order 4 + 2 real order 1 b~~
 -  6: 3 real order 2
--  7: 1 real order 6 + 1 real order 1
+-  ~~7: 1 real order 6 + 1 real order 1~~
 -  7: 7 real order 1
--  8: 1 real order 7 + 1 real order 1
+-  ~~8: 1 real order 7 + 1 real order 1~~
 -  8: 8 real order 1
 -  8: 6 real order 1 + 1 complex order 1
 -  8: 4 real order 1 + 2 complex order 1
@@ -42,6 +42,7 @@
 - 10: 1 real order 5 + 1 real order 4 + 1 real order 1
 - 10: 1 real order 4 + 1 real order 3 + 1 real order 2 + 1 real order 1
 - 10: 1 real order 4 + 1 real order 3 + 1 real order 1 + 1 complex order 1
+- 32: 1 real order 32 (NEW WITH HOUSEHOLDER)
 
 # THINGS TO WORK ON
 

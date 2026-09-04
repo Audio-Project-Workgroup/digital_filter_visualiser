@@ -35,7 +35,8 @@ private:
 
   using DecompFn = void(*)(Matrix &, size_t, size_t);
   static void decompGramSchmidt(Matrix &A, size_t degree, size_t shift_idx);
-  static constexpr DecompFn decomp = &decompGramSchmidt;
+  static void decompHouseholder(Matrix &A, size_t degree, size_t shift_idx);
+  static constexpr DecompFn decomp = &decompHouseholder;
 
   // TODO Finetune these parameters
 

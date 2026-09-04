@@ -182,6 +182,142 @@ void QR::decompGramSchmidt(Matrix &A, size_t degree, size_t shift_idx)
     }
 }
 
+void QR::decompHouseholder(Matrix &A, size_t degree, size_t shift_idx)
+{
+  Q.resize(A.size());
+  R.resize(A.size());
+  auto N = degree;
+
+  // TODO(ry): many of these loops may be shortened or even eliminated by
+  // exploiting the fact that A is initialized upper-hessenberg (and always so over each iteration?)
+
+  // TODO(ry): exploit upper-triangularity of R matrix
+
+  // NOTE(ry): A is iniitialized row-major (TODO: would be less work if it was column-major)
+
+  // NOTE(ry): R is a column-major matrix
+
+  // NOTE(ry): V a column-major matrix which stores v column-vectors used for each Q_k
+  auto &V = Q;
+
+  // NOTE(ry): scratch space for intermediate vector calculations
+  std::vector<double> scratch(shift_idx);
+
+  // NOTE(ry): initialize R to A
+  for(size_t j = 0; j < shift_idx; ++j)
+  {
+    for(size_t i = 0; i < shift_idx; ++i)
+    {
+      // TODO(ry): anything to do about this access pattern?
+      R[i + j*N] = A[i*N + j];
+    }
+  }
+
+  // NOTE(ry): compute R via householder reflections.
+  // compute sequence of reflections to put R in upper-triangular form
+  {
+    // TODO(ry): since A is upper-hessenberg, it should be sufficient to only
+    // work with 2-component v vectors, which zero out the sole sub-diagonal
+    // element
+    for(size_t k = 0; k < shift_idx-1; ++k)
+    {
+      auto &u = scratch;
+      auto alpha = 0.0;
+      {
+	auto *rcol = &R.data()[k + k*N];
+	for(size_t i = 0; i < shift_idx-k; ++i)
+	{
+	  auto x = rcol[i];
+	  alpha += x*x;
+	  u[i] = x;
+	}
+      }
+      alpha = std::sqrt(alpha);
+      u[0] -= alpha; // TODO(ry): don't always subtract here. if u[0] goes to zero then its inverse norm can go to infinity, so make sure we increase magnitude (add if u[0] positive, subtract if negative).
+
+      auto unorm = 0.0;
+      for(size_t i = 0; i < shift_idx-k; ++i)
+      {
+	unorm += u[i]*u[i];
+      }
+      auto unorminv = 1.0/std::sqrt(unorm);
+
+      auto *vcol = &V.data()[k + k*N];
+      for(size_t i = 0; i < shift_idx-k; ++i)
+      {
+	vcol[i] = u[i]*unorminv;
+      }
+
+      // NOTE(ry): update R
+      {
+	// NOTE(ry): v^T*R
+	auto &rowTemp = scratch;
+	{
+	  auto *vrow = vcol;
+	  for(size_t j = 0; j < shift_idx-k; ++j)
+	  {
+	    rowTemp[j] = 0.0;
+	    auto *rcol = &R.data()[k + (k+j)*N];
+	    for(size_t i = 0; i < shift_idx-k; ++i)
+	    {
+	      rowTemp[j] += vrow[i]*rcol[i];
+	    }
+	  }
+	}
+
+	// NOTE(ry): R' = (I - 2*v*v^T)*R
+	for(size_t j = 0; j < shift_idx-k; ++j)
+	{
+	  auto *rcol = &R.data()[k + (k+j)*N];
+	  for(size_t i = 0; i < shift_idx-k; ++i)
+	  {
+	    rcol[i] -= 2.0*vcol[i]*rowTemp[j];
+	  }
+	}
+      }
+    }
+  }
+
+  // NOTE(ry): update A
+  {
+    // NOTE(ry): set A to R (TODO: wouldn't be necessary if A was always column-major)
+    for(size_t i = 0; i < shift_idx; ++i)
+    {
+      for(size_t j = 0; j < shift_idx; ++j)
+      {
+	A[i*N + j] = R[i + j*N];
+      }
+    }
+
+    for(size_t k = 0; k < shift_idx-1; ++k)
+    {
+      // NOTE(ry): A*v
+      auto *vcol = &V.data()[k + k*N];
+      auto &colTemp = scratch;
+      for(size_t i = 0; i < shift_idx; ++i)
+      {
+	colTemp[i] = 0.0;
+	auto *arow = &A.data()[i*N + k];
+	for(size_t j = 0; j < shift_idx-k; ++j)
+	{
+	  colTemp[i] += arow[j]*vcol[j];
+	}
+      }
+
+      // NOTE(ry): A' = A*(I - 2*v*v^T)
+      for(size_t i = 0; i < shift_idx; ++i)
+      {
+	auto *arow = &A.data()[i*N + k];
+	auto *vrow = vcol;
+	for(size_t j = 0; j < shift_idx-k; ++j)
+	{
+	  arow[j] -= 2.0*colTemp[i]*vrow[j];
+	}
+      }
+    }
+  }
+}
+
 void QR::extractRoots(SolutionSet& roots, const std::vector<double>& M, size_t degree, const Coefficients &coeffs)
 {
     PROFILE_FUNCTION();
