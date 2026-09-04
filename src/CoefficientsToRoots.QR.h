@@ -27,13 +27,21 @@ public:
 	Returns complex roots paired with their corresponding order.
   */
   //static std::vector<std::pair<c128, int>> QR(std::vector<double> coefs);
-  static CoefficientsToRoots::SolutionSet Solve(CoefficientsToRoots::Coefficients coeffs);
+  static SolutionSet Solve(Coefficients coeffs);
 private:
+
+  using Matrix = std::vector<double>;
+  static Matrix Q, R;
+
+  using DecompFn = void(*)(Matrix &, size_t, size_t);
+  static void decompGramSchmidt(Matrix &A, size_t degree, size_t shift_idx);
+  static void decompHouseholder(Matrix &A, size_t degree, size_t shift_idx);
+  static constexpr DecompFn decomp = &decompHouseholder;
 
   // TODO Finetune these parameters
 
   /*	Threshold for detecting convergence (near-zero) of the subdiagonal elements in QR iteration.*/
-  static constexpr double Epsilon = 1e-12;
+  static constexpr double Epsilon = 1e-6;//1e-12;
 
   /*	Maximum QR iterations per eigenvalue block to prevent infinite loops.*/
   static constexpr size_t MaxIterations = 100;
@@ -45,7 +53,7 @@ private:
   /*	Extracts roots from the eigenvalues of the converged quasi-triangular QR matrix and merges duplicates.
 	For more details see description of QR method */
   //static void extractRoots(std::vector<std::pair<c128, int>> &, const std::vector<double>&, size_t);
-  static void extractRoots(CoefficientsToRoots::SolutionSet&, const std::vector<double>&, size_t);
+  static void extractRoots(SolutionSet&, const std::vector<double>&, size_t, const Coefficients &coeffs);
 };
 
 SOLVER_DEFINE(QR)
